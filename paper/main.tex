@@ -1,0 +1,170 @@
+\documentclass[10pt,twocolumn]{article}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{amsmath,amssymb,booktabs,graphicx,microtype,url}
+\usepackage[hidelinks]{hyperref}
+\title{Causal Forecast-Conditioned BS-RoFormer for Ocean Sound Separation}
+\author{Anonymous}
+\date{}
+
+\newcommand{\method}{FC-BSR}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Ocean source separators normally infer a changing background only from the
+mixture being separated. We study whether a causal forecast of the expected
+background, computed from prior soundscape measurements, improves separation.
+The proposed system encodes historical one-third-octave levels, predicts the
+current background spectrum, and injects either the forecast latent state or
+the predicted spectrum into the band tokens of BS-RoFormer. Forecast and
+separation losses are optimized jointly. We specify three controlled ablations,
+time-disjoint deployment splits, paired SI-SDR evaluation, and a real-time
+factor check. Because the available public product contains hourly spectral
+levels rather than phase-aligned audio, the present implementation uses
+random-phase background surrogates. The included smoke experiment validates
+the complete software and gradient path; it is not evidence of field
+performance. This distinction makes the prototype reproducible without
+overstating its current empirical scope.
+\end{abstract}
+
+\section{Introduction}
+Passive acoustic backgrounds vary with shipping, weather, biology, and season.
+A separator that only observes the current mixture must estimate both the
+target and that background at once. Long-context soundscape forecasting offers
+an additional, strictly causal signal: what the background was expected to look
+like immediately before the mixture arrived. Our hypothesis is that this prior
+helps a separator reject predictable energy while retaining an unexpected
+injected source.
+
+We combine the band-split RoPE Transformer (BS-RoFormer) architecture
+\cite{lu2023bsroformer} with a causal recurrent forecast encoder. The
+contributions are: (i) a differentiable forecast--separation model; (ii) matched
+ablations for no forecast, latent conditioning, and spectrum conditioning;
+(iii) a leakage-audited deployment split; and (iv) an evaluation protocol that
+reports separation, forecast error, uncertainty, and computational usability.
+
+\section{Data and waveform construction}
+We use NOAA--Navy SanctSound hourly one-third-octave level (TOL) products
+\cite{noaa2020sanctsound}. MB03 deployments 01 and 02 form the training set,
+03 is validation, and 04 is held-out test. A sample at hour $t$ is eligible only
+when all $H$ preceding hours and hour $t$ are finite and exactly contiguous.
+Normalization statistics are fitted on the two training deployments only.
+
+The public TOL product is an aggregate and cannot determine waveform phase.
+For each current spectrum $S_t$, we interpolate its dB envelope on FFT bins,
+draw a seeded random phase and Rayleigh-like magnitude jitter, invert the FFT,
+and normalize RMS. This gives background surrogate $n_t$. It preserves the
+coarse measured spectral envelope but not transients, phase, or within-hour
+events. It must not be described as recovered raw audio.
+
+The injected signal $s_t$ follows the controllable synthesis design developed
+in MINUS: harmonic partials plus band-limited noise, attack/release edges, and
+low-frequency amplitude modulation. Parameters and source-to-background SNR
+are redrawn deterministically for every sample. The mixture is
+$x_t=n_t+s_t$, and clipping is prevented by common rescaling.
+
+\section{Method}
+Let $S_{t-H:t-1}\in\mathbb{R}^{H\times F}$ be normalized historical TOL.
+A GRU produces
+\begin{align}
+ z_t &= \operatorname{LN}(\operatorname{GRU}(S_{t-H:t-1})),\\
+ \widehat S_t &= g_\theta(z_t).
+\end{align}
+Only observations ending at $t-1$ enter the encoder. The latent-conditioned
+model uses $c_t=z_t$; the spectrum-conditioned model uses
+$c_t=\widehat S_t$. The baseline supplies an all-zero condition and omits the
+forecaster.
+
+BS-RoFormer converts mixture STFT bins into band tokens
+$X\in\mathbb{R}^{B\times T\times K\times D}$. Rather than concatenate an
+unstructured vector to audio, we learn a band-specific condition bias:
+\begin{equation}
+ \widetilde X_{:,\tau,k,:}=X_{:,\tau,k,:}
+   +[\operatorname{Linear}(\operatorname{LN}(c_t))]_{k,:}.
+\end{equation}
+The conditioned tokens pass through the unchanged time/frequency Transformer
+stack and complex mask estimator. This location gives every time frame the
+same forecast prior while retaining frequency-specific effects.
+
+The end-to-end objective is
+\begin{equation}
+ \mathcal L=\mathcal L_{\mathrm{wave}}
+ +\tfrac12\sum_r\mathcal L_{\mathrm{complex\ STFT},r}
+ +\lambda\lVert\widehat S_t-S_t\rVert_1,
+\end{equation}
+with $\lambda=0.2$ for conditioned variants. Gradients from both objectives
+reach the forecast encoder; this is joint training, not frozen feature export.
+
+\section{Experimental protocol}
+All variants use identical samples, synthesis seeds, optimizer schedule, model
+width, matched separator-core initialization, and checkpoint rule. The checkpoint with maximum validation SI-SDR
+improvement (SI-SDRi) is evaluated once on MB03\_04. SI-SDR follows the
+scale-invariant projection form; improvement subtracts mixture SI-SDR.
+We also report residual-background SI-SDR, forecast MAE in dB, inference
+real-time factor (RTF), parameter count, and the fraction of paired test examples
+where conditioning beats the baseline. Metric uncertainty is a seeded paired
+bootstrap over test examples. BSS evaluation background is discussed by
+Vincent et al.\ \cite{vincent2006sdr}.
+
+\begin{center}
+\centering
+\small\textbf{Table 1:} Smoke experiment on 128 TOL-derived surrogate examples.\\[2pt]
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lrrrr}
+\toprule
+Condition & SI-SDRi & $\Delta$ base & Forecast MAE & RTF\\
+ & (dB) & (dB) & (dB) & \\
+\midrule
+None (BS-RoFormer) & 3.75 & 0 & -- & .0028\\
+Predicted latent & 3.44 & -0.31 & 4.06 & .0034\\
+Predicted spectrum & 4.15 & +0.39 & 4.21 & .0029\\
+\bottomrule
+\end{tabular}
+}
+\end{center}
+
+\subsection{Smoke results}
+The small model was trained for 300 optimizer updates with 1,024 examples from
+each training deployment, 64 validation examples, and 128 fixed test examples.
+The unconditioned model reached 3.75 dB SI-SDRi. Latent conditioning reached
+3.44 dB, a paired change of $-0.31$ dB (95\% bootstrap interval
+$[-0.43,-0.20]$); spectrum conditioning reached 4.15 dB, a change of
+$+0.39$ dB ($[0.17,0.61]$). The smoke result therefore supports the explicit
+predicted-spectrum interface but not the latent interface. This is evidence on
+surrogate waveforms only, not a field-audio claim. All variants had RTF below
+0.004 on an RTX 3060, so compute is not the observed bottleneck. The conditioned
+models' forecast MAE was 4.06--4.21 dB. Full configuration and unrounded values are
+stored in \texttt{results/smoke\_ablation.json}.
+
+\section{Usability criteria}
+The method is operationally usable only if its RTF is below one on the declared
+hardware, memory fits the deployment device, and performance remains stable
+across source SNR and time blocks. The scientific hypothesis is supported only
+if a conditioned variant has positive paired SI-SDRi gain over the unconditioned
+baseline and its 95\% interval excludes zero on unseen, phase-aligned recordings.
+If forecast MAE improves while separation does not, the condition is either
+irrelevant or poorly injected. If oracle current spectra help but forecasts do
+not, forecasting is the bottleneck. These outcomes are explicitly falsifying,
+not post-hoc exceptions.
+
+\section{Limitations}
+Hourly TOL removes phase and within-hour temporal structure. Random-phase
+surrogates can make spectral priors artificially direct and underestimate real
+ocean complexity. The current test therefore establishes implementation
+correctness and controlled behavior only. The decisive experiment requires
+timestamp-aligned raw MB03 hydrophone audio: compute historical features
+without crossing the test boundary, mix held-out waveform clips with the same
+seeded sources, freeze all choices on MB03\_03, and evaluate MB03\_04 once.
+Multiple training seeds and SNR-stratified confidence intervals should then be
+reported.
+
+\section{Conclusion}
+\method{} supplies a concrete, leakage-resistant route from soundscape
+forecasting to source separation. Its frequency-specific conditioning path and
+three-way ablation isolate whether a compact forecast representation or an
+explicit predicted spectrum is more useful. The repository is ready for the
+full raw-audio experiment, while its present surrogate scope is stated plainly.
+
+\bibliographystyle{plain}
+\bibliography{reference}
+\end{document}

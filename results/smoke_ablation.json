@@ -1,0 +1,53 @@
+{
+  "status": "completed engineering smoke experiment",
+  "scientific_scope": "random-phase waveforms reconstructed from hourly TOL; not field-audio validation",
+  "configuration": {
+    "seed": 20261021,
+    "train_deployments": ["MB03_01", "MB03_02"],
+    "validation_deployment": "MB03_03",
+    "test_deployment": "MB03_04",
+    "steps": 300,
+    "training_examples_per_deployment": 1024,
+    "validation_examples": 64,
+    "test_examples": 128,
+    "history_hours": 24,
+    "audio_seconds": 0.25,
+    "small_model": true,
+    "initialization": "separator core matched across variants with seed+1; forecaster matched across conditioned variants with seed+2",
+    "hardware": "NVIDIA GeForce RTX 3060",
+    "torch": "2.14.0+cu126"
+  },
+  "variants": {
+    "none": {
+      "best_step": 300,
+      "source_si_sdri_db": 3.7511496656,
+      "source_si_sdri_ci95_db": [2.9313250788, 4.5872292117],
+      "ocean_si_sdr_db": 3.9981119293,
+      "forecast_mae_db": null,
+      "real_time_factor": 0.0027516312
+    },
+    "latent": {
+      "best_step": 300,
+      "source_si_sdri_db": 3.4376702961,
+      "source_si_sdri_ci95_db": [2.6309223953, 4.2550550833],
+      "ocean_si_sdr_db": 3.7009502297,
+      "forecast_mae_db": 4.0581730129,
+      "real_time_factor": 0.0034179156,
+      "paired_gain_over_none_db": -0.3134793695,
+      "paired_gain_ci95_db": [-0.4309941451, -0.1972469322],
+      "wins_fraction": 0.3359375
+    },
+    "spectrum": {
+      "best_step": 100,
+      "source_si_sdri_db": 4.1455079825,
+      "source_si_sdri_ci95_db": [3.4278501583, 4.8858481892],
+      "ocean_si_sdr_db": 2.4498858630,
+      "forecast_mae_db": 4.2132903868,
+      "real_time_factor": 0.0029280000,
+      "paired_gain_over_none_db": 0.3943583169,
+      "paired_gain_ci95_db": [0.1743733770, 0.6124837361],
+      "wins_fraction": 0.5859375
+    }
+  },
+  "conclusion": "Predicted-spectrum conditioning improved paired SI-SDRi by 0.39 dB over matched direct BS-RoFormer training in this small surrogate experiment; latent conditioning reduced it by 0.31 dB. This supports the spectrum interface only within the surrogate scope, not field audio."
+}

@@ -1,0 +1,11 @@
+numpy>=1.26
+pandas>=2.1
+torch>=2.2
+einops>=0.8
+einx
+beartype>=0.19
+rotary-embedding-torch>=0.8
+hyper-connections>=0.4.4
+PoPE-pytorch>=0.0.15
+torch-einops-utils>=0.1.2
+librosa>=0.10

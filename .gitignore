@@ -1,0 +1,46 @@
+third_party/
+
+# Environments, caches, and editor state
+.env/
+.venv/
+.envs/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+tmp/
+.idea/
+.vscode/
+
+# Data, checkpoints, audio, and generated experiment artifacts
+datasets/
+data/
+experiments/
+exp/
+checkpoints/
+runs/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.wav
+*.flac
+*.f32
+events.out.tfevents.*
+
+# LaTeX build products (source and intentional figures remain tracked)
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+paper/*.pdf
+
+# OS noise
+.DS_Store
+Thumbs.db
