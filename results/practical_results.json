@@ -1,0 +1,52 @@
+{
+  "status": "engineering usability gate passed on surrogate waveforms",
+  "scope": "SanctSound TOL-derived random-phase backgrounds; not phase-aligned field audio",
+  "training": {
+    "updates": 1500,
+    "train_examples_per_deployment": 4000,
+    "train_snr_db": [-12, 12],
+    "validation_examples": 128,
+    "test_examples": 256,
+    "strength_examples_per_level": 128,
+    "model_parameters": 234848,
+    "checkpoint_bytes": 1036495,
+    "hardware": "NVIDIA GeForce RTX 3060"
+  },
+  "conditioned_spectrum": {
+    "si_sdri_db": 5.7395438645,
+    "si_sdri_ci95_db": [5.0356303686, 6.4679141142],
+    "ocean_si_sdr_db": 5.9745856251,
+    "forecast_mae_db": 3.4296243386,
+    "batched_real_time_factor": 0.0024281937,
+    "frontend_10_second_real_time_factor": 0.0434632400
+  },
+  "matched_unconditioned_baseline": {
+    "si_sdri_db": 6.0187974810,
+    "si_sdri_ci95_db": [5.3655068511, 6.6937832433],
+    "paired_conditioned_gain_db": -0.2792536165,
+    "paired_gain_ci95_db": [-0.6867864356, 0.1444240790],
+    "conditioned_wins_fraction": 0.359375
+  },
+  "conditioned_strength_sweep": {
+    "-12_dB": {"source_si_sdr_db": -5.4946082419, "source_si_sdri_db": 6.5479887612},
+    "-6_dB": {"source_si_sdr_db": 0.3183632201, "source_si_sdri_db": 6.3164874669},
+    "+0_dB": {"source_si_sdr_db": 5.7513359736, "source_si_sdri_db": 5.7311460119},
+    "+6_dB": {"source_si_sdr_db": 9.7719557476, "source_si_sdri_db": 3.7435270399},
+    "+12_dB": {"source_si_sdr_db": 11.8942482397, "source_si_sdri_db": -0.1380792446}
+  },
+  "baseline_strength_si_sdri_db": {
+    "-12_dB": 6.4375253730,
+    "-6_dB": 7.0549214352,
+    "+0_dB": 6.5497976878,
+    "+6_dB": 4.3713072687,
+    "+12_dB": -0.2626963593
+  },
+  "engineering_gate": {
+    "overall_si_sdri_at_least_5_db": true,
+    "weak_to_equal_snr_si_sdri_at_least_3_db": true,
+    "strong_signal_source_si_sdr_at_least_8_db": true,
+    "frontend_real_time_factor_below_1": true,
+    "passed": true
+  },
+  "scientific_conclusion": "The conditioned model is usable under the declared surrogate benchmark, but it does not significantly outperform the matched long-trained BS-RoFormer baseline."
+}

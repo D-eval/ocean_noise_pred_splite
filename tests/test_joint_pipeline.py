@@ -6,8 +6,10 @@ import torch
 import unittest
 
 from source.data import eligible_origins
+from source.inference import SeparationEngine
 from source.model import ForecastConditionedSeparator
 from source.synthesis import make_mixture
+from source.train import engineering_usability_gate
 
 
 class JointPipelineTests(unittest.TestCase):
@@ -25,6 +27,18 @@ class JointPipelineTests(unittest.TestCase):
         second = make_mixture(levels, bands, 8000, 1024, 7)
         self.assertTrue(np.allclose(first[0], first[1] + first[2]))
         self.assertTrue(np.array_equal(first[0], second[0]))
+
+    def test_requested_signal_strength_is_exact(self):
+        levels = np.linspace(90, 60, 8)
+        bands = np.geomspace(25, 4000, 8)
+        mixture, source, ocean, params = make_mixture(
+            levels, bands, 8000, 4096, 11, snr_range=(-12.0, -12.0)
+        )
+        measured = 20 * np.log10(
+            np.sqrt(np.mean(source * source)) / np.sqrt(np.mean(ocean * ocean))
+        )
+        self.assertAlmostEqual(params["snr_db"], -12.0, places=6)
+        self.assertAlmostEqual(float(measured), -12.0, places=3)
 
     def test_condition_path_receives_gradient(self):
         torch.manual_seed(3)
@@ -72,6 +86,30 @@ class JointPipelineTests(unittest.TestCase):
         baseline_weight = next(baseline.separator.separator.layers.parameters())
         conditioned_weight = next(conditioned.separator.separator.layers.parameters())
         self.assertTrue(torch.equal(baseline_weight, conditioned_weight))
+
+    def test_engineering_gate_uses_gain_for_weak_and_quality_for_strong(self):
+        test = {"source_si_sdri_db": 5.7, "real_time_factor": 0.003}
+        sweep = {
+            "-12_dB": {"source_si_sdri_db": 6.5},
+            "-6_dB": {"source_si_sdri_db": 6.3},
+            "+0_dB": {"source_si_sdri_db": 5.7},
+            "+6_dB": {"source_si_sdr_db": 9.8},
+            "+12_dB": {"source_si_sdr_db": 11.9},
+        }
+        self.assertTrue(engineering_usability_gate(test, sweep)["passed"])
+
+    def test_frontend_accepts_native_tol_header_spacing(self):
+        engine = SeparationEngine.__new__(SeparationEngine)
+        engine.context_hours = 2
+        engine.columns = ["TOL_25", "TOL_31.5"]
+        engine.mean = np.array([100.0, 90.0], dtype=np.float32)
+        engine.scale = np.array([10.0, 5.0], dtype=np.float32)
+        history = engine.parse_history_csv(
+            "yyyy-mm-ddTHH:MM:SSZ, TOL_25, TOL_31.5\n"
+            "2020-01-01T00:00:00Z, 110, 95\n"
+            "2020-01-01T01:00:00Z, 90, 85\n"
+        )
+        np.testing.assert_allclose(history, [[1.0, 1.0], [-1.0, -1.0]])
 
 
 if __name__ == "__main__":

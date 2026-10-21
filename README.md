@@ -37,6 +37,14 @@ python -m source.run_ablation --steps 1000 --batch-size 8 `
   --validate-every 100
 ```
 
+已训练的实用配置使用 23.5 万参数、1500 次更新和 −12 至 +12 dB 的训练范围。仓库包含约 1 MB 的检查点：
+
+```powershell
+python -m source.web
+```
+
+打开 `http://127.0.0.1:8000`，上传至少 24 行历史 TOL CSV 和当前 WAV，即可试听、下载目标信号与海洋背景。浏览器数据只发送到本机后端。10 秒音频在 RTX 3060 上的端到端 RTF 为 0.043。
+
 输出保存在 `experiments/ablation/<variant>/`。模型权重被 `.gitignore` 排除；小型 JSON/CSV 指标可选择性纳入版本控制。总表 `ablation_summary.json` 给出两种条件相对无条件基线的配对 SI-SDRi 增益、bootstrap 95% 区间和逐样本胜率。
 
 ## 方法摘要
@@ -50,3 +58,11 @@ python -m source.run_ablation --steps 1000 --batch-size 8 `
 ## 已完成的 smoke 结果
 
 300 步小模型实验中，无条件基线、潜表示条件、频谱条件的测试 SI-SDRi 分别为 3.75、3.44、4.15 dB。潜表示相对基线下降 0.31 dB（配对 95% CI：−0.43 至 −0.20），预测频谱提高 0.39 dB（0.17 至 0.61）；三种方案均能快于实时运行。这个结果只支持 TOL 代理波形上的“显式预测频谱”接口，不能外推为现场原始音频结论。完整未四舍五入结果见 [results/smoke_ablation.json](results/smoke_ablation.json)。
+
+## 实用训练与强度测试
+
+1500 步实用模型总体 SI-SDRi 为 5.74 dB（95% CI：5.04–6.47），通过预注册工程门槛。−12/−6/0/+6/+12 dB 五档输入的 SI-SDRi 为 6.55/6.32/5.73/3.74/−0.14 dB；+12 dB 档的绝对目标 SI-SDR 为 11.89 dB，说明高强度输入已接近“无需处理”的区域。
+
+同规模、同训练量的无条件 BS-RoFormer 基线为 6.02 dB；频谱条件相对基线的配对差为 −0.28 dB（95% CI：−0.69 至 0.14），没有显著提升。因此当前结论是“系统达到代理数据上的工程可用性，但长期训练后预测条件未超过强基线”。详细结果见 [results/practical_results.json](results/practical_results.json)。
+
+论文提供英文 [main.tex](paper/main.tex) 与中文 [main_zh.tex](paper/main_zh.tex) 两份源文件，以及已渲染的[英文 PDF](output/pdf/forecast_conditioned_ocean_separation_en.pdf)和[中文 PDF](output/pdf/forecast_conditioned_ocean_separation_zh.pdf)。

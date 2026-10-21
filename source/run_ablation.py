@@ -51,6 +51,7 @@ def main() -> None:
     parser.add_argument("--seconds", type=float, default=0.5)
     parser.add_argument("--validation-examples", type=int, default=128)
     parser.add_argument("--test-examples", type=int, default=256)
+    parser.add_argument("--strength-examples", type=int, default=128)
     parser.add_argument("--train-examples-per-deployment", type=int)
     parser.add_argument("--validate-every", type=int, default=100)
     parser.add_argument("--device", default="cuda")
@@ -76,6 +77,8 @@ def main() -> None:
             str(args.validation_examples),
             "--test-examples",
             str(args.test_examples),
+            "--strength-examples",
+            str(args.strength_examples),
             "--validate-every",
             str(args.validate_every),
             "--device",

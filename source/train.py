@@ -31,6 +31,9 @@ class ExperimentConfig:
     validate_every: int = 100
     validation_examples: int = 128
     test_examples: int = 256
+    strength_examples: int = 128
+    train_snr_low_db: float = -12.0
+    train_snr_high_db: float = 12.0
     train_examples_per_deployment: int | None = None
     seed: int = 20261021
     model_dim: int = 64
@@ -91,6 +94,7 @@ def evaluate(
                     "deployment": batch["deployment"][index],
                     "timestamp": batch["timestamp"][index],
                     "origin": int(batch["origin"][index]),
+                    "snr_db": float(batch["snr_db"][index]),
                     "source_si_sdr_db": float(source_score[index]),
                     "mixture_si_sdr_db": float(mixture_score[index]),
                     "source_si_sdri_db": float(source_score[index] - mixture_score[index]),
@@ -124,6 +128,27 @@ def _write_rows(path: Path, rows: list[dict]) -> None:
         writer.writerows(rows)
 
 
+def engineering_usability_gate(test_summary: dict, strength_sweep: dict) -> dict:
+    """Pre-deployment gate separating enhancement from already-strong quality.
+
+    At low input SNR the meaningful criterion is improvement over the mixture;
+    at high input SNR the mixture is already target-dominant, so absolute target
+    SI-SDR is the appropriate guard against damage.
+    """
+    checks = {
+        "overall_si_sdri_at_least_5_db": test_summary["source_si_sdri_db"] >= 5.0,
+        "weak_to_equal_snr_si_sdri_at_least_3_db": all(
+            strength_sweep[key]["source_si_sdri_db"] >= 3.0
+            for key in ("-12_dB", "-6_dB", "+0_dB")
+        ),
+        "strong_signal_source_si_sdr_at_least_8_db": all(
+            strength_sweep[key]["source_si_sdr_db"] >= 8.0 for key in ("+6_dB", "+12_dB")
+        ),
+        "real_time_factor_below_1": test_summary["real_time_factor"] < 1.0,
+    }
+    return checks | {"passed": all(checks.values())}
+
+
 def run_experiment(config: ExperimentConfig, output: Path, data_root: Path = DEFAULT_DATA_ROOT) -> dict:
     random.seed(config.seed)
     np.random.seed(config.seed)
@@ -140,9 +165,12 @@ def run_experiment(config: ExperimentConfig, output: Path, data_root: Path = DEF
         seconds=config.seconds,
         seed=config.seed,
     )
+    train_dataset_kwargs = dataset_kwargs | {
+        "snr_range": (config.train_snr_low_db, config.train_snr_high_db)
+    }
     train_sets = [
         TOLMixtureDataset(
-            frames[name], name, max_examples=config.train_examples_per_deployment, **dataset_kwargs
+            frames[name], name, max_examples=config.train_examples_per_deployment, **train_dataset_kwargs
         )
         for name in ("MB03_01", "MB03_02")
     ]
@@ -183,6 +211,9 @@ def run_experiment(config: ExperimentConfig, output: Path, data_root: Path = DEF
         "background_waveform": "deterministic random-phase reconstruction from measured hourly TOL envelope",
         "normalisation": "mean/std fitted on MB03_01+02 only",
         "initialisation": "component-local seeds: separator seed+1, forecaster seed+2; separator core matched across variants",
+        "normaliser_mean": normaliser.mean.tolist(),
+        "normaliser_scale": normaliser.scale.tolist(),
+        "spectrum_columns": list(frames["MB03_01"].columns),
         "train_examples": sum(len(dataset) for dataset in train_sets),
         "validation_examples_actual": len(val_set),
         "test_examples_actual": len(test_set),
@@ -237,10 +268,23 @@ def run_experiment(config: ExperimentConfig, output: Path, data_root: Path = DEF
     checkpoint = torch.load(output / "best.pt", map_location=device, weights_only=False)
     model.load_state_dict(checkpoint["model"])
     test_summary, test_rows = evaluate(model, test_loader, normaliser, device)
+    strength_sweep = {}
+    for snr_db in (-12.0, -6.0, 0.0, 6.0, 12.0):
+        strength_set = TOLMixtureDataset(
+            frames["MB03_04"], "MB03_04", max_examples=config.strength_examples,
+            snr_range=(snr_db, snr_db), **dataset_kwargs
+        )
+        strength_loader = DataLoader(
+            strength_set, batch_size=config.batch_size, shuffle=False, num_workers=0
+        )
+        strength_summary, _ = evaluate(model, strength_loader, normaliser, device)
+        strength_sweep[f"{snr_db:+.0f}_dB"] = strength_summary
     result = {
         "variant": config.variant,
         "best_step": checkpoint["step"],
         "test": test_summary,
+        "strength_sweep": strength_sweep,
+        "engineering_usability_gate": engineering_usability_gate(test_summary, strength_sweep),
         "scope": "surrogate-waveform experiment; not raw-audio field validation",
     }
     (output / "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
@@ -259,15 +303,20 @@ def main() -> None:
     parser.add_argument("--seconds", type=float, default=0.5)
     parser.add_argument("--validation-examples", type=int, default=128)
     parser.add_argument("--test-examples", type=int, default=256)
+    parser.add_argument("--strength-examples", type=int, default=128)
+    parser.add_argument("--train-snr-low-db", type=float, default=-12.0)
+    parser.add_argument("--train-snr-high-db", type=float, default=12.0)
     parser.add_argument("--train-examples-per-deployment", type=int)
     parser.add_argument("--validate-every", type=int, default=100)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--small", action="store_true", help="use the smoke-test BS-RoFormer size")
+    parser.add_argument("--practical", action="store_true", help="balanced local deployment profile")
     args = parser.parse_args()
     kwargs = vars(args).copy()
     output = kwargs.pop("output") or Path("experiments") / args.variant
     data_root = kwargs.pop("data_root")
     small = kwargs.pop("small")
+    practical = kwargs.pop("practical")
     config = ExperimentConfig(**kwargs)
     if small:
         config.model_dim = 16
@@ -278,6 +327,15 @@ def main() -> None:
         config.n_fft = 128
         config.hop_length = 32
         config.bands = 12
+    if practical:
+        config.model_dim = 32
+        config.latent_dim = 16
+        config.depth = 2
+        config.heads = 4
+        config.dim_head = 8
+        config.n_fft = 256
+        config.hop_length = 64
+        config.bands = 20
     print(json.dumps(run_experiment(config, output, data_root), indent=2))
 
 

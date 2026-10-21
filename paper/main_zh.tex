@@ -1,0 +1,155 @@
+\documentclass[UTF8,fontset=windows,10pt,twocolumn]{ctexart}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{amsmath,amssymb,booktabs,graphicx,microtype,url}
+\usepackage[hidelinks]{hyperref}
+\title{因果噪声预测条件下的海洋声音分离 BS-RoFormer}
+\author{匿名}
+\date{}
+
+\newcommand{\method}{FC-BSR}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+常规海洋声音分离器只能从当前混合信号中估计持续变化的背景。本文研究一个严格因果的问题：
+根据过去声景预测当前期望背景，并将预测结果作为 BS-RoFormer 的条件，能否改善目标声源
+分离。系统编码历史三分之一倍频程声级（TOL），预测当前背景频谱，并将预测潜表示或显式
+预测频谱注入 BS-RoFormer 的子带 token；预测损失与分离损失联合优化。实验采用部署级时间
+隔离、三组消融、配对 SI-SDR 统计、五档信号强度和实时因子评估。由于公开数据只含小时级
+频谱而非相位对齐原始音频，当前实验使用随机相位背景代理。训练 1500 步后，频谱条件模型
+达到 5.74 dB SI-SDR 提升（SI-SDRi）并可实时运行，但匹配的无条件基线达到 6.02 dB。
+因此系统通过工程可用性门槛，但“预测条件优于直接训练”的科学假设未在收敛实验中得到支持。
+\end{abstract}
+
+\section{引言}
+被动声学背景会随航运、天气、生物活动和季节变化。只观察当前混合信号的分离器必须同时
+估计目标与背景。长时间声景预测提供了另一个严格因果的信息源：混合信号到达前，背景本应
+是什么样。本文假设该先验可能帮助分离器抑制可预测能量，同时保留意外出现的注入声源。
+
+本文将 Band-Split RoPE Transformer（BS-RoFormer）\cite{lu2023bsroformer} 与因果循环
+预测编码器结合。贡献包括：（1）可微的预测--分离联合模型；（2）无预测、潜表示条件和
+频谱条件三组匹配消融；（3）经泄漏审计的部署级划分；（4）同时报告分离质量、预测误差、
+统计不确定性、信号强度鲁棒性和计算可用性的评估协议；（5）可在本地试听和下载结果的前端。
+
+\section{数据与波形构造}
+我们使用 NOAA--Navy SanctSound 小时级 TOL 产品\cite{noaa2020sanctsound}。
+MB03\_01 与 MB03\_02 用于训练，MB03\_03 用于验证，MB03\_04 为留出测试集。
+时刻 $t$ 的样本只有在此前 $H$ 小时及当前小时均有限且严格逐小时连续时才有效。归一化
+统计量仅由两个训练部署拟合。
+
+公开 TOL 是聚合产品，无法确定波形相位。对当前频谱 $S_t$，我们在 FFT 频点上插值其
+dB 包络，使用固定种子采样随机相位和类 Rayleigh 幅度抖动，逆 FFT 后归一化 RMS，
+得到背景代理 $n_t$。该代理保留粗粒度实测频谱包络，但不保留瞬态、相位或小时内事件，
+不能表述为恢复的现场原始音频。
+
+注入信号 $s_t$ 采用 MINUS 中的可控合成逻辑：谐波分音、带限噪声、起音/释音包络与
+低频幅度调制。每个样本确定性地重采样参数和信号背景比。混合信号为
+$x_t=n_t+s_t$，并通过共同缩放避免削波。
+
+\section{方法}
+令 $S_{t-H:t-1}\in\mathbb{R}^{H\times F}$ 为归一化历史 TOL。GRU 产生
+\begin{align}
+ z_t &= \operatorname{LN}(\operatorname{GRU}(S_{t-H:t-1})),\\
+ \widehat S_t &= g_\theta(z_t).
+\end{align}
+编码器只读取截止 $t-1$ 的观测。潜表示方案令 $c_t=z_t$；频谱方案令
+$c_t=\widehat S_t$；基线输入全零条件并删除预测器。
+
+BS-RoFormer 将混合信号 STFT 频点变为子带 token
+$X\in\mathbb{R}^{B\times T\times K\times D}$。本文不把无结构向量拼到音频上，
+而是学习逐子带条件偏置：
+\begin{equation}
+ \widetilde X_{:,\tau,k,:}=X_{:,\tau,k,:}
+ +[\operatorname{Linear}(\operatorname{LN}(c_t))]_{k,:}.
+\end{equation}
+条件 token 随后进入原始时间/频率 Transformer 和复数掩码估计器。这样每个时间帧共享
+预测先验，同时保留频率相关作用。
+
+端到端目标为
+\begin{equation}
+ \mathcal L=\mathcal L_{\mathrm{wave}}
+ +\tfrac12\sum_r\mathcal L_{\mathrm{complex\ STFT},r}
+ +\lambda\lVert\widehat S_t-S_t\rVert_1,
+\end{equation}
+条件模型取 $\lambda=0.2$。预测和分离损失均可反向更新预测编码器，因此这是联合训练，
+而不是冻结特征导出。
+
+\section{实验协议}
+所有方案共享样本、合成种子、优化器日程、模型宽度、分离器核心初始权重和检查点规则。
+验证 SI-SDRi 最高的检查点仅在 MB03\_04 上评估一次。SI-SDR 采用尺度不变投影形式，
+SI-SDRi 为输出 SI-SDR 减去混合信号 SI-SDR。我们还报告残余海洋背景 SI-SDR、
+预测 MAE、实时因子（RTF）、参数量和配对胜率。区间使用固定种子的逐样本配对 bootstrap。
+盲源分离评估背景见 Vincent 等\cite{vincent2006sdr}。
+
+\begin{center}
+\small\textbf{表 1：}匹配的 1500 步、256 个代理测试样本结果。\\[2pt]
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lrrrr}
+\toprule
+条件 & SI-SDRi & 相对基线 & 预测 MAE & RTF\\
+ & (dB) & (dB) & (dB) & \\
+\midrule
+无条件 BS-RoFormer & 6.02 & 0 & -- & .0023\\
+预测频谱 & 5.74 & -0.28 & 3.43 & .0024\\
+\bottomrule
+\end{tabular}
+}
+\end{center}
+
+\subsection{收敛训练与基线}
+实用模型含 234,848 个参数，训练 1500 步；每个训练部署取 4000 个样本，信号背景比从
+$[-12,12]$ dB 均匀采样。频谱条件模型达到 5.74 dB SI-SDRi（95\% 区间
+$[5.04,6.47]$）、5.97 dB 残余海洋 SI-SDR 和 3.43 dB 预测 MAE。匹配的直接
+BS-RoFormer 达到 6.02 dB SI-SDRi。条件模型相对基线的配对差为 $-0.28$ dB
+（$[-0.69,0.14]$），逐样本胜率为 35.9\%。早期 300 步实验曾出现 $+0.39$ dB 条件
+增益；该优势在匹配长训练后消失，说明短跑结果不能支持科学主张。
+
+\begin{center}
+\small\textbf{表 2：}按注入信号强度分层（每档 128 个样本）。\\[2pt]
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{rrrr}
+\toprule
+输入 SNR & 条件模型 SI-SDR & 条件模型 SI-SDRi & 基线 SI-SDRi\\
+(dB) & (dB) & (dB) & (dB)\\
+\midrule
+-12 & -5.49 & 6.55 & 6.44\\
+-6 & 0.32 & 6.32 & 7.05\\
+0 & 5.75 & 5.73 & 6.55\\
++6 & 9.77 & 3.74 & 4.37\\
++12 & 11.89 & -0.14 & -0.26\\
+\bottomrule
+\end{tabular}
+}
+\end{center}
+
+在弱信号与等强度输入下，条件模型至少改善 5.73 dB。输入为 +12 dB 时，混合信号已由
+目标主导，因此 SI-SDRi 接近零，但绝对目标 SI-SDR 仍为 11.89 dB。由此，不同输入强度
+不应共用单一改善阈值，而应同时检查改善量和绝对输出质量。
+
+\section{实用性判据}
+工程门槛要求：总体 SI-SDRi 不低于 5 dB；输入 SNR 不高于 0 dB 时改善至少 3 dB；
+更强输入的绝对目标 SI-SDR 不低于 8 dB；前端 RTF 小于 1。条件模型通过全部四项。
+批量评估 RTF 为 0.0024；完整分块前端在 RTX 3060 上处理 10 秒 WAV 的 RTF 为 0.043。
+但科学假设只有在未见过的相位对齐录音上，条件模型相对无条件基线的配对 SI-SDRi 增益为
+正且 95\% 区间排除零时才成立。当前长训练结果不满足这一要求。
+
+\section{本地应用}
+仓库包含约 1 MB 的检查点和不依赖前端框架的本地 Web 应用。用户上传最近 24 行小时级
+TOL 与当前 WAV；应用校验并归一化历史、预测当前频谱、对重叠波形块执行分离，并提供目标
+信号和残余海洋背景的试听与下载。页面同时绘制预测频谱，展示时长、延迟与 RTF。所有请求
+都停留在 localhost，不会把录音或历史发送给远程服务。
+
+\section{局限性}
+小时级 TOL 删除了相位和小时内时间结构。随机相位代理可能使频谱先验过于直接，并低估真实
+海洋复杂度。因此当前实验只证明实现正确性和受控代理条件下的行为。决定性实验需要时间对齐
+的 MB03 原始水听器音频：历史特征不得跨越测试边界；留出波形与相同种子的目标混合；所有
+选择在 MB03\_03 固定；MB03\_04 只评估一次。届时还需报告多训练种子和按 SNR 分层的区间。
+
+\section{结论}
+\method{} 给出了从声景预测到声音分离的具体、抗泄漏路径及可用本地界面。频谱条件模型在
+宽强度范围的代理基准上达到声明的工程门槛，但没有超过匹配的长训练 BS-RoFormer 基线。
+因此，本仓库是可运行的原型和可证伪的研究结果，而不是预测条件已改善现场录音分离的证据。
+
+\bibliographystyle{plain}
+\bibliography{reference}
+\end{document}

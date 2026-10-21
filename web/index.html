@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>潮汐滤镜 · 海洋声分离</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div>
+        <p class="eyebrow">FORECAST-CONDITIONED SEPARATION</p>
+        <h1>潮汐滤镜</h1>
+        <p class="subtitle">用过去 24 小时的声景，分离此刻的海洋与目标信号。</p>
+      </div>
+      <div id="status" class="status"><i></i><span>正在连接模型…</span></div>
+    </header>
+
+    <main>
+      <section class="hero-grid">
+        <article class="card input-card">
+          <div class="step">01</div>
+          <div>
+            <h2>历史声景</h2>
+            <p>上传至少 24 行、包含 30 个 <code>TOL_*</code> 频带的 CSV。</p>
+          </div>
+          <label class="dropzone" for="historyFile">
+            <input id="historyFile" type="file" accept=".csv,text/csv">
+            <span class="drop-icon">CSV</span>
+            <strong id="historyName">选择历史 TOL</strong>
+            <small id="historyMeta">SanctSound 原始格式可直接使用</small>
+          </label>
+        </article>
+
+        <article class="card input-card">
+          <div class="step">02</div>
+          <div>
+            <h2>当前混合音频</h2>
+            <p>单声道或立体声 WAV，自动转为模型采样率，最长 120 秒。</p>
+          </div>
+          <label class="dropzone" for="audioFile">
+            <input id="audioFile" type="file" accept="audio/wav,.wav">
+            <span class="drop-icon wave">WAV</span>
+            <strong id="audioName">选择混合音频</strong>
+            <small id="audioMeta">文件仅在本机处理</small>
+          </label>
+        </article>
+      </section>
+
+      <section class="action-row">
+        <div class="model-pill"><span>条件</span><strong id="variant">—</strong></div>
+        <div class="model-pill"><span>设备</span><strong id="device">—</strong></div>
+        <button id="runButton" disabled><span>开始分离</span><b>→</b></button>
+      </section>
+
+      <section id="progressPanel" class="progress-panel hidden" aria-live="polite">
+        <div class="progress-copy"><strong>正在推理</strong><span>预测背景频谱并重建目标声源</span></div>
+        <div class="progress-track"><div></div></div>
+      </section>
+
+      <section id="results" class="results hidden">
+        <div class="section-heading">
+          <div><p class="eyebrow">RESULTS</p><h2>分离完成</h2></div>
+          <div class="metrics">
+            <div><span>音频时长</span><strong id="durationMetric">—</strong></div>
+            <div><span>推理耗时</span><strong id="elapsedMetric">—</strong></div>
+            <div><span>实时因子</span><strong id="rtfMetric">—</strong></div>
+          </div>
+        </div>
+
+        <div class="output-grid">
+          <article class="output-card target">
+            <div class="output-label"><span>A</span><div><h3>目标信号</h3><p>模型估计的注入声源</p></div></div>
+            <audio id="sourcePlayer" controls></audio>
+            <a id="sourceDownload" download="separated_target.wav">下载 WAV</a>
+          </article>
+          <article class="output-card ocean">
+            <div class="output-label"><span>B</span><div><h3>海洋背景</h3><p>混合音频减去目标估计</p></div></div>
+            <audio id="oceanPlayer" controls></audio>
+            <a id="oceanDownload" download="separated_ocean.wav">下载 WAV</a>
+          </article>
+        </div>
+
+        <article class="spectrum-card">
+          <div><h3>预测的当前背景频谱</h3><p>由历史 TOL 预测，未读取当前时刻频谱</p></div>
+          <canvas id="spectrum" width="1000" height="240" aria-label="预测背景频谱折线图"></canvas>
+        </article>
+      </section>
+
+      <div id="error" class="error hidden" role="alert"></div>
+    </main>
+
+    <footer><span>LOCAL · PRIVATE · GPU READY</span><span>FC-BSR / BS-RoFormer</span></footer>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

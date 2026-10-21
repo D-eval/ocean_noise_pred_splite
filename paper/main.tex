@@ -21,10 +21,12 @@ separation losses are optimized jointly. We specify three controlled ablations,
 time-disjoint deployment splits, paired SI-SDR evaluation, and a real-time
 factor check. Because the available public product contains hourly spectral
 levels rather than phase-aligned audio, the present implementation uses
-random-phase background surrogates. The included smoke experiment validates
-the complete software and gradient path; it is not evidence of field
-performance. This distinction makes the prototype reproducible without
-overstating its current empirical scope.
+random-phase background surrogates. After 1,500 updates, spectrum conditioning
+achieves 5.74 dB SI-SDR improvement (SI-SDRi) and real-time local inference,
+but a matched unconditioned model reaches 6.02 dB. Thus the system passes an
+engineering usability gate while the claimed conditioning advantage is not
+supported at convergence. This distinction avoids overstating surrogate-data
+evidence as field performance.
 \end{abstract}
 
 \section{Introduction}
@@ -108,44 +110,76 @@ Vincent et al.\ \cite{vincent2006sdr}.
 
 \begin{center}
 \centering
-\small\textbf{Table 1:} Smoke experiment on 128 TOL-derived surrogate examples.\\[2pt]
+\small\textbf{Table 1:} Matched 1,500-update test on 256 surrogate examples.\\[2pt]
 \resizebox{\columnwidth}{!}{%
 \begin{tabular}{lrrrr}
 \toprule
 Condition & SI-SDRi & $\Delta$ base & Forecast MAE & RTF\\
  & (dB) & (dB) & (dB) & \\
 \midrule
-None (BS-RoFormer) & 3.75 & 0 & -- & .0028\\
-Predicted latent & 3.44 & -0.31 & 4.06 & .0034\\
-Predicted spectrum & 4.15 & +0.39 & 4.21 & .0029\\
+None (BS-RoFormer) & 6.02 & 0 & -- & .0023\\
+Predicted spectrum & 5.74 & -0.28 & 3.43 & .0024\\
 \bottomrule
 \end{tabular}
 }
 \end{center}
 
-\subsection{Smoke results}
-The small model was trained for 300 optimizer updates with 1,024 examples from
-each training deployment, 64 validation examples, and 128 fixed test examples.
-The unconditioned model reached 3.75 dB SI-SDRi. Latent conditioning reached
-3.44 dB, a paired change of $-0.31$ dB (95\% bootstrap interval
-$[-0.43,-0.20]$); spectrum conditioning reached 4.15 dB, a change of
-$+0.39$ dB ($[0.17,0.61]$). The smoke result therefore supports the explicit
-predicted-spectrum interface but not the latent interface. This is evidence on
-surrogate waveforms only, not a field-audio claim. All variants had RTF below
-0.004 on an RTX 3060, so compute is not the observed bottleneck. The conditioned
-models' forecast MAE was 4.06--4.21 dB. Full configuration and unrounded values are
-stored in \texttt{results/smoke\_ablation.json}.
+\subsection{Converged training and baseline}
+The practical model has 234,848 parameters and was trained for 1,500 updates
+with 4,000 examples per training deployment and source-to-background SNR drawn
+uniformly from $[-12,12]$ dB. Spectrum conditioning reaches 5.74 dB SI-SDRi
+(95\% interval $[5.04,6.47]$), residual-ocean SI-SDR of 5.97 dB, and forecast
+MAE of 3.43 dB. The matched direct BS-RoFormer reaches 6.02 dB SI-SDRi. The
+paired conditional gain is $-0.28$ dB ($[-0.69,0.14]$), with the conditioned
+model winning 35.9\% of examples. A preliminary 300-update experiment had shown
+a $+0.39$ dB conditional gain; its disappearance after matched longer training
+demonstrates why the short run cannot support the scientific hypothesis.
+
+\begin{center}
+\small\textbf{Table 2:} Separation by injected-source strength (128 examples per level).\\[2pt]
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{rrrr}
+\toprule
+Input SNR & Cond. SI-SDR & Cond. SI-SDRi & Base SI-SDRi\\
+(dB) & (dB) & (dB) & (dB)\\
+\midrule
+-12 & -5.49 & 6.55 & 6.44\\
+-6 & 0.32 & 6.32 & 7.05\\
+0 & 5.75 & 5.73 & 6.55\\
++6 & 9.77 & 3.74 & 4.37\\
++12 & 11.89 & -0.14 & -0.26\\
+\bottomrule
+\end{tabular}
+}
+\end{center}
+
+At weak and equal-strength inputs the conditioned model improves the mixture by
+at least 5.73 dB. At +12 dB, SI-SDRi is near zero because the mixture is already
+target-dominant, while absolute target SI-SDR remains 11.89 dB. This motivates
+separate improvement and absolute-quality gates rather than one threshold for
+all input strengths.
 
 \section{Usability criteria}
-The method is operationally usable only if its RTF is below one on the declared
-hardware, memory fits the deployment device, and performance remains stable
-across source SNR and time blocks. The scientific hypothesis is supported only
+The engineering gate requires overall SI-SDRi of at least 5 dB, at least 3 dB
+improvement for input SNR at or below 0 dB, at least 8 dB absolute target
+SI-SDR for stronger inputs, and frontend RTF below one. The conditioned model
+passes all four checks. Its batched RTF is 0.0024; the complete chunked frontend
+processes a 10-second WAV at RTF 0.043 on an RTX 3060. The scientific hypothesis is supported only
 if a conditioned variant has positive paired SI-SDRi gain over the unconditioned
 baseline and its 95\% interval excludes zero on unseen, phase-aligned recordings.
 If forecast MAE improves while separation does not, the condition is either
 irrelevant or poorly injected. If oracle current spectra help but forecasts do
 not, forecasting is the bottleneck. These outcomes are explicitly falsifying,
 not post-hoc exceptions.
+
+\section{Local application}
+The repository includes a one-megabyte checkpoint and a dependency-light local
+web application. A user supplies the last 24 hourly TOL rows and a WAV mixture.
+The application validates and normalizes history, predicts the current spectrum,
+separates overlapping waveform chunks, and exposes target and residual-ocean
+audio for playback and download. It also plots the predicted spectrum and
+reports duration, latency, and RTF. Requests stay on localhost; no recording or
+history is sent to a remote service.
 
 \section{Limitations}
 Hourly TOL removes phase and within-hour temporal structure. Random-phase
@@ -160,10 +194,11 @@ reported.
 
 \section{Conclusion}
 \method{} supplies a concrete, leakage-resistant route from soundscape
-forecasting to source separation. Its frequency-specific conditioning path and
-three-way ablation isolate whether a compact forecast representation or an
-explicit predicted spectrum is more useful. The repository is ready for the
-full raw-audio experiment, while its present surrogate scope is stated plainly.
+forecasting to source separation and a usable local interface. Spectrum
+conditioning meets the declared surrogate benchmark across a wide intensity
+range, but does not beat the matched long-trained BS-RoFormer baseline. The
+repository is therefore an operational prototype and a falsifiable research
+result, not evidence that forecasts improve separation on field recordings.
 
 \bibliographystyle{plain}
 \bibliography{reference}

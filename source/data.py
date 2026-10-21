@@ -97,6 +97,7 @@ class TOLMixtureDataset(Dataset):
         seconds: float = 0.5,
         seed: int = 20261021,
         max_examples: int | None = None,
+        snr_range: tuple[float, float] = (-8.0, 8.0),
     ):
         self.frame = frame
         self.deployment = deployment
@@ -105,6 +106,7 @@ class TOLMixtureDataset(Dataset):
         self.sample_rate = sample_rate
         self.samples = round(sample_rate * seconds)
         self.seed = seed
+        self.snr_range = snr_range
         self.values = frame.to_numpy(np.float32)
         self.normalised = normaliser.transform(self.values)
         self.origins = eligible_origins(frame, context_hours)
@@ -125,7 +127,8 @@ class TOLMixtureDataset(Dataset):
         target_spectrum = self.normalised[origin]
         waveform_seed = self.seed + origin * 1009
         mixture, source, ocean, parameters = make_mixture(
-            self.values[origin], self.band_centres, self.sample_rate, self.samples, waveform_seed
+            self.values[origin], self.band_centres, self.sample_rate, self.samples,
+            waveform_seed, self.snr_range
         )
         return {
             "history": torch.from_numpy(history),
@@ -136,6 +139,7 @@ class TOLMixtureDataset(Dataset):
             "origin": origin,
             "timestamp": str(self.frame.index[origin]),
             "deployment": self.deployment,
+            "snr_db": float(parameters["snr_db"]),
             "parameters": parameters,
         }
 

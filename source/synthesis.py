@@ -123,10 +123,11 @@ def make_mixture(
     sample_rate: int,
     samples: int,
     seed: int,
+    snr_range: tuple[float, float] = (-8.0, 8.0),
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
     """Create ocean + injected-source mixture with a reproducible SNR."""
     ocean = render_tol_noise(levels_db, band_centres_hz, sample_rate, samples, seed)
-    params = draw_injection(seed + 1)
+    params = draw_injection(seed + 1, snr_range)
     source = render_injection(params, sample_rate, samples)
     ocean_rms = float(np.sqrt(np.mean(ocean * ocean)))
     source_rms = ocean_rms * 10.0 ** (params.snr_db / 20.0)
