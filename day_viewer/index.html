@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>海洋背景噪声矢量时频分析器</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>海洋背景噪声矢量时频分析器</h1>
+        <p id="meta">正在载入连续 24 小时录音……</p>
+      </div>
+      <div class="badge" id="status" role="status" aria-live="polite">载入中</div>
+    </header>
+
+    <section class="toolbar" aria-label="时频图工具">
+      <button id="back" type="button" disabled>返回上一级</button>
+      <button id="reset" type="button" disabled>重置全天</button>
+      <span>在图中拖出矩形区域：松开后会从原始 FLAC 重新计算该区域，而不是放大旧位图。</span>
+    </section>
+
+    <section class="readout" aria-live="polite">
+      <div><span>当前范围</span><strong id="range">—</strong></div>
+      <div><span>实际分辨率</span><strong id="resolution">—</strong></div>
+      <div><span>矢量单元</span><strong id="cells">—</strong></div>
+    </section>
+
+    <section class="chart-wrap" id="chart-wrap">
+      <svg id="chart" role="img" aria-labelledby="chart-title chart-desc">
+        <title id="chart-title">可框选并重新计算的海洋背景噪声时频图</title>
+        <desc id="chart-desc">横轴为 UTC 时间，纵轴为频率。拖动选择区域后，服务器从原始音频重新计算更高分辨率的频谱。</desc>
+      </svg>
+      <div class="tooltip" id="tooltip" role="tooltip"></div>
+    </section>
+
+    <section class="legend" aria-label="颜色图例">
+      <span id="legend-low">—</span><div class="gradient"></div><span id="legend-high">—</span>
+      <span id="unit">—</span>
+    </section>
+
+    <p class="footnote">框选越小，STFT 的时间步长和频率分辨率越细；顶部“实际分辨率”显示本次重新计算采用的参数。</p>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
