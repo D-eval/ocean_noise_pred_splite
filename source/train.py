@@ -14,7 +14,16 @@ import torch
 from torch.utils.data import ConcatDataset, DataLoader
 
 from .data import DEFAULT_DATA_ROOT, SpectrumNormaliser, TOLMixtureDataset, load_experiment_frames
-from .metrics import paired_bootstrap_interval, si_sdr
+from .metrics import (
+    jensen_shannon_bits,
+    kl_divergence_bits,
+    narrow_source_reference,
+    normalised_spectral_entropy,
+    paired_bootstrap_interval,
+    si_sdr,
+    spectral_overlap,
+    spectral_probability,
+)
 from .model import ForecastConditionedSeparator, multi_resolution_loss
 
 
@@ -34,6 +43,7 @@ class ExperimentConfig:
     strength_examples: int = 128
     train_snr_low_db: float = -12.0
     train_snr_high_db: float = 12.0
+    source_profile: str = "narrow"
     train_examples_per_deployment: int | None = None
     seed: int = 20261021
     model_dim: int = 64
@@ -57,6 +67,7 @@ def evaluate(
     loader: DataLoader,
     normaliser: SpectrumNormaliser,
     device: torch.device,
+    reference_source_distribution: np.ndarray | None = None,
 ) -> tuple[dict, list[dict]]:
     model.eval()
     rows: list[dict] = []
@@ -89,12 +100,30 @@ def evaluate(
             scale = torch.as_tensor(normaliser.scale, device=device)
             forecast_mae_db = ((prediction - batch["target_spectrum"]).abs() * scale).mean(-1)
         for index in range(len(source_score)):
+            if reference_source_distribution is None:
+                js_bits = kl_bits = overlap = entropy = None
+            else:
+                distribution = spectral_probability(
+                    source[index].detach().cpu().numpy(), loader.dataset.sample_rate
+                )
+                background_distribution = spectral_probability(
+                    ocean[index].detach().cpu().numpy(), loader.dataset.sample_rate
+                )
+                js_bits = jensen_shannon_bits(distribution, reference_source_distribution)
+                kl_bits = kl_divergence_bits(distribution, reference_source_distribution)
+                overlap = spectral_overlap(distribution, background_distribution)
+                entropy = normalised_spectral_entropy(distribution)
             rows.append(
                 {
                     "deployment": batch["deployment"][index],
                     "timestamp": batch["timestamp"][index],
                     "origin": int(batch["origin"][index]),
                     "snr_db": float(batch["snr_db"][index]),
+                    "source_family": batch["source_family"][index],
+                    "source_js_bits": js_bits,
+                    "source_kl_bits": kl_bits,
+                    "source_ocean_spectral_overlap": overlap,
+                    "source_spectral_entropy": entropy,
                     "source_si_sdr_db": float(source_score[index]),
                     "mixture_si_sdr_db": float(mixture_score[index]),
                     "source_si_sdri_db": float(source_score[index] - mixture_score[index]),
@@ -117,6 +146,15 @@ def evaluate(
         "real_time_factor": elapsed / max(audio_seconds, 1e-9),
         "usable_real_time": elapsed < audio_seconds,
     }
+    if reference_source_distribution is not None:
+        summary["source_js_bits"] = float(np.mean([row["source_js_bits"] for row in rows]))
+        summary["source_kl_bits"] = float(np.mean([row["source_kl_bits"] for row in rows]))
+        summary["source_ocean_spectral_overlap"] = float(
+            np.mean([row["source_ocean_spectral_overlap"] for row in rows])
+        )
+        summary["source_spectral_entropy"] = float(
+            np.mean([row["source_spectral_entropy"] for row in rows])
+        )
     model.train()
     return summary, rows
 
@@ -164,6 +202,7 @@ def run_experiment(config: ExperimentConfig, output: Path, data_root: Path = DEF
         sample_rate=config.sample_rate,
         seconds=config.seconds,
         seed=config.seed,
+        source_profile=config.source_profile,
     )
     train_dataset_kwargs = dataset_kwargs | {
         "snr_range": (config.train_snr_low_db, config.train_snr_high_db)
@@ -267,7 +306,14 @@ def run_experiment(config: ExperimentConfig, output: Path, data_root: Path = DEF
 
     checkpoint = torch.load(output / "best.pt", map_location=device, weights_only=False)
     model.load_state_dict(checkpoint["model"])
-    test_summary, test_rows = evaluate(model, test_loader, normaliser, device)
+    diversity_reference = (
+        narrow_source_reference(config.sample_rate, round(config.sample_rate * config.seconds))
+        if config.source_profile == "broad"
+        else None
+    )
+    test_summary, test_rows = evaluate(
+        model, test_loader, normaliser, device, diversity_reference
+    )
     strength_sweep = {}
     for snr_db in (-12.0, -6.0, 0.0, 6.0, 12.0):
         strength_set = TOLMixtureDataset(
@@ -277,7 +323,9 @@ def run_experiment(config: ExperimentConfig, output: Path, data_root: Path = DEF
         strength_loader = DataLoader(
             strength_set, batch_size=config.batch_size, shuffle=False, num_workers=0
         )
-        strength_summary, _ = evaluate(model, strength_loader, normaliser, device)
+        strength_summary, _ = evaluate(
+            model, strength_loader, normaliser, device, diversity_reference
+        )
         strength_sweep[f"{snr_db:+.0f}_dB"] = strength_summary
     result = {
         "variant": config.variant,
@@ -306,6 +354,7 @@ def main() -> None:
     parser.add_argument("--strength-examples", type=int, default=128)
     parser.add_argument("--train-snr-low-db", type=float, default=-12.0)
     parser.add_argument("--train-snr-high-db", type=float, default=12.0)
+    parser.add_argument("--source-profile", choices=("narrow", "broad"), default="narrow")
     parser.add_argument("--train-examples-per-deployment", type=int)
     parser.add_argument("--validate-every", type=int, default=100)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")

@@ -1,0 +1,55 @@
+{
+  "scope": "six-family broad synthetic profile on MB03 TOL-derived surrogate backgrounds",
+  "training": {
+    "updates": 2000,
+    "train_examples_per_deployment": 4000,
+    "train_snr_db": [-12, 12],
+    "validation_examples": 128,
+    "test_examples": 256,
+    "source_families": [
+      "harmonic",
+      "chirp",
+      "inharmonic",
+      "impulse_train",
+      "frequency_modulated",
+      "band_noise"
+    ]
+  },
+  "unconditioned": {
+    "best_step": 1750,
+    "source_si_sdri_db": 5.0024835564,
+    "source_si_sdri_ci95_db": [4.0407977601, 5.9714884737],
+    "ocean_si_sdr_db": 4.8903429218,
+    "real_time_factor": 0.0022933938,
+    "engineering_gate_passed": true
+  },
+  "predicted_spectrum": {
+    "best_step": 1750,
+    "source_si_sdri_db": 4.7773597387,
+    "source_si_sdri_ci95_db": [3.6856107387, 5.8757159192],
+    "ocean_si_sdr_db": 5.2504289075,
+    "forecast_mae_db": 3.2902610472,
+    "real_time_factor": 0.0024447289,
+    "engineering_gate_passed": false
+  },
+  "conditioning_ablation": {
+    "selection_rule": "highest MB03_03 validation SI-SDRi",
+    "selected": "film",
+    "concat": {
+      "validation_si_sdri_db": 5.1678403486,
+      "test_si_sdri_db": 5.3037027506,
+      "fixed_0_db_gain_over_unconditioned_db": 0.1478549564
+    },
+    "film": {
+      "validation_si_sdri_db": 5.3545672208,
+      "test_si_sdri_db": 5.3861183743,
+      "fixed_0_db_gain_over_unconditioned_db": 0.3415025352
+    },
+    "cross_attention": {
+      "validation_si_sdri_db": 4.9872153522,
+      "test_si_sdri_db": 5.1057837141,
+      "fixed_0_db_gain_over_unconditioned_db": 0.0095487027
+    }
+  },
+  "note": "Full injection ablation and fixed-0-dB paired analyses are in conditioning_ablation.json and diversity_*.json."
+}

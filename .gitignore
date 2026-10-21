@@ -48,4 +48,4 @@ Thumbs.db
 # One compact, deployable checkpoint is intentionally versioned for the UI.
 !models/
 models/*
-!models/practical_spectrum.pt
+!models/practical_film.pt

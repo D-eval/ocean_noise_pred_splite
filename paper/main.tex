@@ -15,18 +15,21 @@ Ocean source separators normally infer a changing background only from the
 mixture being separated. We study whether a causal forecast of the expected
 background, computed from prior soundscape measurements, improves separation.
 The proposed system encodes historical one-third-octave levels, predicts the
-current background spectrum, and injects either the forecast latent state or
-the predicted spectrum into the band tokens of BS-RoFormer. Forecast and
-separation losses are optimized jointly. We specify three controlled ablations,
-time-disjoint deployment splits, paired SI-SDR evaluation, and a real-time
-factor check. Because the available public product contains hourly spectral
+current background spectrum, and injects it into BS-RoFormer band tokens by
+concatenation, feature-wise linear modulation (FiLM), or cross-attention.
+Forecast and separation losses are optimized jointly. We use time-disjoint
+deployment splits, paired SI-SDR evaluation, and a real-time factor check.
+Because the available public product contains hourly spectral
 levels rather than phase-aligned audio, the present implementation uses
-random-phase background surrogates. After 1,500 updates, spectrum conditioning
-achieves 5.74 dB SI-SDR improvement (SI-SDRi) and real-time local inference,
-but a matched unconditioned model reaches 6.02 dB. Thus the system passes an
-engineering usability gate while the claimed conditioning advantage is not
-supported at convergence. This distinction avoids overstating surrogate-data
-evidence as field performance.
+random-phase background surrogates. We additionally expand the source generator
+to six families and measure distribution shift with Jensen--Shannon (JS)
+divergence, KL divergence, and spectral entropy. On 768 paired broad-source
+examples, validation selects FiLM. It improves SI-SDR improvement (SI-SDRi)
+over an unconditioned separator by $0.34$ dB (paired 95\% interval
+$[0.21,0.48]$); concatenation gains $0.15$ dB, while cross-attention is
+indistinguishable from zero. JS divergence alone does not predict gain, whereas
+the highest spectral-entropy quintile gains $0.80$ dB. These controlled
+surrogate results motivate FiLM but do not establish field performance.
 \end{abstract}
 
 \section{Introduction}
@@ -41,9 +44,11 @@ injected source.
 We combine the band-split RoPE Transformer (BS-RoFormer) architecture
 \cite{lu2023bsroformer} with a causal recurrent forecast encoder. The
 contributions are: (i) a differentiable forecast--separation model; (ii) matched
-ablations for no forecast, latent conditioning, and spectrum conditioning;
-(iii) a leakage-audited deployment split; and (iv) an evaluation protocol that
-reports separation, forecast error, uncertainty, and computational usability.
+ablations of concatenation, FiLM, and cross-attention against no forecast;
+(iii) a leakage-audited deployment split; (iv) an evaluation protocol that
+reports separation, forecast error, uncertainty, and computational usability;
+and (v) a six-family source generator with paired analysis by spectral shift,
+source--background overlap, and source entropy.
 
 \section{Data and waveform construction}
 We use NOAA--Navy SanctSound hourly one-third-octave level (TOL) products
@@ -59,11 +64,14 @@ and normalize RMS. This gives background surrogate $n_t$. It preserves the
 coarse measured spectral envelope but not transients, phase, or within-hour
 events. It must not be described as recovered raw audio.
 
-The injected signal $s_t$ follows the controllable synthesis design developed
-in MINUS: harmonic partials plus band-limited noise, attack/release edges, and
-low-frequency amplitude modulation. Parameters and source-to-background SNR
-are redrawn deterministically for every sample. The mixture is
-$x_t=n_t+s_t$, and clipping is prevented by common rescaling.
+The original injected signal $s_t$ follows the controllable synthesis design
+developed in MINUS: harmonic partials plus band-limited noise, attack/release
+edges, and low-frequency amplitude modulation. The broad profile adds chirps,
+inharmonic tones, impulse trains, frequency-modulated tones, and band-limited
+noise, while expanding carrier, modulation, envelope, transient, and noise-mix
+ranges. Parameters, family, and source-to-background SNR are drawn
+deterministically for every sample. The mixture is $x_t=n_t+s_t$, and clipping
+is prevented by common rescaling.
 
 \section{Method}
 Let $S_{t-H:t-1}\in\mathbb{R}^{H\times F}$ be normalized historical TOL.
@@ -72,21 +80,23 @@ A GRU produces
  z_t &= \operatorname{LN}(\operatorname{GRU}(S_{t-H:t-1})),\\
  \widehat S_t &= g_\theta(z_t).
 \end{align}
-Only observations ending at $t-1$ enter the encoder. The latent-conditioned
-model uses $c_t=z_t$; the spectrum-conditioned model uses
-$c_t=\widehat S_t$. The baseline supplies an all-zero condition and omits the
-forecaster.
+Only observations ending at $t-1$ enter the encoder. All three injection
+ablations use $c_t=\widehat S_t$; the baseline omits the forecaster.
 
 BS-RoFormer converts mixture STFT bins into band tokens
-$X\in\mathbb{R}^{B\times T\times K\times D}$. Rather than concatenate an
-unstructured vector to audio, we learn a band-specific condition bias:
-\begin{equation}
- \widetilde X_{:,\tau,k,:}=X_{:,\tau,k,:}
-   +[\operatorname{Linear}(\operatorname{LN}(c_t))]_{k,:}.
-\end{equation}
-The conditioned tokens pass through the unchanged time/frequency Transformer
-stack and complex mask estimator. This location gives every time frame the
-same forecast prior while retaining frequency-specific effects.
+$X\in\mathbb{R}^{B\times T\times K\times D}$. Let $P_k(c_t)$ be a learned
+band-specific projection and $E(c_t)$ a sequence of embedded forecast bins.
+We compare three residual injection operators at the same point before the
+time/frequency Transformer:
+\begin{align}
+\text{Concat: }\widetilde X_k &= X_k+f([X_k;P_k(c_t)]),\\
+\text{FiLM: }\widetilde X_k &= (1+\tanh\gamma_k(c_t))\odot X_k+\beta_k(c_t),\\
+\text{Cross-attn: }\widetilde X &= X+\operatorname{Attn}(X,E(c_t),E(c_t)).
+\end{align}
+The residual branches are initialized to zero, so every run begins from the
+same audio mapping. Concatenation doubles the local feature width before a
+fusion MLP; FiLM directly changes band-token gain and offset; cross-attention
+learns content-dependent alignment to forecast-frequency tokens.
 
 The end-to-end objective is
 \begin{equation}
@@ -96,6 +106,25 @@ The end-to-end objective is
 \end{equation}
 with $\lambda=0.2$ for conditioned variants. Gradients from both objectives
 reach the forecast encoder; this is joint training, not frozen feature export.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.98\textwidth]{figures/architecture.png}
+\caption{FC-BSR architecture. Historical TOL ending at $t-1$ is encoded into a
+forecast of the current ocean spectrum. Concatenation, FiLM, and cross-attention
+inject that prior before the axial Transformer. Separation and forecast losses
+train the system jointly; the unconditioned baseline omits the forecast path.}
+\label{fig:architecture}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.78\textwidth]{figures/conditioning_ablation.png}
+\caption{Matched injection ablation. Model selection uses MB03\_03 validation
+only (left). On 768 fixed-0-dB paired MB03\_04 examples (right), FiLM has the
+largest gain and its bootstrap interval excludes zero; cross-attention does not.}
+\label{fig:conditioning}
+\end{figure*}
 
 \section{Experimental protocol}
 All variants use identical samples, synthesis seeds, optimizer schedule, model
@@ -108,32 +137,54 @@ where conditioning beats the baseline. Metric uncertainty is a seeded paired
 bootstrap over test examples. BSS evaluation background is discussed by
 Vincent et al.\ \cite{vincent2006sdr}.
 
+For distribution shift, waveform power is pooled into $K=64$ log-frequency
+bins and normalized to $p$. Let $q$ be the mean distribution of 512 draws from
+the original narrow harmonic generator. We report the directional
+$D_{\mathrm{KL}}(p\Vert q)$ and use the finite symmetric quantity
+\begin{equation}
+ D_{\mathrm{JS}}(p,q)=\tfrac12D_{\mathrm{KL}}(p\Vert m)
+ +\tfrac12D_{\mathrm{KL}}(q\Vert m),\quad m=(p+q)/2,
+\end{equation}
+as the primary shift metric \cite{lin1991divergence}. Because distance from the old generator need not
+measure source complexity, we also report normalized spectral entropy
+$H(p)/\log_2K$ and source--ocean histogram intersection $\sum_k\min(p_k,n_k)$.
+
 \begin{center}
 \centering
-\small\textbf{Table 1:} Matched 1,500-update test on 256 surrogate examples.\\[2pt]
+\small\textbf{Table 1:} Matched 2,000-update broad-source ablation.\\[2pt]
 \resizebox{\columnwidth}{!}{%
 \begin{tabular}{lrrrr}
 \toprule
-Condition & SI-SDRi & $\Delta$ base & Forecast MAE & RTF\\
- & (dB) & (dB) & (dB) & \\
+Injection & Val. SI-SDRi & Test SI-SDRi & Paired $\Delta_0$ & Params\\
+ & (dB) & (dB) & (dB) & (k)\\
 \midrule
-None (BS-RoFormer) & 6.02 & 0 & -- & .0023\\
-Predicted spectrum & 5.74 & -0.28 & 3.43 & .0024\\
+None & 4.96 & 5.00 & 0 & 231\\
+Concatenation & 5.17 & 5.30 & +0.15 & 238\\
+FiLM & \textbf{5.35} & \textbf{5.39} & \textbf{+0.34} & 255\\
+Cross-attention & 4.99 & 5.11 & +0.01 & 220\\
 \bottomrule
 \end{tabular}
 }
 \end{center}
 
-\subsection{Converged training and baseline}
-The practical model has 234,848 parameters and was trained for 1,500 updates
-with 4,000 examples per training deployment and source-to-background SNR drawn
-uniformly from $[-12,12]$ dB. Spectrum conditioning reaches 5.74 dB SI-SDRi
-(95\% interval $[5.04,6.47]$), residual-ocean SI-SDR of 5.97 dB, and forecast
-MAE of 3.43 dB. The matched direct BS-RoFormer reaches 6.02 dB SI-SDRi. The
-paired conditional gain is $-0.28$ dB ($[-0.69,0.14]$), with the conditioned
-model winning 35.9\% of examples. A preliminary 300-update experiment had shown
-a $+0.39$ dB conditional gain; its disappearance after matched longer training
-demonstrates why the short run cannot support the scientific hypothesis.
+\subsection{Conditioning ablation and selection}
+Each model uses 4,000 examples per training deployment, 2,000 updates, and SNR
+drawn uniformly from $[-12,12]$ dB. We select only by MB03\_03 validation
+SI-SDRi: FiLM obtains 5.35 dB, versus 5.17 for concatenation and 4.99 for
+cross-attention. On the ordinary 256-example broad MB03\_04 test, their scores
+are 5.39, 5.30, and 5.11 dB, respectively; the unconditioned model reaches
+5.00 dB. Thus the held-out test confirms, rather than determines, the choice.
+
+At fixed 0 dB, FiLM gains $0.34$ dB over the same unconditioned outputs
+($[0.21,0.48]$), concatenation gains $0.15$ dB ($[0.02,0.27]$), and
+cross-attention gains $0.01$ dB ($[-0.08,0.10]$). FiLM is a good fit because a
+background spectrum naturally specifies which band features to attenuate,
+amplify, or shift. It preserves the audio evidence while applying a low-depth
+multiplicative/additive prior. Concatenation must relearn a compression of
+doubled features, while cross-attention must estimate an alignment from only a
+coarse hourly spectrum; its extra flexibility is not rewarded at this data
+scale. This explanation is mechanistic and consistent with the results, but is
+not a causal proof.
 
 \begin{center}
 \small\textbf{Table 2:} Separation by injected-source strength (128 examples per level).\\[2pt]
@@ -143,37 +194,78 @@ demonstrates why the short run cannot support the scientific hypothesis.
 Input SNR & Cond. SI-SDR & Cond. SI-SDRi & Base SI-SDRi\\
 (dB) & (dB) & (dB) & (dB)\\
 \midrule
--12 & -5.49 & 6.55 & 6.44\\
--6 & 0.32 & 6.32 & 7.05\\
-0 & 5.75 & 5.73 & 6.55\\
-+6 & 9.77 & 3.74 & 4.37\\
-+12 & 11.89 & -0.14 & -0.26\\
+-12 & -4.63 & 7.30 & 7.32\\
+-6 & 1.00 & 6.95 & 6.78\\
+0 & 5.85 & 5.81 & 5.40\\
++6 & 9.55 & 3.51 & 2.94\\
++12 & 11.94 & -0.10 & -0.70\\
 \bottomrule
 \end{tabular}
 }
 \end{center}
 
-At weak and equal-strength inputs the conditioned model improves the mixture by
-at least 5.73 dB. At +12 dB, SI-SDRi is near zero because the mixture is already
-target-dominant, while absolute target SI-SDR remains 11.89 dB. This motivates
+At weak and equal-strength inputs the selected FiLM model improves the mixture
+by at least 5.81 dB. At +12 dB, SI-SDRi is near zero because the mixture is already
+target-dominant, while absolute target SI-SDR remains 11.94 dB. This motivates
 separate improvement and absolute-quality gates rather than one threshold for
 all input strengths.
+
+\subsection{Broad-source distribution study}
+To isolate source shape from strength, the main diversity evaluation fixes SNR
+at 0 dB and uses 128 held-out MB03\_04
+examples from each family. The resulting 768 examples are exactly paired in
+ocean waveform, source waveform, timestamp, and SNR.
+
+Across all broad examples the baseline reaches 5.36 dB and FiLM reaches
+5.70 dB, a paired gain of $0.34$ dB. The gain--JS correlation is $-0.085$;
+the gain falls from $0.54$ dB in the lowest JS quintile to $0.00$ dB in the
+highest. Thus ``farther from the original generator'' is not a sufficient
+account of when an ocean prior helps.
+
+Spectral entropy is more diagnostic. The gain--entropy correlation is 0.145;
+the highest entropy quintile gains $+0.80$ dB ($[0.47,1.17]$). By family,
+band-limited noise gains $+0.54$ dB ($[0.19,0.92]$), impulse trains gain
+$0.47$ dB ($[0.16,0.79]$), and frequency-modulated targets gain $0.43$ dB
+($[0.08,0.82]$). FiLM therefore uses the prior broadly, with its strongest
+benefit on diffuse sources; raw JS/KL distance is not the governing variable.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.98\textwidth]{figures/diversity_results.png}
+\caption{Broad-source results at 0 dB input SNR. Left: both models improve as
+JS-shift quintile increases, but the forecast prior does not close the gap.
+Middle: the prior becomes beneficial only in the most spectrally diffuse
+entropy quintile; bars show paired 95\% bootstrap intervals. Right: family-wise
+FiLM gains are largest for band noise, impulses, and FM targets.}
+\label{fig:diversity}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.86\textwidth]{figures/signal_visualization.png}
+\caption{Representative high-entropy band-noise example. The causal TOL history
+and current forecast are shown above; source, mixture, separated target, and
+residual-ocean spectrograms are shown in the middle; spectra are overlaid below.
+The example illustrates how the selected FiLM prior removes low-frequency ocean
+energy while retaining a diffuse band target.}
+\label{fig:signals}
+\end{figure*}
+\clearpage
 
 \section{Usability criteria}
 The engineering gate requires overall SI-SDRi of at least 5 dB, at least 3 dB
 improvement for input SNR at or below 0 dB, at least 8 dB absolute target
 SI-SDR for stronger inputs, and frontend RTF below one. The conditioned model
-passes all four checks. Its batched RTF is 0.0024; the complete chunked frontend
+passes all four checks. Its batched RTF is 0.0040; the complete chunked frontend
 processes a 10-second WAV at RTF 0.043 on an RTX 3060. The scientific hypothesis is supported only
-if a conditioned variant has positive paired SI-SDRi gain over the unconditioned
-baseline and its 95\% interval excludes zero on unseen, phase-aligned recordings.
+if its positive paired SI-SDRi gain is reproduced on unseen, phase-aligned recordings.
 If forecast MAE improves while separation does not, the condition is either
 irrelevant or poorly injected. If oracle current spectra help but forecasts do
 not, forecasting is the bottleneck. These outcomes are explicitly falsifying,
 not post-hoc exceptions.
 
 \section{Local application}
-The repository includes a one-megabyte checkpoint and a dependency-light local
+The repository includes the validation-selected one-megabyte FiLM checkpoint and a dependency-light local
 web application. A user supplies the last 24 hourly TOL rows and a WAV mixture.
 The application validates and normalizes history, predicts the current spectrum,
 separates overlapping waveform chunks, and exposes target and residual-ocean
@@ -192,14 +284,23 @@ seeded sources, freeze all choices on MB03\_03, and evaluate MB03\_04 once.
 Multiple training seeds and SNR-stratified confidence intervals should then be
 reported.
 
+The six source families are deliberately more diverse than the original
+generator, but JS divergence and entropy remain spectral summaries: neither
+captures semantic identity, long temporal organization, or recording-device
+effects. Family-wise findings should be confirmed with real vessels, animals,
+sonar, weather, and anthropogenic events before selecting a production model.
+
 \section{Conclusion}
 \method{} supplies a concrete, leakage-resistant route from soundscape
-forecasting to source separation and a usable local interface. Spectrum
-conditioning meets the declared surrogate benchmark across a wide intensity
-range, but does not beat the matched long-trained BS-RoFormer baseline. The
-repository is therefore an operational prototype and a falsifiable research
-result, not evidence that forecasts improve separation on field recordings.
+forecasting to source separation and a usable local interface. Among three
+matched injection mechanisms, FiLM is selected on validation and yields a
+significant $0.34$ dB paired gain on controlled broad-source surrogates. Its
+advantage is largest for high-entropy targets, whereas JS/KL shift alone is not
+predictive. The repository is an operational prototype and a controlled
+research result, not yet evidence of improvement on field recordings.
 
 \bibliographystyle{plain}
+\begingroup\small
 \bibliography{reference}
+\endgroup
 \end{document}

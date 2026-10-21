@@ -1,0 +1,119 @@
+{
+  "selection_rule": "highest MB03_03 validation SI-SDRi; MB03_04 test metrics were not used for selection",
+  "selected_variant": "film",
+  "selected_checkpoint": "models\\practical_film.pt",
+  "matched_protocol": {
+    "training_updates": 2000,
+    "train_examples_per_deployment": 4000,
+    "train_snr_db": [
+      -12,
+      12
+    ],
+    "source_profile": "six-family broad synthetic distribution",
+    "separator_core_initialisation": "identical across variants",
+    "conditioning_initialisation": "identity residual mapping",
+    "fixed_0_db_paired_examples": 768
+  },
+  "variants": {
+    "concat": {
+      "validation_si_sdri_db": 5.167840348556638,
+      "best_step": 1750,
+      "test_si_sdri_db": 5.3037027505924925,
+      "test_si_sdri_ci95_db": [
+        4.277834857240668,
+        6.325737766121165
+      ],
+      "test_ocean_si_sdr_db": 5.646705716091674,
+      "forecast_mae_db": 3.108093195129186,
+      "real_time_factor": 0.003569509374926838,
+      "parameters": 237984,
+      "engineering_gate_passed": true,
+      "fixed_0_db_paired_gain_over_unconditioned_db": 0.14785495637139925,
+      "fixed_0_db_paired_gain_ci95_db": [
+        0.024368156424558644,
+        0.27304725237227107
+      ],
+      "fixed_0_db_conditioned_si_sdri_db": 5.50708358893947,
+      "gain_js_pearson_r": -0.07634465002486364,
+      "gain_overlap_pearson_r": -0.15740062398298807,
+      "gain_entropy_pearson_r": 0.18645703781271294,
+      "family_gain_db": {
+        "harmonic": -0.19491895989631303,
+        "chirp": 0.18229362892452627,
+        "inharmonic": -0.07495605543954298,
+        "impulse_train": 0.3530968745762948,
+        "frequency_modulated": 0.1680166435544379,
+        "band_noise": 0.4535976065089926
+      }
+    },
+    "film": {
+      "validation_si_sdri_db": 5.354567220783792,
+      "best_step": 1750,
+      "test_si_sdri_db": 5.386118374328362,
+      "test_si_sdri_ci95_db": [
+        4.348183467721538,
+        6.428196622371615
+      ],
+      "test_ocean_si_sdr_db": 5.773904238594696,
+      "forecast_mae_db": 3.146620258456096,
+      "real_time_factor": 0.004042486718759619,
+      "parameters": 254688,
+      "engineering_gate_passed": true,
+      "fixed_0_db_paired_gain_over_unconditioned_db": 0.34150253516175627,
+      "fixed_0_db_paired_gain_ci95_db": [
+        0.20654837243916216,
+        0.47846360408815
+      ],
+      "fixed_0_db_conditioned_si_sdri_db": 5.700731167729828,
+      "gain_js_pearson_r": -0.08471121293042967,
+      "gain_overlap_pearson_r": -0.23750846058365038,
+      "gain_entropy_pearson_r": 0.14463153245428953,
+      "family_gain_db": {
+        "harmonic": 0.15779481240315363,
+        "chirp": 0.31392928096465766,
+        "inharmonic": 0.13846696668770164,
+        "impulse_train": 0.47035574915935285,
+        "frequency_modulated": 0.428091402805876,
+        "band_noise": 0.540376998949796
+      }
+    },
+    "cross_attention": {
+      "validation_si_sdri_db": 4.987215352244675,
+      "best_step": 1750,
+      "test_si_sdri_db": 5.1057837140979245,
+      "test_si_sdri_ci95_db": [
+        4.084605032179388,
+        6.12282869706687
+      ],
+      "test_ocean_si_sdr_db": 5.505491598050867,
+      "forecast_mae_db": 3.1148858189117163,
+      "real_time_factor": 0.003748895312469358,
+      "parameters": 220320,
+      "engineering_gate_passed": true,
+      "fixed_0_db_paired_gain_over_unconditioned_db": 0.009548702650742294,
+      "fixed_0_db_paired_gain_ci95_db": [
+        -0.08061822635851665,
+        0.10317995359813116
+      ],
+      "fixed_0_db_conditioned_si_sdri_db": 5.368777335218813,
+      "gain_js_pearson_r": -0.07991511775259723,
+      "gain_overlap_pearson_r": -0.11037599099670851,
+      "gain_entropy_pearson_r": 0.19821145790490907,
+      "family_gain_db": {
+        "harmonic": -0.2850259418191854,
+        "chirp": 0.07520658371504396,
+        "inharmonic": -0.15055533219128847,
+        "impulse_train": 0.14598246358218603,
+        "frequency_modulated": 0.06580854003550485,
+        "band_noise": 0.2058759025821928
+      }
+    }
+  },
+  "interpretation": {
+    "why_selected": "FiLM won on the held-out validation deployment and its paired 0 dB gain confidence interval excludes zero.",
+    "mechanism": "Band-wise scale and bias modulate existing separator evidence without doubling token width or requiring a data-hungry attention alignment.",
+    "concat_tradeoff": "Concatenation is effective but relies on a shared fusion MLP to compress doubled features.",
+    "cross_attention_tradeoff": "Cross-attention adds flexible alignment, but the short training budget and coarse predicted TOL tokens do not identify a useful attention map reliably."
+  },
+  "scope": "controlled TOL-derived surrogate waveforms; field-audio confirmation remains required"
+}

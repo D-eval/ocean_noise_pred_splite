@@ -7,8 +7,15 @@ import unittest
 
 from source.data import eligible_origins
 from source.inference import SeparationEngine
+from source.metrics import (
+    jensen_shannon_bits,
+    narrow_source_reference,
+    normalised_spectral_entropy,
+    spectral_overlap,
+    spectral_probability,
+)
 from source.model import ForecastConditionedSeparator
-from source.synthesis import make_mixture
+from source.synthesis import BROAD_FAMILIES, make_mixture
 from source.train import engineering_usability_gate
 
 
@@ -40,6 +47,31 @@ class JointPipelineTests(unittest.TestCase):
         self.assertAlmostEqual(params["snr_db"], -12.0, places=6)
         self.assertAlmostEqual(float(measured), -12.0, places=3)
 
+    def test_broad_source_families_are_finite_and_distinct(self):
+        levels = np.linspace(90, 60, 8)
+        bands = np.geomspace(25, 4000, 8)
+        signatures = []
+        for index, family in enumerate(BROAD_FAMILIES):
+            _, source, _, params = make_mixture(
+                levels, bands, 8000, 2048, 100 + index,
+                source_profile="broad", source_family=family,
+            )
+            self.assertEqual(params["family"], family)
+            self.assertTrue(np.isfinite(source).all())
+            signatures.append(spectral_probability(source, 8000, bins=16))
+        self.assertGreater(np.mean(np.std(signatures, axis=0)), 0.005)
+
+    def test_js_divergence_is_bounded_and_zero_for_reference(self):
+        reference = narrow_source_reference(8000, 1024, examples=8, bins=16)
+        self.assertAlmostEqual(jensen_shannon_bits(reference, reference), 0.0, places=10)
+        shifted = np.roll(reference, 5)
+        self.assertGreater(jensen_shannon_bits(shifted, reference), 0.0)
+        self.assertLessEqual(jensen_shannon_bits(shifted, reference), 1.0)
+        self.assertAlmostEqual(spectral_overlap(reference, reference), 1.0, places=10)
+        self.assertGreaterEqual(spectral_overlap(reference, shifted), 0.0)
+        self.assertGreaterEqual(normalised_spectral_entropy(reference), 0.0)
+        self.assertLessEqual(normalised_spectral_entropy(reference), 1.0)
+
     def test_condition_path_receives_gradient(self):
         torch.manual_seed(3)
         model = ForecastConditionedSeparator(
@@ -63,6 +95,27 @@ class JointPipelineTests(unittest.TestCase):
         self.assertIsNotNone(gradient)
         self.assertTrue(torch.isfinite(gradient).all())
         self.assertGreater(float(gradient.abs().sum()), 0.0)
+
+    def test_conditioning_ablation_modes_have_output_and_gradient(self):
+        common = dict(
+            spectrum_dim=6, latent_dim=4, model_dim=8, depth=1,
+            heads=1, dim_head=8, n_fft=32, hop_length=8, bands=4,
+        )
+        mixture = torch.randn(2, 256)
+        history = torch.randn(2, 5, 6)
+        for variant in ("concat", "film", "cross_attention"):
+            with self.subTest(variant=variant):
+                model = ForecastConditionedSeparator(variant=variant, **common)
+                estimate = model(mixture, history)["estimate"]
+                estimate.square().mean().backward()
+                injector_gradients = [
+                    parameter.grad for name, parameter in model.separator.injector.named_parameters()
+                    if not name.startswith("band_split.") and parameter.grad is not None
+                ]
+                self.assertEqual(estimate.shape, mixture.shape)
+                self.assertTrue(injector_gradients)
+                self.assertTrue(all(torch.isfinite(value).all() for value in injector_gradients))
+                self.assertGreater(sum(float(value.abs().sum()) for value in injector_gradients), 0.0)
 
     def test_separator_may_return_shorter_istft_without_shape_error(self):
         torch.manual_seed(4)

@@ -2,6 +2,7 @@ numpy>=1.26
 pandas>=2.1
 scipy>=1.11
 soundfile>=0.12
+matplotlib>=3.8
 torch>=2.2
 einops>=0.8
 einx

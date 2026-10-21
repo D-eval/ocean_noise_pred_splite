@@ -40,17 +40,54 @@ class NoiseForecaster(nn.Module):
 
 
 class ConditionedBandSplit(nn.Module):
-    """Adds a frequency-specific condition bias after BS-RoFormer's band split."""
+    """Inject a forecast after band split by addition, concatenation, FiLM, or attention."""
 
-    def __init__(self, band_split: nn.Module, condition_dim: int, bands: int, model_dim: int):
+    MODES = ("add", "concat", "film", "cross_attention")
+
+    def __init__(
+        self,
+        band_split: nn.Module,
+        condition_dim: int,
+        bands: int,
+        model_dim: int,
+        mode: str = "add",
+    ):
         super().__init__()
+        if mode not in self.MODES:
+            raise ValueError(f"conditioning mode must be one of {self.MODES}")
         self.band_split = band_split
-        self.projection = nn.Sequential(
-            nn.LayerNorm(condition_dim), nn.Linear(condition_dim, bands * model_dim)
-        )
+        self.mode = mode
         self.bands = bands
         self.model_dim = model_dim
         self._condition: torch.Tensor | None = None
+        if mode == "add":
+            # Keep the original layout so existing additive/baseline checkpoints
+            # remain loadable.
+            self.projection = nn.Sequential(
+                nn.LayerNorm(condition_dim), nn.Linear(condition_dim, bands * model_dim)
+            )
+        elif mode == "concat":
+            self.condition_norm = nn.LayerNorm(condition_dim)
+            self.condition_projection = nn.Linear(condition_dim, bands * model_dim)
+            self.concat_fusion = nn.Sequential(
+                nn.Linear(model_dim * 2, model_dim), nn.GELU(), nn.Linear(model_dim, model_dim)
+            )
+            nn.init.zeros_(self.concat_fusion[-1].weight)
+            nn.init.zeros_(self.concat_fusion[-1].bias)
+        elif mode == "film":
+            self.condition_norm = nn.LayerNorm(condition_dim)
+            self.film_projection = nn.Linear(condition_dim, bands * model_dim * 2)
+            nn.init.zeros_(self.film_projection.weight)
+            nn.init.zeros_(self.film_projection.bias)
+        else:
+            self.condition_norm = nn.LayerNorm(condition_dim)
+            self.condition_value = nn.Linear(1, model_dim)
+            self.condition_positions = nn.Parameter(torch.empty(condition_dim, model_dim))
+            nn.init.normal_(self.condition_positions, std=0.02)
+            self.cross_attention = nn.MultiheadAttention(model_dim, num_heads=1, batch_first=True)
+            self.cross_norm = nn.LayerNorm(model_dim)
+            nn.init.zeros_(self.cross_attention.out_proj.weight)
+            nn.init.zeros_(self.cross_attention.out_proj.bias)
 
     def set_condition(self, condition: torch.Tensor | None) -> None:
         self._condition = condition
@@ -59,8 +96,28 @@ class ConditionedBandSplit(nn.Module):
         result = self.band_split(spectral_tokens)
         if self._condition is None:
             return result
-        bias = self.projection(self._condition).view(-1, 1, self.bands, self.model_dim)
-        return result + bias
+        if self.mode == "add":
+            bias = self.projection(self._condition).view(-1, 1, self.bands, self.model_dim)
+            return result + bias
+        condition = self.condition_norm(self._condition)
+        if self.mode == "concat":
+            condition_tokens = self.condition_projection(condition).view(
+                -1, 1, self.bands, self.model_dim
+            )
+            condition_tokens = condition_tokens.expand(-1, result.shape[1], -1, -1)
+            return result + self.concat_fusion(torch.cat((result, condition_tokens), dim=-1))
+        if self.mode == "film":
+            scale, bias = self.film_projection(condition).view(
+                -1, 1, self.bands, self.model_dim * 2
+            ).chunk(2, dim=-1)
+            return result * (1.0 + torch.tanh(scale)) + bias
+        condition_tokens = self.condition_value(condition.unsqueeze(-1))
+        condition_tokens = condition_tokens + self.condition_positions.unsqueeze(0)
+        queries = result.reshape(result.shape[0], -1, self.model_dim)
+        attended, _ = self.cross_attention(
+            self.cross_norm(queries), condition_tokens, condition_tokens, need_weights=False
+        )
+        return result + attended.view_as(result)
 
 
 class ConditionalBSRoformer(nn.Module):
@@ -76,6 +133,7 @@ class ConditionalBSRoformer(nn.Module):
         n_fft: int = 256,
         hop_length: int = 64,
         bands: int = 24,
+        conditioning_mode: str = "add",
     ):
         super().__init__()
         band_sizes = balanced_bands(n_fft // 2 + 1, bands)
@@ -98,7 +156,11 @@ class ConditionalBSRoformer(nn.Module):
             use_pope=False,
         )
         injector = ConditionedBandSplit(
-            self.separator.band_split, condition_dim, len(band_sizes), model_dim
+            self.separator.band_split,
+            condition_dim,
+            len(band_sizes),
+            model_dim,
+            conditioning_mode,
         )
         self.separator.band_split = injector
         self.injector = injector
@@ -115,9 +177,9 @@ class ConditionalBSRoformer(nn.Module):
 
 
 class ForecastConditionedSeparator(nn.Module):
-    """The three registered ablations: none, latent, and predicted spectrum."""
+    """Forecast-conditioned separator with registered representation/injection ablations."""
 
-    VARIANTS = ("none", "latent", "spectrum")
+    VARIANTS = ("none", "latent", "spectrum", "concat", "film", "cross_attention")
 
     def __init__(
         self,
@@ -134,12 +196,21 @@ class ForecastConditionedSeparator(nn.Module):
         self.spectrum_dim = spectrum_dim
         self.latent_dim = latent_dim
         condition_dim = latent_dim if variant == "latent" else spectrum_dim
+        conditioning_mode = {
+            "concat": "concat",
+            "film": "film",
+            "cross_attention": "cross_attention",
+        }.get(variant, "add")
         # Component-local RNG streams make the BS-RoFormer core identical
         # across ablations and the forecaster identical across the two
         # conditioned variants. Module construction order cannot bias results.
         with torch.random.fork_rng(devices=[]):
             torch.manual_seed(initialization_seed + 1)
-            self.separator = ConditionalBSRoformer(condition_dim=condition_dim, **separator_kwargs)
+            self.separator = ConditionalBSRoformer(
+                condition_dim=condition_dim,
+                conditioning_mode=conditioning_mode,
+                **separator_kwargs,
+            )
         if variant == "none":
             self.forecaster = None
         else:

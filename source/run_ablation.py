@@ -55,6 +55,7 @@ def main() -> None:
     parser.add_argument("--train-examples-per-deployment", type=int)
     parser.add_argument("--validate-every", type=int, default=100)
     parser.add_argument("--device", default="cuda")
+    parser.add_argument("--source-profile", choices=("narrow", "broad"), default="narrow")
     parser.add_argument("--small", action="store_true")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
@@ -83,6 +84,8 @@ def main() -> None:
             str(args.validate_every),
             "--device",
             args.device,
+            "--source-profile",
+            args.source_profile,
         ]
         if args.train_examples_per_deployment:
             command += ["--train-examples-per-deployment", str(args.train_examples_per_deployment)]
