@@ -215,3 +215,40 @@ def make_mixture(
         ocean.astype(np.float32),
         asdict(params),
     )
+
+
+def mix_with_real_ocean(
+    ocean: np.ndarray,
+    sample_rate: int,
+    seed: int,
+    snr_range: tuple[float, float] = (-8.0, 8.0),
+    source_profile: str = "broad",
+    source_family: str | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
+    """Inject a clean synthetic source into an unmodified real ocean clip.
+
+    The source gain is defined from the measured RMS of the current waveform.
+    A common anti-clipping gain is applied to mixture and both references, so
+    additivity and the requested SNR are preserved exactly.
+    """
+    ocean = np.asarray(ocean, dtype=np.float32).reshape(-1).copy()
+    if not np.isfinite(ocean).all() or len(ocean) == 0:
+        raise ValueError("ocean clip must be a non-empty finite waveform")
+    ocean = ocean - np.mean(ocean, dtype=np.float64)
+    ocean_rms = float(np.sqrt(np.mean(np.square(ocean), dtype=np.float64)))
+    if ocean_rms < 1e-8:
+        raise ValueError("ocean clip is silent")
+    params = draw_injection(seed + 1, snr_range, source_profile, source_family)
+    source = render_injection(params, sample_rate, len(ocean))
+    source = _normalise_rms(source, ocean_rms * 10.0 ** (params.snr_db / 20.0))
+    mixture = ocean + source
+    peak = float(np.max(np.abs(mixture)))
+    if peak > 0.98:
+        scale = 0.98 / peak
+        mixture, ocean, source = mixture * scale, ocean * scale, source * scale
+    return (
+        mixture.astype(np.float32),
+        source.astype(np.float32),
+        ocean.astype(np.float32),
+        asdict(params),
+    )

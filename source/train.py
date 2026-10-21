@@ -78,7 +78,9 @@ def evaluate(
         if device.type == "cuda":
             torch.cuda.synchronize()
         began = time.perf_counter()
-        output = model(batch["mixture"], batch["history"])
+        output = model(
+            batch["mixture"], batch["history"], batch.get("external_condition")
+        )
         if device.type == "cuda":
             torch.cuda.synchronize()
         elapsed += time.perf_counter() - began
@@ -113,8 +115,7 @@ def evaluate(
                 kl_bits = kl_divergence_bits(distribution, reference_source_distribution)
                 overlap = spectral_overlap(distribution, background_distribution)
                 entropy = normalised_spectral_entropy(distribution)
-            rows.append(
-                {
+            row = {
                     "deployment": batch["deployment"][index],
                     "timestamp": batch["timestamp"][index],
                     "origin": int(batch["origin"][index]),
@@ -130,7 +131,9 @@ def evaluate(
                     "ocean_si_sdr_db": float(ocean_score[index]),
                     "forecast_mae_db": float(forecast_mae_db[index]),
                 }
-            )
+            if "example_id" in batch:
+                row["example_id"] = batch["example_id"][index]
+            rows.append(row)
     improvements = np.asarray([row["source_si_sdri_db"] for row in rows])
     low, high = paired_bootstrap_interval(improvements)
     summary = {
@@ -141,7 +144,7 @@ def evaluate(
         "source_si_sdri_ci95_db": [low, high],
         "ocean_si_sdr_db": float(np.mean([row["ocean_si_sdr_db"] for row in rows])),
         "forecast_mae_db": float(np.nanmean([row["forecast_mae_db"] for row in rows]))
-        if model.variant != "none"
+        if model.forecaster is not None
         else None,
         "real_time_factor": elapsed / max(audio_seconds, 1e-9),
         "usable_real_time": elapsed < audio_seconds,
@@ -270,7 +273,9 @@ def run_experiment(config: ExperimentConfig, output: Path, data_root: Path = DEF
             iterator = iter(train_loader)
             batch = next(iterator)
         batch = _to_device(batch, device)
-        output_values = model(batch["mixture"], batch["history"])
+        output_values = model(
+            batch["mixture"], batch["history"], batch.get("external_condition")
+        )
         separation_loss = multi_resolution_loss(output_values["estimate"], batch["source"])
         if output_values["prediction"] is None:
             forecast_loss = separation_loss.new_zeros(())

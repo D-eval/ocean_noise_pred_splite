@@ -1,0 +1,94 @@
+{
+  "protocol": {
+    "current_background": "real NOAA SanctSound audio at t",
+    "history": "real-recording-derived TOL at t-24...t-1",
+    "ground_truth": "noise=N_t, signal=s_t, mixture=N_t+alpha*s_t",
+    "paired_test_examples": 576,
+    "selection": "best MB03_03 validation checkpoint; MB03_04 test used once"
+  },
+  "conditions": {
+    "none_film": {
+      "model": "BS-RoFormer",
+      "condition": "none",
+      "source_si_sdri_db": 27.90464756047974,
+      "source_si_sdri_ci95_db": [
+        27.112027775555745,
+        28.687141547610775
+      ],
+      "paired_gain_over_baseline_db": 0.0,
+      "paired_gain_ci95_db": [
+        0.0,
+        0.0
+      ],
+      "paired_gain_ci_method": "bootstrap over six current-recording hours",
+      "ocean_si_sdr_db": 27.761185088867528,
+      "forecast_mae_db": null,
+      "real_time_factor": 0.0035702611111219085,
+      "engineering_gate_passed": true
+    },
+    "oracle_film": {
+      "model": "Oracle-FC-BSR",
+      "condition": "oracle",
+      "source_si_sdri_db": 27.040404163184576,
+      "source_si_sdri_ci95_db": [
+        26.287909912866436,
+        27.791531172490473
+      ],
+      "paired_gain_over_baseline_db": -0.8642433972951645,
+      "paired_gain_ci95_db": [
+        -1.360737087011027,
+        -0.5042806621640921
+      ],
+      "paired_gain_ci_method": "bootstrap over six current-recording hours",
+      "ocean_si_sdr_db": 26.490070823786986,
+      "forecast_mae_db": null,
+      "real_time_factor": 0.0036235711806335124,
+      "engineering_gate_passed": true
+    },
+    "film": {
+      "model": "Forecast-FC-BSR",
+      "condition": "forecast",
+      "source_si_sdri_db": 27.428879405604675,
+      "source_si_sdri_ci95_db": [
+        26.650030175172205,
+        28.18690520191061
+      ],
+      "paired_gain_over_baseline_db": -0.4757681548750649,
+      "paired_gain_ci95_db": [
+        -0.769120790840437,
+        -0.21439626812934875
+      ],
+      "paired_gain_ci_method": "bootstrap over six current-recording hours",
+      "ocean_si_sdr_db": 26.779484962126137,
+      "forecast_mae_db": 2.580024540424347,
+      "real_time_factor": 0.003449794097251571,
+      "engineering_gate_passed": true
+    },
+    "shuffled_film": {
+      "model": "Shuffled-FC-BSR",
+      "condition": "shuffled",
+      "source_si_sdri_db": 24.870108496294254,
+      "source_si_sdri_ci95_db": [
+        24.139578689821064,
+        25.63380420845933
+      ],
+      "paired_gain_over_baseline_db": -3.034539064185487,
+      "paired_gain_ci95_db": [
+        -4.616155278351571,
+        -1.4807994190603482
+      ],
+      "paired_gain_ci_method": "bootstrap over six current-recording hours",
+      "ocean_si_sdr_db": 24.1538433138695,
+      "forecast_mae_db": null,
+      "real_time_factor": 0.0037223621528710282,
+      "engineering_gate_passed": true
+    }
+  },
+  "surrogate_comparison": {
+    "surrogate_baseline_si_sdri_db": 5.0024835564,
+    "surrogate_forecast_film_si_sdri_db": 5.3861183743,
+    "real_baseline_si_sdri_db": 27.90464756047974,
+    "real_forecast_si_sdri_db": 27.428879405604675,
+    "warning": "absolute proxy-vs-real differences include a transfer/fine-tuning protocol change; paired gains within each background domain are the causal comparison"
+  }
+}

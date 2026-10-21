@@ -39,6 +39,8 @@ def make_handler(engine: SeparationEngine):
                     "variant": engine.config["variant"],
                     "sample_rate": engine.sample_rate,
                     "context_hours": engine.context_hours,
+                    "requires_history": engine.requires_history,
+                    "validation_scope": engine.config.get("background_waveform", "surrogate background"),
                     "device": str(engine.device),
                     "checkpoint": engine.checkpoint_path.name,
                 })
@@ -62,7 +64,10 @@ def make_handler(engine: SeparationEngine):
                     raise ValueError("request must be between 1 byte and 180 MiB")
                 request = json.loads(self.rfile.read(length))
                 audio = engine.read_audio(base64.b64decode(request["audio_base64"], validate=True))
-                history = engine.parse_history_csv(request["history_csv"])
+                history_text = request.get("history_csv", "")
+                history = engine.parse_history_csv(history_text) if history_text else None
+                if engine.requires_history and history is None:
+                    raise ValueError("this forecast-conditioned checkpoint requires historical TOL CSV")
                 result = engine.separate(audio, history)
                 self._json(200, {
                     "source_wav": base64.b64encode(wav_bytes(result.pop("source"), engine.sample_rate)).decode("ascii"),
@@ -81,7 +86,7 @@ def make_handler(engine: SeparationEngine):
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", type=Path, default=Path("models/practical_film.pt"))
+    parser.add_argument("--checkpoint", type=Path, default=Path("models/practical_real.pt"))
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--device")

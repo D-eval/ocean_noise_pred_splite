@@ -13,7 +13,7 @@
       <div>
         <p class="eyebrow">FORECAST-CONDITIONED SEPARATION</p>
         <h1>潮汐滤镜</h1>
-        <p class="subtitle">用过去 24 小时的声景，分离此刻的海洋与目标信号。</p>
+        <p id="subtitle" class="subtitle">用经过真实海洋录音验证的模型分离目标信号。</p>
       </div>
       <div id="status" class="status"><i></i><span>正在连接模型…</span></div>
     </header>
@@ -22,9 +22,9 @@
       <section class="hero-grid">
         <article class="card input-card">
           <div class="step">01</div>
-          <div>
+          <div id="historyCopy">
             <h2>历史声景</h2>
-            <p>上传至少 24 行、包含 30 个 <code>TOL_*</code> 频带的 CSV。</p>
+            <p id="historyHelp">若模型需要背景预测，请上传至少 24 行 TOL 历史。</p>
           </div>
           <label class="dropzone" for="historyFile">
             <input id="historyFile" type="file" accept=".csv,text/csv">
@@ -83,7 +83,7 @@
           </article>
         </div>
 
-        <article class="spectrum-card">
+        <article id="forecastCard" class="spectrum-card">
           <div><h3>预测的当前背景频谱</h3><p>由历史 TOL 预测，未读取当前时刻频谱</p></div>
           <canvas id="spectrum" width="1000" height="240" aria-label="预测背景频谱折线图"></canvas>
         </article>

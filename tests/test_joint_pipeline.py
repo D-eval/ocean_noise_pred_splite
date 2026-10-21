@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from pathlib import Path
+import soundfile as sf
+import tempfile
 import torch
 import unittest
 
-from source.data import eligible_origins
+from source.data import SpectrumNormaliser, eligible_origins
 from source.inference import SeparationEngine
 from source.metrics import (
     jensen_shannon_bits,
@@ -15,7 +18,8 @@ from source.metrics import (
     spectral_probability,
 )
 from source.model import ForecastConditionedSeparator
-from source.synthesis import BROAD_FAMILIES, make_mixture
+from source.real_audio_data import RealAudioMixtureDataset
+from source.synthesis import BROAD_FAMILIES, make_mixture, mix_with_real_ocean
 from source.train import engineering_usability_gate
 
 
@@ -46,6 +50,51 @@ class JointPipelineTests(unittest.TestCase):
         )
         self.assertAlmostEqual(params["snr_db"], -12.0, places=6)
         self.assertAlmostEqual(float(measured), -12.0, places=3)
+
+    def test_real_ocean_mixture_preserves_gt_and_requested_snr(self):
+        rng = np.random.default_rng(19)
+        raw_ocean = rng.standard_normal(4096).astype(np.float32) * 0.03
+        mixture, source, ocean, params = mix_with_real_ocean(
+            raw_ocean, 8000, 22, snr_range=(-6.0, -6.0)
+        )
+        self.assertTrue(np.allclose(mixture, source + ocean, atol=1e-7))
+        measured = 20 * np.log10(
+            np.sqrt(np.mean(source * source)) / np.sqrt(np.mean(ocean * ocean))
+        )
+        self.assertAlmostEqual(params["snr_db"], -6.0, places=6)
+        self.assertAlmostEqual(float(measured), -6.0, places=3)
+
+    def test_real_dataset_history_is_causal_and_shuffle_is_wrong_hour(self):
+        index = pd.date_range("2020-01-01", periods=28, freq="h", tz="UTC")
+        values = np.stack((np.arange(28), np.arange(28) * 2), axis=1).astype(np.float32)
+        frame = pd.DataFrame(values, index=index, columns=["TOL_25", "TOL_31.5"])
+        normaliser = SpectrumNormaliser.fit([frame])
+        Path("tmp").mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir="tmp") as directory:
+            records = []
+            for origin in (24, 25):
+                path = Path(directory) / f"{origin}.flac"
+                sf.write(path, np.sin(np.arange(16000) * 0.1).astype(np.float32), 8000)
+                records.append(
+                    {
+                        "deployment": "TEST",
+                        "timestamp": index[origin].isoformat(),
+                        "local": str(path),
+                    }
+                )
+            dataset = RealAudioMixtureDataset(
+                frame, "TEST", normaliser, records, condition="shuffled",
+                context_hours=24, clips_per_hour=1, seconds=0.25,
+            )
+            item = dataset[0]
+            expected_history = normaliser.transform(values[:24])
+            np.testing.assert_allclose(item["history"].numpy(), expected_history)
+            np.testing.assert_allclose(
+                item["external_condition"].numpy(), normaliser.transform(values[[25]])[0]
+            )
+            self.assertFalse(
+                np.array_equal(item["external_condition"], item["target_spectrum"])
+            )
 
     def test_broad_source_families_are_finite_and_distinct(self):
         levels = np.linspace(90, 60, 8)
@@ -116,6 +165,20 @@ class JointPipelineTests(unittest.TestCase):
                 self.assertTrue(injector_gradients)
                 self.assertTrue(all(torch.isfinite(value).all() for value in injector_gradients))
                 self.assertGreater(sum(float(value.abs().sum()) for value in injector_gradients), 0.0)
+
+    def test_oracle_and_shuffled_require_external_condition(self):
+        common = dict(
+            spectrum_dim=6, latent_dim=4, model_dim=8, depth=1,
+            heads=1, dim_head=8, n_fft=32, hop_length=8, bands=4,
+        )
+        mixture = torch.randn(2, 256)
+        history = torch.randn(2, 5, 6)
+        condition = torch.randn(2, 6)
+        for variant in ("oracle_film", "shuffled_film"):
+            model = ForecastConditionedSeparator(variant=variant, **common)
+            with self.assertRaises(ValueError):
+                model(mixture, history)
+            self.assertEqual(model(mixture, history, condition)["estimate"].shape, mixture.shape)
 
     def test_separator_may_return_shorter_istft_without_shape_error(self):
         torch.manual_seed(4)

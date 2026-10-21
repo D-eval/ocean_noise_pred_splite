@@ -1,0 +1,179 @@
+{
+  "source": "NOAA SanctSound public GCS bucket",
+  "selection": "first contiguous 24 eligible hours after a 24-hour causal history",
+  "hours_per_deployment": 24,
+  "context_hours": 24,
+  "files": [
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T00:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-000000.x.flac",
+      "remote_bytes": 445075514,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T000000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T01:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-010000.x.flac",
+      "remote_bytes": 446434703,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T010000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T02:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-020000.x.flac",
+      "remote_bytes": 446114254,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T020000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T03:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-030000.x.flac",
+      "remote_bytes": 447854802,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T030000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T04:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-040000.x.flac",
+      "remote_bytes": 453886766,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T040000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T05:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-050000.x.flac",
+      "remote_bytes": 447053292,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T050000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T06:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-060000.x.flac",
+      "remote_bytes": 444324454,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T060000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T07:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-070000.x.flac",
+      "remote_bytes": 443231777,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T070000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T08:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-080000.x.flac",
+      "remote_bytes": 449901836,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T080000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T09:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-090000.x.flac",
+      "remote_bytes": 458109699,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T090000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T10:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-100000.x.flac",
+      "remote_bytes": 458009775,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T100000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T11:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-110000.x.flac",
+      "remote_bytes": 454652746,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T110000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T12:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-120000.x.flac",
+      "remote_bytes": 454925151,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T120000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T13:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-130000.x.flac",
+      "remote_bytes": 450034244,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T130000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T14:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-140000.x.flac",
+      "remote_bytes": 449902724,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T140000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T15:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-150000.x.flac",
+      "remote_bytes": 449476058,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T150000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T16:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-160000.x.flac",
+      "remote_bytes": 448009803,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T160000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T17:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-170000.x.flac",
+      "remote_bytes": 447580116,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T170000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T18:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-180000.x.flac",
+      "remote_bytes": 453637210,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T180000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T19:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-190000.x.flac",
+      "remote_bytes": 447100968,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T190000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T20:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-200000.x.flac",
+      "remote_bytes": 449602627,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T200000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T21:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-210000.x.flac",
+      "remote_bytes": 453421549,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T210000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T22:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-220000.x.flac",
+      "remote_bytes": 451528650,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T220000.flac"
+    },
+    {
+      "deployment": "MB03_04",
+      "timestamp": "2020-10-03T23:00:00+00:00",
+      "uri": "gs://noaa-passive-bioacoustic/sanctsound/audio/mb03/04_disk01/audio/SurRidge-D113-201003-230000.x.flac",
+      "remote_bytes": 449949382,
+      "local": "E:\\Proj\\water\\third_party\\soundscape\\datasets\\noaa-passive-bioacoustic\\sanctsound\\audio_8khz\\MB03_04\\20201003T230000.flac"
+    }
+  ],
+  "remote_bytes": 10799818100,
+  "remote_gib": 10.058114398270845,
+  "storage_policy": "download one original FLAC, stream-resample to 8 kHz mono FLAC, then delete the original"
+}

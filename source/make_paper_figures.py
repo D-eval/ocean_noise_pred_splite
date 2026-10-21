@@ -15,6 +15,7 @@ import torch
 from .data import DEFAULT_DATA_ROOT, SpectrumNormaliser, TOLMixtureDataset, load_experiment_frames
 from .diversity_eval import load_checkpoint
 from .metrics import si_sdr
+from .real_audio_data import RealAudioMixtureDataset, load_manifest
 
 
 COLORS = {
@@ -191,6 +192,132 @@ def signal_figure(
     save_figure(figure, path)
 
 
+def real_signal_figure(
+    path: Path,
+    checkpoint_path: Path,
+    examples_csv: Path,
+    data_root: Path,
+    device_name: str,
+) -> None:
+    """Visualize the causal history, actual current WAV, and separated outputs."""
+    device = torch.device(device_name)
+    model, config = load_checkpoint(checkpoint_path, device)
+    normaliser = SpectrumNormaliser(
+        mean=np.asarray(config["normaliser_mean"], dtype=np.float32),
+        scale=np.asarray(config["normaliser_scale"], dtype=np.float32),
+    )
+    frame = load_experiment_frames(data_root)["MB03_04"]
+    dataset = RealAudioMixtureDataset(
+        frame, "MB03_04", normaliser, load_manifest()["records"],
+        condition="forecast", context_hours=int(config["context_hours"]),
+        sample_rate=int(config["sample_rate"]), seconds=float(config["seconds"]),
+        clips_per_hour=int(config["clips_per_hour"]), seed=int(config["seed"]),
+        snr_range=(0.0, 0.0), source_profile="broad",
+    )
+    rows = list(csv.DictReader(examples_csv.open(encoding="utf-8")))
+    mean_score = np.mean([float(row["source_si_sdri_db"]) for row in rows])
+    index = min(range(len(rows)), key=lambda value: abs(float(rows[value]["source_si_sdri_db"]) - mean_score))
+    # The ordinary test uses random SNR, so recreate that exact deterministic item.
+    dataset.snr_range = (-12.0, 12.0)
+    item = dataset[index]
+    with torch.inference_mode():
+        output = model(item["mixture"][None].to(device), item["history"][None].to(device))
+    estimate = output["estimate"][0].detach().cpu().numpy()
+    length = min(len(estimate), len(item["source"]))
+    source = item["source"].numpy()[:length]
+    mixture = item["mixture"].numpy()[:length]
+    ocean = item["ocean"].numpy()[:length]
+    estimate = estimate[:length]
+    residual = mixture - estimate
+    predicted = output["prediction"][0].detach().cpu().numpy() * normaliser.scale + normaliser.mean
+    history_db = item["history"].numpy() * normaliser.scale + normaliser.mean
+
+    figure = plt.figure(figsize=(12.2, 7.8), constrained_layout=True)
+    grid = figure.add_gridspec(3, 4, height_ratios=(1.0, 1.15, 0.85))
+    history_axis = figure.add_subplot(grid[0, :3])
+    image = history_axis.imshow(history_db.T, origin="lower", aspect="auto", cmap="viridis")
+    history_axis.set_title("Past real soundscape: 24 hourly TOL spectra", loc="left", fontweight="bold")
+    history_axis.set_xlabel("Hours before current recording")
+    history_axis.set_ylabel("TOL band index")
+    figure.colorbar(image, ax=history_axis, label="dB", pad=0.01)
+    forecast_axis = figure.add_subplot(grid[0, 3])
+    bands = np.arange(len(predicted))
+    current_db = item["target_spectrum"].numpy() * normaliser.scale + normaliser.mean
+    forecast_axis.plot(predicted, bands, color=COLORS["gold"], lw=2, label="forecast")
+    forecast_axis.plot(current_db, bands, color=COLORS["navy"], lw=1.3, label="current truth")
+    forecast_axis.set_title("Future background state", loc="left", fontweight="bold")
+    forecast_axis.set_xlabel("TOL (dB)")
+    forecast_axis.set_yticks([])
+    forecast_axis.legend(frameon=False, fontsize=8)
+
+    for column, (audio, title) in enumerate((
+        (ocean, "Real current ocean WAV"),
+        (mixture, "Real ocean + synthetic target"),
+        (estimate, "Separated target"),
+        (residual, "Estimated ocean residual"),
+    )):
+        axis = figure.add_subplot(grid[1, column])
+        frequencies, times, values = _db_spectrogram(audio, int(config["sample_rate"]))
+        axis.pcolormesh(times, frequencies / 1000, values, shading="auto", cmap="magma", vmin=-85, vmax=-20)
+        axis.set_title(title, fontsize=9.5, fontweight="bold")
+        axis.set_xlabel("Time (s)")
+        if column == 0:
+            axis.set_ylabel("Frequency (kHz)")
+        else:
+            axis.set_yticklabels([])
+
+    spectrum_axis = figure.add_subplot(grid[2, :])
+    frequencies = np.fft.rfftfreq(length, 1 / int(config["sample_rate"]))
+    for audio, label, color in (
+        (ocean, "real ocean", COLORS["cyan"]),
+        (source, "synthetic target GT", COLORS["gold"]),
+        (estimate, "separated target", COLORS["coral"]),
+    ):
+        power = 20 * np.log10(np.maximum(np.abs(np.fft.rfft(audio * np.hanning(length))), 1e-6))
+        spectrum_axis.plot(frequencies / 1000, power, lw=1.2, label=label, color=color, alpha=0.9)
+    improvement = float(si_sdr(torch.from_numpy(estimate), torch.from_numpy(source))) - float(
+        si_sdr(torch.from_numpy(mixture), torch.from_numpy(source))
+    )
+    spectrum_axis.set_title(
+        f"Spectra · input SNR {item['snr_db']:+.1f} dB · SI-SDRi {improvement:+.2f} dB",
+        loc="left", fontweight="bold",
+    )
+    spectrum_axis.set_xlabel("Frequency (kHz)")
+    spectrum_axis.set_ylabel("Relative magnitude (dB)")
+    spectrum_axis.grid(alpha=0.18)
+    spectrum_axis.legend(ncol=3, frameon=False, loc="upper right")
+    save_figure(figure, path)
+
+
+def real_ablation_figure(path: Path, results_path: Path) -> None:
+    results = json.loads(results_path.read_text(encoding="utf-8"))
+    variants = ["none_film", "oracle_film", "film", "shuffled_film"]
+    labels = ["No condition", "Oracle $S_t$", "Forecast $\\hat S_t$", "Shuffled $S_j$"]
+    rows = [results["conditions"][name] for name in variants]
+    figure, axes = plt.subplots(1, 2, figsize=(10.4, 3.7), constrained_layout=True)
+    x = np.arange(len(rows))
+    score = np.asarray([row["source_si_sdri_db"] for row in rows])
+    score_intervals = np.asarray([row["source_si_sdri_ci95_db"] for row in rows])
+    axes[0].bar(x, score, color=[COLORS["navy"], COLORS["mint"], COLORS["gold"], COLORS["coral"]])
+    axes[0].errorbar(x, score, yerr=np.vstack((score-score_intervals[:, 0], score_intervals[:, 1]-score)),
+                     fmt="none", ecolor=COLORS["ink"], capsize=3)
+    axes[0].set_ylabel("SI-SDR improvement (dB)")
+    axes[0].set_title("Real current-ocean waveform", loc="left", fontweight="bold")
+
+    gain = np.asarray([row["paired_gain_over_baseline_db"] for row in rows])
+    intervals = np.asarray([row["paired_gain_ci95_db"] for row in rows])
+    axes[1].axhline(0, color=COLORS["muted"], lw=1)
+    axes[1].errorbar(x, gain, yerr=np.vstack((gain-intervals[:, 0], intervals[:, 1]-gain)),
+                     fmt="o", color=COLORS["coral"], capsize=4)
+    axes[1].set_ylabel("Paired gain over baseline (dB)")
+    axes[1].set_title("Does timing information matter?", loc="left", fontweight="bold")
+    for axis in axes:
+        axis.set_xticks(x, labels, rotation=12)
+        axis.grid(alpha=0.16, axis="y")
+        axis.spines[["top", "right"]].set_visible(False)
+    save_figure(figure, path)
+
+
 def diversity_figure(path: Path, results_path: Path) -> None:
     results = json.loads(results_path.read_text(encoding="utf-8"))
     figure, axes = plt.subplots(1, 3, figsize=(12.2, 3.8), constrained_layout=True)
@@ -272,6 +399,8 @@ def main() -> None:
     parser.add_argument("--conditioned-checkpoint", type=Path, default=Path("models/practical_film.pt"))
     parser.add_argument("--diversity-results", type=Path, default=Path("results/diversity_results.json"))
     parser.add_argument("--ablation-results", type=Path, default=Path("results/conditioning_ablation.json"))
+    parser.add_argument("--real-results", type=Path, default=Path("results/real_audio_ablation.json"))
+    parser.add_argument("--real-checkpoint", type=Path, default=Path("experiments/real_film/best.pt"))
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = parser.parse_args()
@@ -287,6 +416,12 @@ def main() -> None:
         args.data_root,
         args.device,
     )
+    if args.real_results.exists() and args.real_checkpoint.exists():
+        real_ablation_figure(args.output_dir / "real_audio_ablation.png", args.real_results)
+        real_signal_figure(
+            args.output_dir / "real_audio_visualization.png", args.real_checkpoint,
+            args.real_checkpoint.parent / "test_examples.csv", args.data_root, args.device,
+        )
     print(f"wrote figures to {args.output_dir}")
 
 

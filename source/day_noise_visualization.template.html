@@ -1,0 +1,230 @@
+<div id="ocean-noise-day-viz">
+  <style>
+    #ocean-noise-day-viz { color: var(--foreground); width: 100%; }
+    #ocean-noise-day-viz .viz-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+    #ocean-noise-day-viz .viz-controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:10px 0; }
+    #ocean-noise-day-viz .summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:10px 0 14px; }
+    #ocean-noise-day-viz .summary > div { border:1px solid var(--border); border-radius:8px; padding:10px 12px; }
+    #ocean-noise-day-viz .summary strong { display:block; font-size:1.15rem; font-variant-numeric:tabular-nums; }
+    #ocean-noise-day-viz .summary span { color:var(--muted-foreground); font-size:.8rem; }
+    #ocean-noise-day-viz .heatmap-stage { position:relative; width:100%; height:430px; }
+    #ocean-noise-day-viz canvas, #ocean-noise-day-viz .heatmap-stage > svg { position:absolute; inset:0; width:100%; height:100%; }
+    #ocean-noise-day-viz #ond-canvas { z-index:1; }
+    #ocean-noise-day-viz #ond-overlay { z-index:2; }
+    #ocean-noise-day-viz .plots { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:14px; }
+    #ocean-noise-day-viz .plot { min-width:0; }
+    #ocean-noise-day-viz .plot svg { width:100%; height:255px; display:block; }
+    #ocean-noise-day-viz .tooltip { position:absolute; pointer-events:none; display:none; z-index:4; max-width:280px; }
+    #ocean-noise-day-viz .legend { display:flex; align-items:center; gap:8px; color:var(--muted-foreground); }
+    #ocean-noise-day-viz .legend-ramp { width:120px; height:10px; border:1px solid var(--border); }
+    #ocean-noise-day-viz .axis path, #ocean-noise-day-viz .axis line { stroke:var(--border); }
+    #ocean-noise-day-viz .axis text, #ocean-noise-day-viz text { fill:var(--foreground); font-size:12px; }
+    #ocean-noise-day-viz rect[data-chart-frame] { fill:none; stroke:var(--border); pointer-events:none; }
+    #ocean-noise-day-viz .line-main { fill:none; stroke:var(--viz-series-1); stroke-width:2; }
+    #ocean-noise-day-viz .line-secondary { fill:none; stroke:var(--viz-series-2); stroke-width:2; }
+    #ocean-noise-day-viz .band { fill:var(--viz-series-2); opacity:.16; }
+    #ocean-noise-day-viz .threshold { stroke:var(--muted-foreground); stroke-width:1; stroke-dasharray:4 4; }
+    #ocean-noise-day-viz .marker { fill:var(--viz-series-3); stroke:var(--background); stroke-width:2; }
+    #ocean-noise-day-viz #ond-overlay { background:transparent !important; cursor:crosshair; touch-action:none; }
+    #ocean-noise-day-viz .selected-readout { min-height:20px; margin-top:5px; }
+    @media (max-width: 680px) {
+      #ocean-noise-day-viz .summary, #ocean-noise-day-viz .plots { grid-template-columns:1fr; }
+      #ocean-noise-day-viz .heatmap-stage { height:350px; }
+    }
+  </style>
+  <div class="viz-head">
+    <div>
+      <h2>24-hour ocean background spectrogram</h2>
+      <div class="text-small text-muted" id="ond-meta"></div>
+    </div>
+    <div class="legend text-small"><span id="ond-legend-min" class="tabular-nums"></span><span class="legend-ramp" id="ond-ramp"></span><span id="ond-legend-max" class="tabular-nums"></span></div>
+  </div>
+  <div class="summary">
+    <div><strong id="ond-horizon">--</strong><span>estimated meaningful forecast horizon</span></div>
+    <div><strong id="ond-adjacent">--</strong><span>90th percentile of 1-minute spectral change</span></div>
+    <div><strong id="ond-range">--</strong><span>24-hour broadband level range</span></div>
+  </div>
+  <div class="viz-controls" aria-label="Display controls">
+    <button class="btn btn-primary" type="button" id="ond-anomaly" aria-pressed="true">Relative to daily median</button>
+    <button class="btn" type="button" id="ond-raw" aria-pressed="false">Raw dBFS</button>
+    <button class="btn btn-ghost" type="button" id="ond-reset">Reset zoom</button>
+    <span class="text-small text-muted">Wheel to zoom, drag to pan, double-click to reset</span>
+  </div>
+  <div class="heatmap-stage" id="ond-stage">
+    <canvas id="ond-canvas" role="img" aria-label="One-minute resolution ocean-noise spectrogram across 24 hours"></canvas>
+    <svg id="ond-overlay" role="img" aria-labelledby="ond-heat-title ond-heat-desc">
+      <title id="ond-heat-title">Twenty-four-hour ocean background spectrogram</title>
+      <desc id="ond-heat-desc">Time is horizontal and logarithmic frequency is vertical. Zoom and pan to inspect one-minute changes.</desc>
+    </svg>
+    <div id="ond-tooltip" class="tooltip" role="tooltip"></div>
+  </div>
+  <div id="ond-readout" class="selected-readout text-small tabular-nums" aria-live="polite"></div>
+  <div class="plots">
+    <div class="plot"><svg id="ond-level" role="img" aria-label="One-minute broadband background level over time"></svg></div>
+    <div class="plot"><svg id="ond-lag" role="img" aria-label="Spectral change by forecast horizon"></svg></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+  <script>
+  (() => {
+    const root = document.getElementById('ocean-noise-day-viz');
+    const DATA = __DATA__;
+    const times = DATA.timestamps.map(d => new Date(d));
+    const freqs = DATA.frequency_hz;
+    const raw = DATA.spectrum_dbfs;
+    const medians = freqs.map((_, j) => d3.median(raw, row => row[j]));
+    const anomaly = raw.map(row => row.map((value, j) => value - medians[j]));
+    const flatRaw = raw.flat(), flatAnomaly = anomaly.flat();
+    let mode = 'anomaly', transform = d3.zoomIdentity;
+    // Canvas cannot parse the host's light-dark() custom-property values.
+    // These RGB values mirror the visualization theme variables in each scheme.
+    const darkTheme = matchMedia('(prefers-color-scheme: dark)').matches;
+    const series1 = darkTheme ? 'rgb(131,195,255)' : 'rgb(51,156,255)';
+    const series2 = darkTheme ? 'rgb(170,145,239)' : 'rgb(155,121,236)';
+    const background = darkTheme ? 'rgb(24,24,24)' : 'rgb(255,255,255)';
+    const stage = root.querySelector('#ond-stage');
+    const canvas = root.querySelector('#ond-canvas');
+    const overlay = d3.select(root.querySelector('#ond-overlay'));
+    const tooltip = root.querySelector('#ond-tooltip');
+    const margin = {top:18,right:22,bottom:52,left:72};
+    let width = 900, height = 430, xBase, yBase, xView, yView, color;
+
+    root.querySelector('#ond-meta').textContent = `${DATA.deployment} | ${DATA.date} UTC | 1-minute bins | 20-4000 Hz`;
+    root.querySelector('#ond-horizon').textContent = DATA.change_horizon_minutes ? `about ${DATA.change_horizon_minutes} min` : 'beyond 12 h';
+    root.querySelector('#ond-adjacent').textContent = `${DATA.adjacent_js_p90_bits.toFixed(4)} bit JS`;
+    const levelExtent = d3.extent(DATA.broadband_dbfs);
+    root.querySelector('#ond-range').textContent = `${(levelExtent[1] - levelExtent[0]).toFixed(1)} dB`;
+
+    function modeDomain() {
+      if (mode === 'raw') return [d3.quantile(flatRaw, .03), d3.quantile(flatRaw, .97)];
+      const cap = d3.quantile(flatAnomaly.map(Math.abs), .97);
+      return [-cap, cap];
+    }
+
+    function drawHeatmap() {
+      width = stage.clientWidth;
+      height = stage.clientHeight;
+      const ratio = devicePixelRatio || 1;
+      canvas.width = Math.round(width * ratio);
+      canvas.height = Math.round(height * ratio);
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(ratio,0,0,ratio,0,0);
+      ctx.clearRect(0,0,width,height);
+      overlay.attr('viewBox', `0 0 ${width} ${height}`);
+      xBase = d3.scaleTime().domain([times[0], new Date(+times[times.length-1] + 60000)]).range([margin.left,width-margin.right]);
+      yBase = d3.scaleLog().domain([20,4000]).range([height-margin.bottom,margin.top]);
+      xView = transform.rescaleX(xBase);
+      yView = transform.rescaleY(yBase);
+      const domain = modeDomain();
+      color = mode === 'raw'
+        ? d3.scaleSequential(d3.interpolateRgb(series1, series2)).domain(domain)
+        : d3.scaleDiverging([domain[0], 0, domain[1]], d3.interpolateRgbBasis([series1, background, series2]));
+      root.querySelector('#ond-ramp').style.background = mode === 'raw'
+        ? `linear-gradient(90deg,${series1},${series2})`
+        : `linear-gradient(90deg,${series1},${background},${series2})`;
+      root.querySelector('#ond-legend-min').textContent = `${domain[0].toFixed(1)} dB`;
+      root.querySelector('#ond-legend-max').textContent = `${domain[1].toFixed(1)} dB`;
+      const matrix = mode === 'raw' ? raw : anomaly;
+      const ratioF = freqs[1] / freqs[0];
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(margin.left,margin.top,width-margin.left-margin.right,height-margin.top-margin.bottom);
+      ctx.clip();
+      for (let i=0;i<times.length;i++) {
+        const x0=xView(times[i]), x1=xView(new Date(+times[i]+60000));
+        if (x1<margin.left || x0>width-margin.right) continue;
+        for (let j=0;j<freqs.length;j++) {
+          const low=freqs[j]/Math.sqrt(ratioF), high=freqs[j]*Math.sqrt(ratioF);
+          const y0=yView(high), y1=yView(low);
+          if (y1<margin.top || y0>height-margin.bottom) continue;
+          ctx.fillStyle=color(matrix[i][j]);
+          ctx.fillRect(x0,y0,Math.max(1,x1-x0+.3),Math.max(1,y1-y0+.3));
+        }
+      }
+      ctx.restore();
+      overlay.selectAll('*').remove();
+      overlay.append('rect').attr('data-chart-frame','').attr('x',margin.left).attr('y',margin.top)
+        .attr('width',width-margin.left-margin.right).attr('height',height-margin.top-margin.bottom);
+      overlay.append('g').attr('class','axis').attr('transform',`translate(0,${height-margin.bottom})`)
+        .call(d3.axisBottom(xView).ticks(width<600?4:8).tickFormat(d3.timeFormat('%H:%M')));
+      overlay.append('g').attr('class','axis').attr('transform',`translate(${margin.left},0)`)
+        .call(d3.axisLeft(yView).tickValues([20,50,100,200,500,1000,2000,4000]).tickFormat(d=>d>=1000?`${d/1000}k`:d));
+      overlay.append('text').attr('x',(margin.left+width-margin.right)/2).attr('y',height-8).attr('text-anchor','middle').text('UTC time');
+      overlay.append('text').attr('transform','rotate(-90)').attr('x',-(margin.top+height-margin.bottom)/2).attr('y',18).attr('text-anchor','middle').text('Frequency (Hz)');
+      drawLevel();
+    }
+
+    const zoom=d3.zoom().scaleExtent([1,80]).on('zoom',event=>{transform=event.transform; drawHeatmap();});
+    overlay.call(zoom).on('dblclick.zoom', null).on('mousemove.readout', event => {
+      const [px,py]=d3.pointer(event);
+      if (px<margin.left || px>width-margin.right || py<margin.top || py>height-margin.bottom) { tooltip.style.display='none'; return; }
+      const time=xView.invert(px), frequency=yView.invert(py);
+      const i=Math.max(0,Math.min(times.length-1,d3.bisector(d=>d).center(times,time)));
+      const j=Math.max(0,Math.min(freqs.length-1,d3.bisector(d=>d).center(freqs,frequency)));
+      const value=(mode==='raw'?raw:anomaly)[i][j];
+      tooltip.style.display='block';
+      tooltip.textContent=`${d3.timeFormat('%H:%M')(times[i])} | ${Math.round(freqs[j])} Hz | ${value.toFixed(1)} dB${mode==='raw'?'FS':' vs median'}`;
+      const box=root.getBoundingClientRect();
+      tooltip.style.left=`${event.clientX-box.left+12}px`;
+      tooltip.style.top=`${event.clientY-box.top-26}px`;
+      root.querySelector('#ond-readout').textContent=`Selected: ${d3.timeFormat('%H:%M')(times[i])} UTC | ${Math.round(freqs[j])} Hz | broadband ${DATA.broadband_dbfs[i].toFixed(1)} dBFS`;
+    }).on('mouseleave.readout',()=>{tooltip.style.display='none';});
+
+    function reset(){transform=d3.zoomIdentity; overlay.call(zoom.transform, transform);}
+    root.querySelector('#ond-reset').addEventListener('click',reset);
+    root.querySelector('#ond-stage').addEventListener('dblclick',event=>{event.preventDefault();reset();});
+    function setMode(next) {
+      mode=next;
+      const anomalyButton=root.querySelector('#ond-anomaly'), rawButton=root.querySelector('#ond-raw');
+      anomalyButton.className=next==='anomaly'?'btn btn-primary':'btn';
+      rawButton.className=next==='raw'?'btn btn-primary':'btn';
+      anomalyButton.setAttribute('aria-pressed',String(next==='anomaly'));
+      rawButton.setAttribute('aria-pressed',String(next==='raw'));
+      drawHeatmap();
+    }
+    root.querySelector('#ond-anomaly').addEventListener('click',()=>setMode('anomaly'));
+    root.querySelector('#ond-raw').addEventListener('click',()=>setMode('raw'));
+
+    function axes(svg,w,h,m,x,y,xLabel,yLabel,xAxis=null){
+      svg.append('rect').attr('data-chart-frame','').attr('x',m.left).attr('y',m.top).attr('width',w-m.left-m.right).attr('height',h-m.top-m.bottom);
+      svg.append('g').attr('class','axis').attr('transform',`translate(0,${h-m.bottom})`).call(xAxis || d3.axisBottom(x).ticks(w<450?4:6));
+      svg.append('g').attr('class','axis').attr('transform',`translate(${m.left},0)`).call(d3.axisLeft(y).ticks(5));
+      svg.append('text').attr('x',(m.left+w-m.right)/2).attr('y',h-6).attr('text-anchor','middle').text(xLabel);
+      svg.append('text').attr('transform','rotate(-90)').attr('x',-(m.top+h-m.bottom)/2).attr('y',15).attr('text-anchor','middle').text(yLabel);
+    }
+    function drawLevel(){
+      const node=root.querySelector('#ond-level'), svg=d3.select(node), w=node.clientWidth||430,h=255,m={top:30,right:16,bottom:45,left:60};
+      svg.attr('viewBox',`0 0 ${w} ${h}`).selectAll('*').remove();
+      const visible=times.map((t,i)=>({t,v:DATA.broadband_dbfs[i]})).filter(d=>d.t>=xView.domain()[0]&&d.t<=xView.domain()[1]);
+      if (!visible.length) return;
+      const x=d3.scaleTime().domain(xView.domain()).range([m.left,w-m.right]);
+      const ext=d3.extent(visible,d=>d.v), y=d3.scaleLinear().domain([ext[0]-1,ext[1]+1]).nice().range([h-m.bottom,m.top]);
+      axes(svg,w,h,m,x,y,'UTC time','Broadband level (dBFS)',d3.axisBottom(x).ticks(w<450?4:6).tickFormat(d3.timeFormat('%H:%M')));
+      svg.append('path').datum(visible).attr('class','line-main').attr('d',d3.line().x(d=>x(d.t)).y(d=>y(d.v)));
+      svg.append('text').attr('x',m.left).attr('y',18).attr('font-weight',500).text('One-minute broadband background level');
+    }
+    function drawLag(){
+      const node=root.querySelector('#ond-lag'), svg=d3.select(node), w=node.clientWidth||430,h=255,m={top:30,right:18,bottom:45,left:60};
+      svg.attr('viewBox',`0 0 ${w} ${h}`).selectAll('*').remove();
+      const rows=DATA.lag_statistics;
+      const x=d3.scaleLog().domain(d3.extent(rows,d=>d.minutes)).range([m.left,w-m.right]);
+      const y=d3.scaleLinear().domain([0,d3.max(rows,d=>d.js_q90)*1.08]).nice().range([h-m.bottom,m.top]);
+      const xAxis=d3.axisBottom(x).tickValues([1,5,15,60,180,720]).tickFormat(d=>d<60?`${d}m`:`${d/60}h`);
+      axes(svg,w,h,m,x,y,'Forecast horizon','Spectral JS divergence (bit)',xAxis);
+      svg.append('path').datum(rows).attr('class','band').attr('d',d3.area().x(d=>x(d.minutes)).y0(d=>y(d.js_q25)).y1(d=>y(d.js_q75)));
+      svg.append('path').datum(rows).attr('class','line-secondary').attr('d',d3.line().x(d=>x(d.minutes)).y(d=>y(d.js_median)));
+      svg.append('line').attr('class','threshold').attr('x1',m.left).attr('x2',w-m.right).attr('y1',y(DATA.adjacent_js_p90_bits)).attr('y2',y(DATA.adjacent_js_p90_bits));
+      if (DATA.change_horizon_minutes) {
+        const row=rows.find(d=>d.minutes===DATA.change_horizon_minutes);
+        svg.append('circle').attr('class','marker').attr('cx',x(row.minutes)).attr('cy',y(row.js_median)).attr('r',5);
+        svg.append('text').attr('x',x(row.minutes)>w*.7?x(row.minutes)-8:x(row.minutes)+8).attr('y',y(row.js_median)-8)
+          .attr('text-anchor',x(row.minutes)>w*.7?'end':'start').text(`change horizon about ${row.minutes} min`);
+      }
+      svg.append('text').attr('x',m.left).attr('y',18).attr('font-weight',500).text('Spectral difference grows with prediction horizon');
+    }
+    let lastWidth=0;
+    function resize(){ const next=root.clientWidth; if (Math.abs(next-lastWidth)>1) { lastWidth=next; drawLag(); drawHeatmap(); } }
+    drawLag(); drawHeatmap(); lastWidth=root.clientWidth;
+    new ResizeObserver(resize).observe(root);
+  })();
+  </script>
+</div>

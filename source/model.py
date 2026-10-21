@@ -179,7 +179,10 @@ class ConditionalBSRoformer(nn.Module):
 class ForecastConditionedSeparator(nn.Module):
     """Forecast-conditioned separator with registered representation/injection ablations."""
 
-    VARIANTS = ("none", "latent", "spectrum", "concat", "film", "cross_attention")
+    VARIANTS = (
+        "none", "latent", "spectrum", "concat", "film", "cross_attention",
+        "none_film", "oracle_film", "shuffled_film",
+    )
 
     def __init__(
         self,
@@ -200,6 +203,9 @@ class ForecastConditionedSeparator(nn.Module):
             "concat": "concat",
             "film": "film",
             "cross_attention": "cross_attention",
+            "none_film": "film",
+            "oracle_film": "film",
+            "shuffled_film": "film",
         }.get(variant, "add")
         # Component-local RNG streams make the BS-RoFormer core identical
         # across ablations and the forecaster identical across the two
@@ -211,15 +217,25 @@ class ForecastConditionedSeparator(nn.Module):
                 conditioning_mode=conditioning_mode,
                 **separator_kwargs,
             )
-        if variant == "none":
+        if variant in {"none", "none_film", "oracle_film", "shuffled_film"}:
             self.forecaster = None
         else:
             with torch.random.fork_rng(devices=[]):
                 torch.manual_seed(initialization_seed + 2)
                 self.forecaster = NoiseForecaster(spectrum_dim, latent_dim)
 
-    def forward(self, mixture: torch.Tensor, history: torch.Tensor) -> dict[str, torch.Tensor | None]:
-        if self.forecaster is None:
+    def forward(
+        self,
+        mixture: torch.Tensor,
+        history: torch.Tensor,
+        external_condition: torch.Tensor | None = None,
+    ) -> dict[str, torch.Tensor | None]:
+        if self.variant in {"oracle_film", "shuffled_film"}:
+            if external_condition is None:
+                raise ValueError(f"{self.variant} requires an external condition")
+            condition = external_condition
+            latent = prediction = None
+        elif self.forecaster is None:
             condition = torch.zeros(
                 (mixture.shape[0], self.spectrum_dim), dtype=mixture.dtype, device=mixture.device
             )

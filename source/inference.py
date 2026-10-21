@@ -49,6 +49,7 @@ class SeparationEngine:
         ).to(self.device)
         self.model.load_state_dict(checkpoint["model"])
         self.model.eval()
+        self.requires_history = self.model.forecaster is not None
 
     def parse_history_csv(self, text: str) -> np.ndarray:
         raw_rows = csv.DictReader(io.StringIO(text.lstrip("\ufeff")), skipinitialspace=True)
@@ -85,7 +86,7 @@ class SeparationEngine:
         return audio.astype(np.float32)
 
     @torch.inference_mode()
-    def separate(self, audio: np.ndarray, history: np.ndarray) -> dict:
+    def separate(self, audio: np.ndarray, history: np.ndarray | None = None) -> dict:
         if len(audio) / self.sample_rate > 120:
             raise ValueError("frontend limits each request to 120 seconds")
         chunk = self.chunk_samples
@@ -101,6 +102,8 @@ class SeparationEngine:
         ramp = np.linspace(1e-3, 1.0, fade, endpoint=False, dtype=np.float32)
         window[:fade] = ramp
         window[-fade:] = ramp[::-1]
+        if history is None:
+            history = np.zeros((self.context_hours, len(self.columns)), dtype=np.float32)
         history_tensor = torch.from_numpy(history[None]).to(self.device)
         prediction = None
         began = time.perf_counter()

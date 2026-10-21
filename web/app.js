@@ -1,4 +1,4 @@
-const state = { history: null, audio: null, urls: [] };
+const state = { history: null, audio: null, urls: [], requiresHistory: true };
 const $ = (id) => document.getElementById(id);
 
 async function connect() {
@@ -9,12 +9,20 @@ async function connect() {
     $('status').querySelector('span').textContent = `${data.checkpoint} · ${data.sample_rate} Hz`;
     $('variant').textContent = data.variant;
     $('device').textContent = data.device.toUpperCase();
+    state.requiresHistory = data.requires_history;
+    if (!state.requiresHistory) {
+      $('historyHelp').textContent = '当前最佳真实录音模型不需要历史 TOL；此项可留空。';
+      $('historyMeta').textContent = '可选 · 仅供切换预测条件模型时使用';
+      $('subtitle').textContent = '真实连续海洋录音验证的 BS-RoFormer，本机完成分离。';
+      $('forecastCard').classList.add('hidden');
+    }
+    ready();
   } catch (_) {
     $('status').querySelector('span').textContent = '模型未连接';
   }
 }
 
-function ready() { $('runButton').disabled = !(state.history && state.audio); }
+function ready() { $('runButton').disabled = !(state.audio && (!state.requiresHistory || state.history)); }
 
 $('historyFile').addEventListener('change', async (event) => {
   const file = event.target.files[0];
