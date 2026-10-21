@@ -6,6 +6,7 @@ from contextlib import ExitStack
 from functools import lru_cache
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import io
 import json
 import math
 from pathlib import Path
@@ -103,6 +104,37 @@ class DayAudio:
                     written += count
         output -= output.mean(axis=1, keepdims=True, dtype=np.float64)
         return output
+
+    @lru_cache(maxsize=16)
+    def wav_clip(self, start_millis: int, duration_millis: int) -> bytes:
+        start = start_millis / 1000.0
+        duration = duration_millis / 1000.0
+        if not (0 <= start < self.duration_seconds):
+            raise ValueError("audio start must stay within the prepared day")
+        if not (1 <= duration <= 120):
+            raise ValueError("audio duration must be between 1 and 120 seconds")
+        duration = min(duration, self.duration_seconds - start)
+        first_sample = int(round(start * self.sample_rate))
+        sample_count = int(round(duration * self.sample_rate))
+        audio = np.empty(sample_count, dtype=np.float32)
+        position = first_sample
+        written = 0
+        with ExitStack() as stack:
+            streams = [stack.enter_context(sf.SoundFile(record["local"])) for record in self.records]
+            while written < sample_count:
+                hour = min(position // self.samples_per_hour, len(streams) - 1)
+                offset = position - hour * self.samples_per_hour
+                count = min(sample_count - written, self.samples_per_hour - offset)
+                streams[hour].seek(offset)
+                block = streams[hour].read(count, dtype="float32", always_2d=False)
+                if len(block) != count:
+                    raise ValueError(f"short read in {self.records[hour]['local']}")
+                audio[written : written + count] = block
+                position += count
+                written += count
+        stream = io.BytesIO()
+        sf.write(stream, audio, self.sample_rate, format="WAV", subtype="PCM_16")
+        return stream.getvalue()
 
     @lru_cache(maxsize=32)
     def detail(
@@ -221,6 +253,15 @@ def make_handler(audio: DayAudio):
             self._headers(status, "application/json; charset=utf-8")
             self.wfile.write(payload)
 
+        def _binary(self, status: int, content_type: str, payload: bytes) -> None:
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(payload)))
+            self.send_header("Cache-Control", "private, max-age=3600")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers()
+            self.wfile.write(payload)
+
         def do_GET(self) -> None:
             parsed = urlparse(self.path)
             if parsed.path == "/api/overview":
@@ -236,6 +277,17 @@ def make_handler(audio: DayAudio):
                         round(float(query["high"][0]) * 10),
                     )
                     self._json(200, result)
+                except Exception as error:
+                    self._json(400, {"error": str(error)})
+                return
+            if parsed.path == "/api/audio":
+                try:
+                    query = parse_qs(parsed.query)
+                    payload = audio.wav_clip(
+                        round(float(query["start"][0]) * 1000),
+                        round(float(query.get("duration", ["30"])[0]) * 1000),
+                    )
+                    self._binary(200, "audio/wav", payload)
                 except Exception as error:
                     self._json(400, {"error": str(error)})
                 return

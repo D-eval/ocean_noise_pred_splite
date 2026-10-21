@@ -29,9 +29,23 @@
     </section>
 
     <section class="chart-wrap" id="chart-wrap">
+      <div class="player" id="player" hidden>
+        <div class="player-label">
+          <strong id="listen-time">试听起点 —</strong>
+          <label>时长
+            <select id="listen-duration">
+              <option value="10">10 秒</option>
+              <option value="30" selected>30 秒</option>
+              <option value="60">60 秒</option>
+              <option value="120">120 秒</option>
+            </select>
+          </label>
+        </div>
+        <audio id="audio" controls preload="metadata">浏览器不支持音频播放。</audio>
+      </div>
       <svg id="chart" role="img" aria-labelledby="chart-title chart-desc">
         <title id="chart-title">可框选并重新计算的海洋背景噪声时频图</title>
-        <desc id="chart-desc">横轴为 UTC 时间，纵轴为频率。拖动选择区域后，服务器从原始音频重新计算更高分辨率的频谱。</desc>
+        <desc id="chart-desc">横轴为 UTC 时间，纵轴为频率。单击选择试听起点，拖动选择区域后从原始音频重新计算更高分辨率的频谱。</desc>
       </svg>
       <div class="tooltip" id="tooltip" role="tooltip"></div>
     </section>

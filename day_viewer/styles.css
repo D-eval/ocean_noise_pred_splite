@@ -28,11 +28,20 @@ button:disabled { opacity:.45; cursor:not-allowed; }
 .readout strong { display:block; margin-top:3px; font-size:.94rem; font-weight:600; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
 .chart-wrap { position:relative; width:100%; background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
 #chart { display:block; width:100%; height:clamp(480px,67vh,780px); touch-action:none; user-select:none; }
+.player { position:absolute; z-index:5; top:30px; left:90px; display:flex; align-items:center; gap:10px; padding:8px 10px; background:color-mix(in srgb,var(--surface) 94%,transparent); border:1px solid var(--border); border-radius:8px; box-shadow:0 3px 12px rgba(0,0,0,.18); }
+.player[hidden] { display:none; }
+.player-label { display:flex; flex-direction:column; gap:4px; font-size:.8rem; font-variant-numeric:tabular-nums; }
+.player-label label { color:var(--muted); }
+.player select { margin-left:4px; background:var(--surface-2); color:var(--text); border:1px solid var(--border); border-radius:5px; padding:3px 5px; }
+.player audio { width:min(310px,34vw); height:36px; }
 .spectral-layer path { pointer-events:none; shape-rendering:crispEdges; }
 .axis line, .frame { stroke:var(--border); stroke-width:1; vector-effect:non-scaling-stroke; }
 .axis text, .axis-title { fill:var(--text); font-size:12px; }
 .axis .minor { stroke-opacity:.35; }
 .selection { fill:var(--selection); stroke:var(--accent); stroke-width:1.5; stroke-dasharray:5 3; vector-effect:non-scaling-stroke; pointer-events:none; }
+.listen-marker { stroke:#ff9e45; stroke-width:2; vector-effect:non-scaling-stroke; pointer-events:none; }
+.listen-marker-dot { fill:#ff9e45; stroke:var(--surface); stroke-width:2; vector-effect:non-scaling-stroke; pointer-events:none; }
+.listen-marker-label { fill:var(--text); font-size:12px; font-weight:600; paint-order:stroke; stroke:var(--surface); stroke-width:4px; stroke-linejoin:round; pointer-events:none; }
 .interaction { fill:transparent; cursor:crosshair; }
 .tooltip { display:none; position:absolute; pointer-events:none; z-index:3; background:var(--surface-2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:7px 9px; font-size:.82rem; font-variant-numeric:tabular-nums; white-space:nowrap; }
 .legend { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:9px; color:var(--muted); font-size:.84rem; font-variant-numeric:tabular-nums; }
@@ -42,5 +51,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
   main { padding:12px; }
   .readout { grid-template-columns:1fr; }
   #chart { height:540px; }
+  .player { left:62px; right:8px; top:8px; flex-direction:column; align-items:stretch; }
+  .player audio { width:100%; }
   .legend { justify-content:flex-start; flex-wrap:wrap; }
 }

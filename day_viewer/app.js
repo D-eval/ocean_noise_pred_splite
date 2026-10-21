@@ -5,6 +5,10 @@
   const status = document.getElementById('status');
   const backButton = document.getElementById('back');
   const resetButton = document.getElementById('reset');
+  const player = document.getElementById('player');
+  const audio = document.getElementById('audio');
+  const listenTime = document.getElementById('listen-time');
+  const listenDuration = document.getElementById('listen-duration');
   const ns = 'http://www.w3.org/2000/svg';
   const palette = ['#081d58','#225ea8','#1d91c0','#41b6c4','#7fcdbb','#c7e9b4','#ffffcc'];
   let overview = null;
@@ -13,6 +17,7 @@
   let drawing = null;
   let geometry = null;
   let resizeTimer = null;
+  let listenStart = null;
 
   function node(name, attributes = {}, text = null) {
     const element = document.createElementNS(ns, name);
@@ -145,7 +150,36 @@
     const interaction=node('rect',{class:'interaction',x:left,y:top,width:right-left,height:bottom-top,'aria-label':'拖动框选要重新计算的时间频率区域'});
     svg.appendChild(interaction);
     bindInteraction(interaction,selection,data);
+    drawListenMarker();
     updateReadout(data);
+  }
+
+  function drawListenMarker() {
+    svg.querySelector('.listen-marker-group')?.remove();
+    if (listenStart === null || !geometry || !current) return;
+    const edges=current.time_edges_seconds;
+    if (listenStart<edges[0] || listenStart>edges[edges.length-1]) return;
+    const px=geometry.x.forward(listenStart);
+    const group=node('g',{class:'listen-marker-group','aria-label':`试听起点 ${formatTime(listenStart,true)} UTC`});
+    group.appendChild(node('line',{class:'listen-marker',x1:px,x2:px,y1:geometry.top,y2:geometry.bottom}));
+    group.appendChild(node('circle',{class:'listen-marker-dot',cx:px,cy:geometry.top+8,r:5}));
+    group.appendChild(node('text',{class:'listen-marker-label',x:px+8,y:geometry.top+14},`试听 ${formatTime(listenStart,true)}`));
+    const interaction=svg.querySelector('.interaction');
+    svg.insertBefore(group,interaction);
+  }
+
+  function loadAudio(autoplay=false) {
+    if (listenStart===null) return;
+    const duration=Number(listenDuration.value);
+    const start=clamp(listenStart,0,86400-duration);
+    listenStart=start;
+    listenTime.textContent=`试听起点 ${formatTime(start,true)} UTC`;
+    audio.src=`/api/audio?start=${start.toFixed(3)}&duration=${duration}`;
+    audio.load();
+    player.hidden=false;
+    drawListenMarker();
+    status.textContent=`已选择 ${formatTime(start,true)} UTC，载入真实录音`;
+    if (autoplay) audio.play().catch(()=>{status.textContent='试听已就绪，请点击播放';});
   }
 
   function pointerPosition(event) {
@@ -181,7 +215,11 @@
       const [rawX,rawY]=pointerPosition(event), px=clamp(rawX,geometry.left,geometry.right), py=clamp(rawY,geometry.top,geometry.bottom);
       const start=drawing; drawing=null;
       selection.setAttribute('visibility','hidden');
-      if (Math.abs(px-start.x)<8 || Math.abs(py-start.y)<8) return;
+      if (Math.abs(px-start.x)<8 && Math.abs(py-start.y)<8) {
+        listenStart=geometry.x.inverse(px);
+        loadAudio(true);
+        return;
+      }
       const timeLow=Math.min(geometry.x.inverse(start.x),geometry.x.inverse(px));
       const timeHigh=Math.max(geometry.x.inverse(start.x),geometry.x.inverse(px));
       const frequencyLow=Math.max(0,Math.min(geometry.y.inverse(start.y),geometry.y.inverse(py)));
@@ -209,6 +247,9 @@
     render(history.pop()); status.textContent=current.kind==='overview'?'全天概览':'已恢复上一级';
   });
   resetButton.addEventListener('click',()=>{history=[];render(overview);status.textContent='全天概览';});
+  listenDuration.addEventListener('change',()=>loadAudio(false));
+  audio.addEventListener('play',()=>{status.textContent=`正在试听 ${formatTime(listenStart,true)} UTC 起的真实录音`;});
+  audio.addEventListener('error',()=>{status.textContent='音频载入失败';});
   window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>current&&render(current),120);});
 
   fetch('/api/overview').then(response=>response.json()).then(data=>{
