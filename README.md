@@ -101,3 +101,20 @@ python -m source.conditioning_ablation
 ```powershell
 python -m source.make_paper_figures
 ```
+
+## 子小时真实波形实验
+
+新的时间序列实验直接读取本机已有的 SanctSound MB03 连续录音，不再按 TOL 包络随机生成海洋背景。对 `5 s / 30 s / 60 s / 600 s` 四种 `window_len`，模型使用严格位于当前窗之前的 1 小时历史预测下一窗；随后把广分布合成信号加入该下一窗真实 WAV，并以原始 WAV 和合成信号作为干净监督。训练、验证和测试分别使用 MB03_01+02、MB03_03、MB03_04。
+
+```powershell
+python -m source.window_resolution_experiment --window 5
+python -m source.window_resolution_experiment --window 30
+python -m source.window_resolution_experiment --window 60
+python -m source.window_resolution_experiment --window 600
+```
+
+正式配置为：预测器至少 1500、最多 2500 次更新，分离器至少 3000、最多 5000 次更新；选择规则只使用验证集，并把零步的“上一窗持续性预测”作为必须击败的候选。分离训练覆盖 8192 个混合片段，测试使用 1024 个配对片段，另在 `−12/−6/0/+6/+12 dB` 各评估 256 个片段。
+
+四种分辨率相对同一真实波形无条件基线的 SI-SDRi 配对增益分别为 `+1.226 / +1.095 / +1.128 / +1.176 dB`，95% bootstrap 区间均高于零；5 秒配置的绝对 SI-SDRi 最高，为 `29.753 dB`。只有 5 秒预测器在验证集上略优于持续性预测（MAE 改善 `1.39%`），但该预测优势没有迁移到 MB03_04；30 秒、1 分钟和 10 分钟均由验证规则选择了持续性预测。因而当前结果证明短时、时间相关的背景条件有助于分离，但尚不能声称学习到的跨部署预测器优于简单持续性先验。
+
+完整数字见 [results/window_resolution_results.json](results/window_resolution_results.json)，可缩放的矢量汇总图见 [paper/figures/window_resolution.pdf](paper/figures/window_resolution.pdf)，中英文论文已同步更新。

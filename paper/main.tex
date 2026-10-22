@@ -17,19 +17,17 @@ background, computed from prior soundscape measurements, improves separation.
 The proposed system encodes historical one-third-octave levels, predicts the
 current background spectrum, and injects it into BS-RoFormer band tokens by
 concatenation, feature-wise linear modulation (FiLM), or cross-attention.
-Forecast and separation losses are optimized jointly. We use time-disjoint
-deployment splits, paired SI-SDR evaluation, and a real-time factor check.
-Because the available public product contains hourly spectral
-levels rather than phase-aligned audio, the present implementation uses
-random-phase background surrogates. We additionally expand the source generator
-to six families and measure distribution shift with Jensen--Shannon (JS)
-divergence, KL divergence, and spectral entropy. On 768 paired broad-source
-examples, validation selects FiLM. It improves SI-SDR improvement (SI-SDRi)
-over an unconditioned separator by $0.34$ dB (paired 95\% interval
-$[0.21,0.48]$); concatenation gains $0.15$ dB, while cross-attention is
-indistinguishable from zero. JS divergence alone does not predict gain, whereas
-the highest spectral-entropy quintile gains $0.80$ dB. These controlled
-surrogate results motivate FiLM but do not establish field performance.
+We use time-disjoint deployment splits, paired SI-SDR evaluation, and a
+real-time factor check. A six-family surrogate study selects FiLM: it improves
+SI-SDR improvement (SI-SDRi) over an unconditioned separator by $0.34$ dB on
+768 paired examples, while JS divergence alone does not predict gain. We then
+use 42 hours of continuous real hydrophone audio and compare 5-s, 30-s, 1-min,
+and 10-min prediction windows with a fixed one-hour history. A validation rule
+retains persistence unless the learned forecast beats it. All resolutions yield
+significant paired separation gains on 1,024 held-out real-background clips;
+5 s is best at $+1.226$ dB (95\% interval $[1.082,1.381]$), with real-time
+factor 0.0024. Only the 5-s learned forecast beats persistence on validation,
+showing that temporal conditioning helps even when elaborate dynamics do not.
 \end{abstract}
 
 \section{Introduction}
@@ -46,9 +44,10 @@ We combine the band-split RoPE Transformer (BS-RoFormer) architecture
 contributions are: (i) a differentiable forecast--separation model; (ii) matched
 ablations of concatenation, FiLM, and cross-attention against no forecast;
 (iii) a leakage-audited deployment split; (iv) an evaluation protocol that
-reports separation, forecast error, uncertainty, and computational usability;
-and (v) a six-family source generator with paired analysis by spectral shift,
-source--background overlap, and source entropy.
+ reports separation, forecast error, uncertainty, and computational usability;
+(v) a six-family source generator with paired analysis by spectral shift,
+source--background overlap, and source entropy; and (vi) a continuous real-audio
+study at four sub-hour prediction resolutions.
 
 \section{Data and waveform construction}
 We use NOAA--Navy SanctSound hourly one-third-octave level (TOL) products
@@ -63,6 +62,13 @@ draw a seeded random phase and Rayleigh-like magnitude jitter, invert the FFT,
 and normalize RMS. This gives background surrogate $n_t$. It preserves the
 coarse measured spectral envelope but not transients, phase, or within-hour
 events. It must not be described as recovered raw audio.
+
+For the field experiment we use the corresponding continuous 8-kHz SanctSound
+hydrophone recordings directly: 6 hours each from MB03\_01, 02, and 03, and a
+continuous 24-hour MB03\_04 test day (42 hours total). One-second Hann
+periodograms are integrated into 23 one-third-octave bands from 25 to 4000 Hz,
+averaged to 5-s features, and power-aggregated to 30 s, 1 min, or 10 min. No
+waveform phase is synthesized in this experiment.
 
 The original injected signal $s_t$ follows the controllable synthesis design
 developed in MINUS: harmonic partials plus band-limited noise, attack/release
@@ -250,8 +256,52 @@ The example illustrates how the selected FiLM prior removes low-frequency ocean
 energy while retaining a diffuse band target.}
 \label{fig:signals}
 \end{figure*}
-\clearpage
 
+\section{Sub-hour real-waveform study}
+The sub-hour experiment fixes history coverage at one hour, giving 720, 120,
+60, or 6 causal history steps. For target window $t$, the model receives only
+$S_{t-H:t-1}$; the background target is the actual waveform $N_t$. A broad
+synthetic source is injected into a clip inside that window,
+$x_t=N_t+\alpha s_t$, so clean signal and noise references remain exact.
+Absolute clip times and injection seeds are shared across resolutions.
+
+The GRU is first trained for up to 2,500 updates. Because short-window ocean
+spectra are highly persistent, its zero-residual initialization is the explicit
+step-0 persistence candidate; a learned checkpoint is retained only if it lowers
+MB03\_03 forecast MAE. The selected predictor is then frozen while the FiLM
+separator trains for at least 3,000 and at most 5,000 updates, with the best
+MB03\_03 SI-SDRi checkpoint evaluated once on MB03\_04. Thus prediction quality
+cannot be silently degraded to optimize separation.
+
+\setcounter{table}{2}
+\begin{table*}[t]
+\centering
+\small
+\caption{Sub-hour prediction and separation on continuous real ocean audio.
+Intervals are paired 95\% bootstrap intervals over 1,024 held-out clips.}
+\label{tab:windows}
+\resizebox{0.98\textwidth}{!}{%
+\begin{tabular}{lrrrrrrl}
+\toprule
+Window & History & Selected & Val. MAE & Cond. SI-SDRi & Base SI-SDRi & Paired gain & 95\% interval\\
+ & steps & forecast & (dB) & (dB) & (dB) & (dB) & (dB)\\
+\midrule
+5 s & 720 & GRU, step 1600 & 1.366 & \textbf{29.753} & 28.527 & \textbf{+1.226} & $[1.082,1.381]$\\
+30 s & 120 & persistence & 0.782 & 29.630 & 28.534 & +1.095 & $[0.935,1.265]$\\
+1 min & 60 & persistence & 0.687 & 29.661 & 28.533 & +1.128 & $[0.971,1.298]$\\
+10 min & 6 & persistence & 1.371 & 29.711 & 28.535 & +1.176 & $[1.036,1.326]$\\
+\bottomrule
+\end{tabular}}
+\end{table*}
+
+All four conditioned models pass the five-SNR engineering gate and run at about
+RTF 0.0024. The 5-s window has the highest absolute SI-SDRi and paired gain, but
+the four gain intervals overlap, so the experiment does not establish a
+significant ranking among resolutions. The important negative result is that
+more expressive prediction is not automatically useful: only 5 s improves over
+persistence on validation (by 1.4\%), while 10-min training has only 60 distinct
+next-window examples and strongly overfits. Temporal background information is
+useful; with the present data, persistence supplies most of that information.
 \section{Usability criteria}
 The engineering gate requires overall SI-SDRi of at least 5 dB, at least 3 dB
 improvement for input SNR at or below 0 dB, at least 8 dB absolute target
@@ -274,15 +324,12 @@ reports duration, latency, and RTF. Requests stay on localhost; no recording or
 history is sent to a remote service.
 
 \section{Limitations}
-Hourly TOL removes phase and within-hour temporal structure. Random-phase
-surrogates can make spectral priors artificially direct and underestimate real
-ocean complexity. The current test therefore establishes implementation
-correctness and controlled behavior only. The decisive experiment requires
-timestamp-aligned raw MB03 hydrophone audio: compute historical features
-without crossing the test boundary, mix held-out waveform clips with the same
-seeded sources, freeze all choices on MB03\_03, and evaluate MB03\_04 once.
-Multiple training seeds and SNR-stratified confidence intervals should then be
-reported.
+The real-waveform experiment removes the surrogate-background limitation, but
+the injected targets remain synthetic and all recordings come from one site.
+Only 12 training hours are available; at 10-min resolution this leaves 60
+distinct next-window examples, which is inadequate for a flexible GRU. Multiple
+recording sites, seasons, training seeds, and real vessel, biological, and sonar
+targets are needed before deployment claims can be made.
 
 The six source families are deliberately more diverse than the original
 generator, but JS divergence and entropy remain spectral summaries: neither
@@ -292,12 +339,13 @@ sonar, weather, and anthropogenic events before selecting a production model.
 
 \section{Conclusion}
 \method{} supplies a concrete, leakage-resistant route from soundscape
-forecasting to source separation and a usable local interface. Among three
-matched injection mechanisms, FiLM is selected on validation and yields a
-significant $0.34$ dB paired gain on controlled broad-source surrogates. Its
-advantage is largest for high-entropy targets, whereas JS/KL shift alone is not
-predictive. The repository is an operational prototype and a controlled
-research result, not yet evidence of improvement on field recordings.
+forecasting to source separation and a usable local interface. FiLM is selected
+among three matched injection mechanisms. On continuous real backgrounds, all
+four sub-hour priors significantly improve separation; 5 s is best in absolute
+score with a $+1.226$ dB paired gain. Learned dynamics beat persistence only at
+5 s, so current evidence supports temporal conditioning more strongly than a
+complex forecaster. The remaining gap is evaluation with real, rather than
+synthetically injected, target events across sites and seasons.
 
 \bibliographystyle{plain}
 \begingroup\small

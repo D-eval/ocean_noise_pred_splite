@@ -1,0 +1,567 @@
+{
+  "protocol": {
+    "windows_seconds": [
+      5,
+      30,
+      60,
+      600
+    ],
+    "fixed_history_seconds": 3600,
+    "causality": "history ends at t-1; spectrum t is supervision only",
+    "target_background": "real NOAA SanctSound waveform from window t",
+    "target_signal": "broad synthetic source injected into a clip inside window t",
+    "selection": "early stopping uses MB03_03 only; MB03_04 is held-out test"
+  },
+  "results": [
+    {
+      "window_seconds": 5,
+      "history_seconds": 3600,
+      "history_steps": 720,
+      "forecast_pretrained": {
+        "best_step": 1600,
+        "updates_run": 2200,
+        "validation": {
+          "examples": 512,
+          "mae_db": 1.3662739992141724,
+          "rmse_db": 2.3043723106384277,
+          "persistence_mae_db": 1.3855910301208496,
+          "skill_over_persistence": 0.01394136544388025
+        }
+      },
+      "forecast_after_joint": {
+        "examples": 2048,
+        "mae_db": 2.0317447185516357,
+        "rmse_db": 3.486344575881958,
+        "persistence_mae_db": 2.0087921619415283,
+        "skill_over_persistence": -0.011426048470800199
+      },
+      "best_separation_step": 5000,
+      "separation_updates_run": 5000,
+      "conditioned_test": {
+        "examples": 1024,
+        "source_si_sdr_db": 30.369106111931615,
+        "mixture_si_sdr_db": 0.6156723841753546,
+        "source_si_sdri_db": 29.753433762816712,
+        "source_si_sdri_ci95_db": [
+          29.15320349165704,
+          30.367843714967602
+        ],
+        "ocean_si_sdr_db": 29.591565366194118,
+        "forecast_mae_db": 2.064706232980825,
+        "real_time_factor": 0.002350707226570492,
+        "usable_real_time": true
+      },
+      "baseline_test": {
+        "examples": 1024,
+        "source_si_sdr_db": 29.143171847739723,
+        "mixture_si_sdr_db": 0.6156723841753546,
+        "source_si_sdri_db": 28.527499504270963,
+        "source_si_sdri_ci95_db": [
+          27.964114987835636,
+          29.097300769601134
+        ],
+        "ocean_si_sdr_db": 28.315076603008492,
+        "forecast_mae_db": null,
+        "real_time_factor": 0.002249850976552281,
+        "usable_real_time": true
+      },
+      "paired_gain_over_baseline_db": 1.225934258545749,
+      "paired_gain_ci95_db": [
+        1.0819372931757243,
+        1.3806132795114536
+      ],
+      "strength_sweep": {
+        "-12_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 19.787301488453522,
+          "mixture_si_sdr_db": -11.965188063681126,
+          "source_si_sdri_db": 31.752489633858204,
+          "source_si_sdri_ci95_db": [
+            30.708842199575155,
+            32.757133812457326
+          ],
+          "ocean_si_sdr_db": 31.808516282588243,
+          "forecast_mae_db": 1.901754523976706,
+          "real_time_factor": 0.002488542187492726,
+          "usable_real_time": true
+        },
+        "-6_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 25.009571450646035,
+          "mixture_si_sdr_db": -5.96261596865952,
+          "source_si_sdri_db": 30.972187401726842,
+          "source_si_sdri_ci95_db": [
+            29.867267791228368,
+            32.055095061846075
+          ],
+          "ocean_si_sdr_db": 30.93814430385828,
+          "forecast_mae_db": 1.901754523976706,
+          "real_time_factor": 0.0024120226562516223,
+          "usable_real_time": true
+        },
+        "+0_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 29.95025561284274,
+          "mixture_si_sdr_db": 0.038446186491015055,
+          "source_si_sdri_db": 29.911809476092458,
+          "source_si_sdri_ci95_db": [
+            28.703594099357723,
+            31.09253794546239
+          ],
+          "ocean_si_sdr_db": 29.733286833390594,
+          "forecast_mae_db": 1.901754523976706,
+          "real_time_factor": 0.002403379687514473,
+          "usable_real_time": true
+        },
+        "+6_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 34.47749166097492,
+          "mixture_si_sdr_db": 6.038922268897295,
+          "source_si_sdri_db": 28.43856948427856,
+          "source_si_sdri_ci95_db": [
+            27.124393320525996,
+            29.7105369863566
+          ],
+          "ocean_si_sdr_db": 28.04179911490064,
+          "forecast_mae_db": 1.901754523976706,
+          "real_time_factor": 0.0024128070312343652,
+          "usable_real_time": true
+        },
+        "+12_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 38.28783430205658,
+          "mixture_si_sdr_db": 12.039146937429905,
+          "source_si_sdri_db": 26.248687347397208,
+          "source_si_sdri_ci95_db": [
+            24.831451266584917,
+            27.60972502147779
+          ],
+          "ocean_si_sdr_db": 25.575807679560967,
+          "forecast_mae_db": 1.901754523976706,
+          "real_time_factor": 0.002417249218780171,
+          "usable_real_time": true
+        }
+      },
+      "engineering_usability_gate": {
+        "overall_si_sdri_at_least_5_db": true,
+        "weak_to_equal_snr_si_sdri_at_least_3_db": true,
+        "strong_signal_source_si_sdr_at_least_8_db": true,
+        "real_time_factor_below_1": true,
+        "passed": true
+      }
+    },
+    {
+      "window_seconds": 30,
+      "history_seconds": 3600,
+      "history_steps": 120,
+      "forecast_pretrained": {
+        "best_step": 0,
+        "updates_run": 1500,
+        "validation": {
+          "examples": 512,
+          "mae_db": 0.7824110984802246,
+          "rmse_db": 1.286490797996521,
+          "persistence_mae_db": 0.7824110984802246,
+          "skill_over_persistence": 0.0
+        }
+      },
+      "forecast_after_joint": {
+        "examples": 2048,
+        "mae_db": 1.1745048761367798,
+        "rmse_db": 1.9874860048294067,
+        "persistence_mae_db": 1.1745048761367798,
+        "skill_over_persistence": 0.0
+      },
+      "best_separation_step": 4750,
+      "separation_updates_run": 5000,
+      "conditioned_test": {
+        "examples": 1024,
+        "source_si_sdr_db": 30.244210552453296,
+        "mixture_si_sdr_db": 0.6143999464305807,
+        "source_si_sdri_db": 29.62981064838823,
+        "source_si_sdri_ci95_db": [
+          29.019177351990947,
+          30.242647435254185
+        ],
+        "ocean_si_sdr_db": 29.316633212787565,
+        "forecast_mae_db": 1.1644637649296783,
+        "real_time_factor": 0.0023765251953058453,
+        "usable_real_time": true
+      },
+      "baseline_test": {
+        "examples": 1024,
+        "source_si_sdr_db": 29.148840398702305,
+        "mixture_si_sdr_db": 0.6143999464305807,
+        "source_si_sdri_db": 28.53444048727397,
+        "source_si_sdri_ci95_db": [
+          27.969352763216012,
+          29.100582253950414
+        ],
+        "ocean_si_sdr_db": 28.318969678752183,
+        "forecast_mae_db": null,
+        "real_time_factor": 0.002384223437502442,
+        "usable_real_time": true
+      },
+      "paired_gain_over_baseline_db": 1.0953701611142606,
+      "paired_gain_ci95_db": [
+        0.9353616831533145,
+        1.2654674665885979
+      ],
+      "strength_sweep": {
+        "-12_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 19.78716361822444,
+          "mixture_si_sdr_db": -11.964706610888243,
+          "source_si_sdri_db": 31.75187017582357,
+          "source_si_sdri_ci95_db": [
+            30.68647724017501,
+            32.76823161020875
+          ],
+          "ocean_si_sdr_db": 31.808225819841027,
+          "forecast_mae_db": 1.1982933421968482,
+          "real_time_factor": 0.0023818757812605895,
+          "usable_real_time": true
+        },
+        "-6_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 24.94479665230756,
+          "mixture_si_sdr_db": -5.962262714281678,
+          "source_si_sdri_db": 30.907059324905276,
+          "source_si_sdri_ci95_db": [
+            29.78281251890585,
+            32.01192981805652
+          ],
+          "ocean_si_sdr_db": 30.824022103101015,
+          "forecast_mae_db": 1.1982933421968482,
+          "real_time_factor": 0.002419336718716636,
+          "usable_real_time": true
+        },
+        "+0_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 29.773432724177837,
+          "mixture_si_sdr_db": 0.038735936321828035,
+          "source_si_sdri_db": 29.73469685111195,
+          "source_si_sdri_ci95_db": [
+            28.513769004610367,
+            30.932935799029657
+          ],
+          "ocean_si_sdr_db": 29.43063507694751,
+          "forecast_mae_db": 1.1982933421968482,
+          "real_time_factor": 0.002531535937471574,
+          "usable_real_time": true
+        },
+        "+6_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 34.13056795671582,
+          "mixture_si_sdr_db": 6.039180394262075,
+          "source_si_sdri_db": 28.09138760715723,
+          "source_si_sdri_ci95_db": [
+            26.772608588449657,
+            29.385229323850947
+          ],
+          "ocean_si_sdr_db": 27.466008770046756,
+          "forecast_mae_db": 1.1982933421968482,
+          "real_time_factor": 0.002402757031241265,
+          "usable_real_time": true
+        },
+        "+12_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 37.7202355931513,
+          "mixture_si_sdr_db": 12.039389219135046,
+          "source_si_sdri_db": 25.680846378207207,
+          "source_si_sdri_ci95_db": [
+            24.256564382091163,
+            27.061724791396408
+          ],
+          "ocean_si_sdr_db": 24.670114468841348,
+          "forecast_mae_db": 1.1982933421968482,
+          "real_time_factor": 0.0024853335937606857,
+          "usable_real_time": true
+        }
+      },
+      "engineering_usability_gate": {
+        "overall_si_sdri_at_least_5_db": true,
+        "weak_to_equal_snr_si_sdri_at_least_3_db": true,
+        "strong_signal_source_si_sdr_at_least_8_db": true,
+        "real_time_factor_below_1": true,
+        "passed": true
+      }
+    },
+    {
+      "window_seconds": 60,
+      "history_seconds": 3600,
+      "history_steps": 60,
+      "forecast_pretrained": {
+        "best_step": 0,
+        "updates_run": 1500,
+        "validation": {
+          "examples": 300,
+          "mae_db": 0.6869008541107178,
+          "rmse_db": 1.2116981744766235,
+          "persistence_mae_db": 0.6869008541107178,
+          "skill_over_persistence": 0.0
+        }
+      },
+      "forecast_after_joint": {
+        "examples": 1380,
+        "mae_db": 1.0946426391601562,
+        "rmse_db": 1.8536196947097778,
+        "persistence_mae_db": 1.0946426391601562,
+        "skill_over_persistence": 0.0
+      },
+      "best_separation_step": 4750,
+      "separation_updates_run": 5000,
+      "conditioned_test": {
+        "examples": 1024,
+        "source_si_sdr_db": 30.27517450079904,
+        "mixture_si_sdr_db": 0.6141860958208554,
+        "source_si_sdri_db": 29.660988450516015,
+        "source_si_sdri_ci95_db": [
+          29.049752545473165,
+          30.275286685244645
+        ],
+        "ocean_si_sdr_db": 29.351845009776298,
+        "forecast_mae_db": 1.1038646382221486,
+        "real_time_factor": 0.0024677693359365094,
+        "usable_real_time": true
+      },
+      "baseline_test": {
+        "examples": 1024,
+        "source_si_sdr_db": 29.146867091942113,
+        "mixture_si_sdr_db": 0.6141860958208554,
+        "source_si_sdri_db": 28.53268102707807,
+        "source_si_sdri_ci95_db": [
+          27.969397673680213,
+          29.097989337798207
+        ],
+        "ocean_si_sdr_db": 28.31733224789059,
+        "forecast_mae_db": null,
+        "real_time_factor": 0.0024069134765696276,
+        "usable_real_time": true
+      },
+      "paired_gain_over_baseline_db": 1.1283074234379455,
+      "paired_gain_ci95_db": [
+        0.971255605854094,
+        1.2978045865602326
+      ],
+      "strength_sweep": {
+        "-12_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 19.820224200142547,
+          "mixture_si_sdr_db": -11.966876789927483,
+          "source_si_sdri_db": 31.787100926041603,
+          "source_si_sdri_ci95_db": [
+            30.717203090712427,
+            32.808996266825126
+          ],
+          "ocean_si_sdr_db": 31.833854246884584,
+          "forecast_mae_db": 1.104616533149965,
+          "real_time_factor": 0.0024828429687673292,
+          "usable_real_time": true
+        },
+        "-6_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 24.973803559551015,
+          "mixture_si_sdr_db": -5.963390799239278,
+          "source_si_sdri_db": 30.93719427101314,
+          "source_si_sdri_ci95_db": [
+            29.80996753270738,
+            32.043925477052106
+          ],
+          "ocean_si_sdr_db": 30.841498371213675,
+          "forecast_mae_db": 1.104616533149965,
+          "real_time_factor": 0.0023855140625030913,
+          "usable_real_time": true
+        },
+        "+0_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 29.795701342169195,
+          "mixture_si_sdr_db": 0.038134322568694756,
+          "source_si_sdri_db": 29.757567073218524,
+          "source_si_sdri_ci95_db": [
+            28.54328887964366,
+            30.961256047536153
+          ],
+          "ocean_si_sdr_db": 29.434243952855468,
+          "forecast_mae_db": 1.104616533149965,
+          "real_time_factor": 0.0024315843750031263,
+          "usable_real_time": true
+        },
+        "+6_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 34.14294951967895,
+          "mixture_si_sdr_db": 6.038843693211675,
+          "source_si_sdri_db": 28.104105865582824,
+          "source_si_sdri_ci95_db": [
+            26.79036270151846,
+            29.396218733955177
+          ],
+          "ocean_si_sdr_db": 27.449075031792745,
+          "forecast_mae_db": 1.104616533149965,
+          "real_time_factor": 0.0024836804687637937,
+          "usable_real_time": true
+        },
+        "+12_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 37.72149158688262,
+          "mixture_si_sdr_db": 12.039185557514429,
+          "source_si_sdri_db": 25.682306077331305,
+          "source_si_sdri_ci95_db": [
+            24.241599016310648,
+            27.05905396877788
+          ],
+          "ocean_si_sdr_db": 24.633412797003984,
+          "forecast_mae_db": 1.104616533149965,
+          "real_time_factor": 0.002429912500005571,
+          "usable_real_time": true
+        }
+      },
+      "engineering_usability_gate": {
+        "overall_si_sdri_at_least_5_db": true,
+        "weak_to_equal_snr_si_sdri_at_least_3_db": true,
+        "strong_signal_source_si_sdr_at_least_8_db": true,
+        "real_time_factor_below_1": true,
+        "passed": true
+      }
+    },
+    {
+      "window_seconds": 600,
+      "history_seconds": 3600,
+      "history_steps": 6,
+      "forecast_pretrained": {
+        "best_step": 0,
+        "updates_run": 1500,
+        "validation": {
+          "examples": 30,
+          "mae_db": 1.3706947565078735,
+          "rmse_db": 2.5607361793518066,
+          "persistence_mae_db": 1.3706947565078735,
+          "skill_over_persistence": 0.0
+        }
+      },
+      "forecast_after_joint": {
+        "examples": 138,
+        "mae_db": 1.4006119966506958,
+        "rmse_db": 2.380065441131592,
+        "persistence_mae_db": 1.4006119966506958,
+        "skill_over_persistence": 0.0
+      },
+      "best_separation_step": 4750,
+      "separation_updates_run": 5000,
+      "conditioned_test": {
+        "examples": 1024,
+        "source_si_sdr_db": 30.325039668374757,
+        "mixture_si_sdr_db": 0.6143569165627696,
+        "source_si_sdri_db": 29.71068281447515,
+        "source_si_sdri_ci95_db": [
+          29.11373268343159,
+          30.320380749111063
+        ],
+        "ocean_si_sdr_db": 29.294851079233922,
+        "forecast_mae_db": 1.3877099253732013,
+        "real_time_factor": 0.0024152453124912654,
+        "usable_real_time": true
+      },
+      "baseline_test": {
+        "examples": 1024,
+        "source_si_sdr_db": 29.149107458244544,
+        "mixture_si_sdr_db": 0.6143569165627696,
+        "source_si_sdri_db": 28.534750574850477,
+        "source_si_sdri_ci95_db": [
+          27.974602845092885,
+          29.103915238694753
+        ],
+        "ocean_si_sdr_db": 28.31937130974984,
+        "forecast_mae_db": null,
+        "real_time_factor": 0.002516208984374657,
+        "usable_real_time": true
+      },
+      "paired_gain_over_baseline_db": 1.1759322396246716,
+      "paired_gain_ci95_db": [
+        1.0360258318920388,
+        1.3264842210366625
+      ],
+      "strength_sweep": {
+        "-12_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 19.810735361359548,
+          "mixture_si_sdr_db": -11.966705583035946,
+          "source_si_sdri_db": 31.77744087576866,
+          "source_si_sdri_ci95_db": [
+            30.727048260206356,
+            32.79910691226833
+          ],
+          "ocean_si_sdr_db": 31.80426941998303,
+          "forecast_mae_db": 1.382043133606203,
+          "real_time_factor": 0.002421125781232547,
+          "usable_real_time": true
+        },
+        "-6_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 24.998473744664807,
+          "mixture_si_sdr_db": -5.963251164183021,
+          "source_si_sdri_db": 30.961724869906902,
+          "source_si_sdri_ci95_db": [
+            29.840336835291236,
+            32.044029232580215
+          ],
+          "ocean_si_sdr_db": 30.819389207288623,
+          "forecast_mae_db": 1.382043133606203,
+          "real_time_factor": 0.0024944906249899645,
+          "usable_real_time": true
+        },
+        "+0_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 29.852111560292542,
+          "mixture_si_sdr_db": 0.03825812960498354,
+          "source_si_sdri_db": 29.813853478292003,
+          "source_si_sdri_ci95_db": [
+            28.595936381339563,
+            30.998400512395893
+          ],
+          "ocean_si_sdr_db": 29.378877800889313,
+          "forecast_mae_db": 1.382043133606203,
+          "real_time_factor": 0.0025034992187755734,
+          "usable_real_time": true
+        },
+        "+6_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 34.21581761492416,
+          "mixture_si_sdr_db": 6.038959566503763,
+          "source_si_sdri_db": 28.176858104765415,
+          "source_si_sdri_ci95_db": [
+            26.867925051646306,
+            29.448703499371184
+          ],
+          "ocean_si_sdr_db": 27.31273810728453,
+          "forecast_mae_db": 1.382043133606203,
+          "real_time_factor": 0.002548871875006853,
+          "usable_real_time": true
+        },
+        "+12_dB": {
+          "examples": 256,
+          "source_si_sdr_db": 37.804529544431716,
+          "mixture_si_sdr_db": 12.039297454059124,
+          "source_si_sdri_db": 25.765232145786285,
+          "source_si_sdri_ci95_db": [
+            24.354090977087615,
+            27.11624991307035
+          ],
+          "ocean_si_sdr_db": 24.386598175842664,
+          "forecast_mae_db": 1.382043133606203,
+          "real_time_factor": 0.0024830875000247943,
+          "usable_real_time": true
+        }
+      },
+      "engineering_usability_gate": {
+        "overall_si_sdri_at_least_5_db": true,
+        "weak_to_equal_snr_si_sdri_at_least_3_db": true,
+        "strong_signal_source_si_sdr_at_least_8_db": true,
+        "real_time_factor_below_1": true,
+        "passed": true
+      }
+    }
+  ],
+  "best_window_seconds": 5,
+  "best_test_si_sdri_db": 29.753433762816712
+}

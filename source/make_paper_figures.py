@@ -393,6 +393,39 @@ def conditioning_ablation_figure(path: Path, results_path: Path) -> None:
     save_figure(figure, path)
 
 
+def window_resolution_figure(path: Path, results_path: Path) -> None:
+    """Vector summary of sub-hour forecast selection and real-audio separation."""
+    results = json.loads(results_path.read_text(encoding="utf-8"))["results"]
+    labels = ["5 s", "30 s", "1 min", "10 min"]
+    x = np.arange(len(results))
+    selected_mae = np.asarray([
+        row["forecast_pretrained"]["validation"]["mae_db"] for row in results
+    ])
+    persistence_mae = np.asarray([
+        row["forecast_pretrained"]["validation"]["persistence_mae_db"] for row in results
+    ])
+    gain = np.asarray([row["paired_gain_over_baseline_db"] for row in results])
+    intervals = np.asarray([row["paired_gain_ci95_db"] for row in results])
+    figure, axes = plt.subplots(1, 2, figsize=(9.2, 3.5), constrained_layout=True)
+    width = 0.34
+    axes[0].bar(x - width / 2, persistence_mae, width, color=COLORS["muted"], label="persistence")
+    axes[0].bar(x + width / 2, selected_mae, width, color=COLORS["gold"], label="selected forecast")
+    axes[0].set_ylabel("Validation forecast MAE (dB)")
+    axes[0].set_title("Forecast must beat persistence", loc="left", fontweight="bold")
+    axes[0].legend(frameon=False, fontsize=8)
+    errors = np.vstack((gain - intervals[:, 0], intervals[:, 1] - gain))
+    axes[1].axhline(0, color=COLORS["muted"], lw=1)
+    axes[1].errorbar(x, gain, yerr=errors, fmt="o", capsize=4, color=COLORS["coral"])
+    axes[1].set_ylabel("Paired SI-SDRi gain (dB)")
+    axes[1].set_title("Real waveform, 1,024 paired clips", loc="left", fontweight="bold")
+    for axis in axes:
+        axis.set_xticks(x, labels)
+        axis.set_xlabel("Prediction window")
+        axis.grid(alpha=0.16, axis="y")
+        axis.spines[["top", "right"]].set_visible(False)
+    save_figure(figure, path)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", type=Path, default=Path("paper/figures"))
@@ -401,6 +434,9 @@ def main() -> None:
     parser.add_argument("--ablation-results", type=Path, default=Path("results/conditioning_ablation.json"))
     parser.add_argument("--real-results", type=Path, default=Path("results/real_audio_ablation.json"))
     parser.add_argument("--real-checkpoint", type=Path, default=Path("experiments/real_film/best.pt"))
+    parser.add_argument(
+        "--window-results", type=Path, default=Path("results/window_resolution_results.json")
+    )
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = parser.parse_args()
@@ -409,6 +445,8 @@ def main() -> None:
         args.output_dir / "conditioning_ablation.png", args.ablation_results
     )
     diversity_figure(args.output_dir / "diversity_results.png", args.diversity_results)
+    if args.window_results.exists():
+        window_resolution_figure(args.output_dir / "window_resolution.pdf", args.window_results)
     signal_figure(
         args.output_dir / "signal_visualization.png",
         args.conditioned_checkpoint,
