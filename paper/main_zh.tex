@@ -2,14 +2,6 @@
 \usepackage{amsmath,amssymb,booktabs,graphicx,microtype,cite,url,balance}
 \usepackage{fontspec,xeCJK}
 \usepackage[hidelinks]{hyperref}
-% First-page footer; keep the technical content's two-column layout unchanged.
-\makeatletter
-\def\ps@codeavailability{%
-  \let\@oddhead\@empty\let\@evenhead\@empty
-  \def\@oddfoot{\normalfont\footnotesize\hfil
-    代码与复现实验说明：\url{https://github.com/D-eval/ocean_noise_pred_splite}\hfil}%
-  \let\@evenfoot\@oddfoot}
-\makeatother
 \setmainfont{Times New Roman}
 \setCJKmainfont{SimSun}
 \XeTeXlinebreaklocale "zh"
@@ -22,7 +14,6 @@
 
 \begin{document}
 \maketitle
-\thispagestyle{codeavailability}
 
 \begin{abstract}
 本文研究：在混合声音到达之前，仅由历史声景因果预测的海洋背景，能否帮助分离突发声学事件。
@@ -58,7 +49,8 @@ TF-GridNet 等注意力模型\cite{subakan2021sepformer,wang2023tfgridnet}以及
 N-BEATS、DLinear 与 PatchTST 则覆盖递归、基展开、线性和分块预测
 \cite{salinas2020deepar,oreshkin2020nbeats,zeng2023dlinear,nie2023patchtst}。
 
-本文贡献为：（1）带三种匹配条件消融的因果预测条件 BS-RoFormer；（2）从完整真值代理背景、
+本文贡献为：（1）FC-BSR，\footnote{代码与复现实验说明：
+\url{https://github.com/D-eval/ocean_noise_pred_splite}。}一种带三种匹配条件消融的因果预测条件 BS-RoFormer；（2）从完整真值代理背景、
 真实背景到真实事件的防泄漏分层评估；（3）不同信号强度、信号分布和 5 秒、30 秒、1 分钟、
 10 分钟尺度的实验；（4）在真实事件上直接比较 FC-BSR 与无条件 BS-RoFormer 的无参考检验。
 

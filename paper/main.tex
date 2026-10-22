@@ -1,14 +1,6 @@
 \documentclass[conference]{IEEEtran}
 \usepackage{amsmath,amssymb,booktabs,graphicx,microtype,cite,url,balance}
 \usepackage[hidelinks]{hyperref}
-% First-page footer; keep the technical content's two-column layout unchanged.
-\makeatletter
-\def\ps@codeavailability{%
-  \let\@oddhead\@empty\let\@evenhead\@empty
-  \def\@oddfoot{\normalfont\footnotesize\hfil
-    Code and reproduction instructions: \url{https://github.com/D-eval/ocean_noise_pred_splite}\hfil}%
-  \let\@evenfoot\@oddfoot}
-\makeatother
 \newcommand{\method}{FC-BSR}
 \newcommand{\sisdr}{\mathrm{SI\text{-}SDR}}
 
@@ -17,7 +9,6 @@
 
 \begin{document}
 \maketitle
-\thispagestyle{codeavailability}
 
 \begin{abstract}
 We ask whether a strictly causal estimate of the expected ocean background can
@@ -66,7 +57,8 @@ suggest three plausible interfaces.  Meanwhile, DeepAR, N-BEATS, DLinear, and
 PatchTST span recurrent, basis, linear, and patch-based forecasting
 \cite{salinas2020deepar,oreshkin2020nbeats,zeng2023dlinear,nie2023patchtst}.
 
-Our contributions are: (1) a causal forecast-conditioned BS-RoFormer with a
+Our contributions are: (1) FC-BSR,\footnote{Code and reproduction instructions:
+\url{https://github.com/D-eval/ocean_noise_pred_splite}.} a causal forecast-conditioned BS-RoFormer with a
 matched three-way conditioning ablation; (2) a leakage-audited evaluation that
 progresses from complete-reference surrogates to real background and finally
 real events; (3) tests across signal strength, source diversity, and 5-s,
