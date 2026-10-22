@@ -12,6 +12,11 @@ import numpy as np
 from scipy.signal import spectrogram
 import torch
 
+# IEEE PDF eXpress rejects Type 3 fonts.  Keep text in vector figures as
+# embedded TrueType outlines instead of Matplotlib's Type 3 default.
+plt.rcParams["pdf.fonttype"] = 42
+plt.rcParams["ps.fonttype"] = 42
+
 from .data import DEFAULT_DATA_ROOT, SpectrumNormaliser, TOLMixtureDataset, load_experiment_frames
 from .diversity_eval import load_checkpoint
 from .metrics import si_sdr
