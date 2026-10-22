@@ -432,9 +432,10 @@ def reference_free_figure(path: Path, results_path: Path) -> None:
     gains = np.asarray(results["protocol"]["restoration_gains_db"])
     conditions = results["conditions"]
     styles = {
-        "separator": ("Separator", COLORS["coral"], "o"),
+        "bs_roformer": ("BS-RoFormer", COLORS["navy"], "o"),
+        "fc_bsr": ("FC-BSR", COLORS["coral"], "D"),
         "identity": ("Identity (remove nothing)", COLORS["muted"], "s"),
-        "all_to_event": ("All-to-event", COLORS["navy"], "^"),
+        "all_to_event": ("All-to-event", COLORS["gold"], "^"),
     }
     figure, axes = plt.subplots(1, 2, figsize=(9.2, 3.5), constrained_layout=True)
     for key, (label, color, marker) in styles.items():
@@ -445,8 +446,8 @@ def reference_free_figure(path: Path, results_path: Path) -> None:
     axes[0].set_title("Interventional restoration curve", loc="left", fontweight="bold")
     axes[0].legend(frameon=False, fontsize=8)
 
-    labels = ["Separator", "Identity", "All-to-event"]
-    keys = ["separator", "identity", "all_to_event"]
+    labels = ["BS-RoFormer", "FC-BSR"]
+    keys = ["bs_roformer", "fc_bsr"]
     leakage = [conditions[key]["leakage_outside_event"] for key in keys]
     off_error = [conditions[key]["off_event_relative_error"] for key in keys]
     x = np.arange(len(keys))
@@ -454,9 +455,9 @@ def reference_free_figure(path: Path, results_path: Path) -> None:
     axes[1].bar(x - width / 2, leakage, width, color=COLORS["gold"], label="stem energy outside label")
     axes[1].bar(x + width / 2, off_error, width, color=COLORS["cyan"], label="off-event change")
     axes[1].set_xticks(x, labels, rotation=10)
-    axes[1].set_ylim(0, 1.05)
+    axes[1].set_ylim(0, 0.7)
     axes[1].set_ylabel("Lower is better")
-    axes[1].set_title("Partial-GT preservation checks", loc="left", fontweight="bold")
+    axes[1].set_title("Matched model preservation", loc="left", fontweight="bold")
     axes[1].legend(frameon=False, fontsize=8)
     for axis in axes:
         axis.grid(alpha=0.16, axis="y")

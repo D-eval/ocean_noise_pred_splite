@@ -1,8 +1,10 @@
 {
   "protocol": {
-    "test_examples": 1338,
+    "test_examples": 1225,
     "split": "three held-out recording days",
-    "separator_training": "real annotation-clean ocean + synthetic upcalls",
+    "comparison": "paired BS-RoFormer versus FC-BSR on identical eligible real events",
+    "history": "eight strictly preceding 8-second, 30-band spectra",
+    "separator_training": "real annotation-clean ocean + identical synthetic upcalls",
     "real_event_source_gt": false,
     "classifier_frozen": true,
     "mixture_consistency": "background = mixture - event",
@@ -17,29 +19,49 @@
     ]
   },
   "conditions": {
-    "separator": {
-      "mixture_event_probability": 0.8555255153610389,
-      "background_event_probability": 0.5233551828672355,
-      "event_stem_probability": 0.9042464690714496,
-      "removal_logit": 3.249780187692343,
-      "restoration_auc": 0.30489753990786317,
-      "monotonic_fraction": 0.9860488352754191,
-      "leakage_outside_event": 0.5969464622092711,
-      "off_event_relative_error": 0.09392271830139318,
-      "reconstruction_relative_error": 1.355036737856332e-08,
+    "bs_roformer": {
+      "mixture_event_probability": 0.8553161999157497,
+      "background_event_probability": 0.5226683417145087,
+      "event_stem_probability": 0.9010635798804614,
+      "removal_logit": 3.2439943034308296,
+      "restoration_auc": 0.32607096168459676,
+      "monotonic_fraction": 0.9861224552076691,
+      "leakage_outside_event": 0.5968839746105428,
+      "off_event_relative_error": 0.09555560841852305,
+      "reconstruction_relative_error": 1.3654365435873305e-08,
       "restoration_curve": [
-        0.5240234759133671,
-        0.5447202861665432,
-        0.5665866138332806,
-        0.6092590603236838,
-        0.68177496807814,
-        0.7738302705533836,
-        0.855525564541553
+        0.5233448164317073,
+        0.5443716580527169,
+        0.5666098395172431,
+        0.609914660259169,
+        0.6829253465788705,
+        0.7738374164639688,
+        0.8553159042767116
+      ]
+    },
+    "fc_bsr": {
+      "mixture_event_probability": 0.8553161999157497,
+      "background_event_probability": 0.506699158902071,
+      "event_stem_probability": 0.9007122647519015,
+      "removal_logit": 3.3551768445482058,
+      "restoration_auc": 0.2545958565692512,
+      "monotonic_fraction": 0.9850340197037677,
+      "leakage_outside_event": 0.6069685914078538,
+      "off_event_relative_error": 0.10217228411107647,
+      "reconstruction_relative_error": 1.4075699766200781e-08,
+      "restoration_curve": [
+        0.5074067825200607,
+        0.5302498706992792,
+        0.5555533630020765,
+        0.6035804772863582,
+        0.6821355903391936,
+        0.7757484285198912,
+        0.8553163585370901
       ]
     },
     "identity": {
-      "mixture_event_probability": 0.8555255153610389,
-      "background_event_probability": 0.8555255153610389,
+      "mixture_event_probability": 0.8553161999157497,
+      "background_event_probability": 0.8553161999157497,
       "event_stem_probability": 0.5090683102607727,
       "removal_logit": 0.0,
       "restoration_auc": 0.0,
@@ -48,34 +70,84 @@
       "off_event_relative_error": 0.0,
       "reconstruction_relative_error": 0.0,
       "restoration_curve": [
-        0.8555253598009346,
-        0.8555253598009346,
-        0.8555253598009346,
-        0.8555253598009346,
-        0.8555253598009346,
-        0.8555253598009346,
-        0.8555253598009346
+        0.8553160516096621,
+        0.8553160516096621,
+        0.8553160516096621,
+        0.8553160516096621,
+        0.8553160516096621,
+        0.8553160516096621,
+        0.8553160516096621
       ]
     },
     "all_to_event": {
-      "mixture_event_probability": 0.8555255153610389,
+      "mixture_event_probability": 0.8553161999157497,
       "background_event_probability": 0.5090683102607727,
-      "event_stem_probability": 0.8555255153610389,
-      "removal_logit": 3.6125701852087126,
-      "restoration_auc": 0.2026332469576321,
-      "monotonic_fraction": 0.7932237349283535,
-      "leakage_outside_event": 0.7636026419331675,
+      "event_stem_probability": 0.8553161999157497,
+      "removal_logit": 3.611622862815857,
+      "restoration_auc": 0.18923481067832634,
+      "monotonic_fraction": 0.7937415146341129,
+      "leakage_outside_event": 0.7613454421685667,
       "off_event_relative_error": 1.0,
       "reconstruction_relative_error": 0.0,
       "restoration_curve": [
-        0.509129316461104,
-        0.5668180477102419,
-        0.6349510909552353,
-        0.7523863570394359,
-        0.8434427630028204,
-        0.8653242178205596,
-        0.8555253598009346
+        0.5091323748899966,
+        0.5676180250790654,
+        0.6351881303106035,
+        0.75214964034606,
+        0.8432181058611189,
+        0.8655791197990884,
+        0.8553160516096621
       ]
+    }
+  },
+  "paired_fc_bsr_minus_bs_roformer": {
+    "background_event_probability": {
+      "fc_bsr_minus_bs_roformer": -0.015969181891758832,
+      "day_block_bootstrap_ci95": [
+        -0.021015069345395043,
+        -0.013184150732137431
+      ],
+      "independent_day_blocks": 3
+    },
+    "event_stem_probability": {
+      "fc_bsr_minus_bs_roformer": -0.00035131278086681755,
+      "day_block_bootstrap_ci95": [
+        -0.00282545286474876,
+        0.005523701556145199
+      ],
+      "independent_day_blocks": 3
+    },
+    "removal_logit": {
+      "fc_bsr_minus_bs_roformer": 0.11118256908138188,
+      "day_block_bootstrap_ci95": [
+        0.09124475471753761,
+        0.13922880165397175
+      ],
+      "independent_day_blocks": 3
+    },
+    "monotonic_fraction": {
+      "fc_bsr_minus_bs_roformer": -0.0010884351511390841,
+      "day_block_bootstrap_ci95": [
+        -0.0034246574321838276,
+        0.0026455028189553156
+      ],
+      "independent_day_blocks": 3
+    },
+    "leakage_outside_event": {
+      "fc_bsr_minus_bs_roformer": 0.010084619018800405,
+      "day_block_bootstrap_ci95": [
+        0.003098429167923862,
+        0.015743295827874475
+      ],
+      "independent_day_blocks": 3
+    },
+    "off_event_relative_error": {
+      "fc_bsr_minus_bs_roformer": 0.00661667496270063,
+      "day_block_bootstrap_ci95": [
+        0.0033071701370534444,
+        0.007813423923025392
+      ],
+      "independent_day_blocks": 3
     }
   }
 }

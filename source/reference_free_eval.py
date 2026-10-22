@@ -33,7 +33,8 @@ def restoration_metrics(
     event_mask: torch.Tensor,
     temperature: float = 1.0,
     gains_db: tuple[float, ...] = RESTORATION_GAINS_DB,
-) -> tuple[dict, list[float]]:
+    return_per_example: bool = False,
+) -> tuple[dict, list[float]] | tuple[dict, list[float], dict[str, list[float]]]:
     """Evaluate semantic removal plus partial-GT preservation constraints.
 
     Background is defined by exact mixture consistency, so the endpoint at
@@ -83,7 +84,21 @@ def restoration_metrics(
         "off_event_relative_error": float(off_error.mean()),
         "reconstruction_relative_error": float(reconstruction.mean()),
     }
-    return metrics, probabilities.mean(dim=0).cpu().tolist()
+    curve = probabilities.mean(dim=0).cpu().tolist()
+    if not return_per_example:
+        return metrics, curve
+    examples = {
+        "mixture_event_probability": mix_probability.cpu().tolist(),
+        "background_event_probability": background_probability.cpu().tolist(),
+        "event_stem_probability": event_probability.cpu().tolist(),
+        "removal_logit": removal.cpu().tolist(),
+        "restoration_auc": auc.cpu().tolist(),
+        "monotonic_fraction": monotonic.cpu().tolist(),
+        "leakage_outside_event": leakage.cpu().tolist(),
+        "off_event_relative_error": off_error.cpu().tolist(),
+        "reconstruction_relative_error": reconstruction.cpu().tolist(),
+    }
+    return metrics, curve, examples
 
 
 def trivial_estimates(mixture: torch.Tensor) -> dict[str, torch.Tensor]:

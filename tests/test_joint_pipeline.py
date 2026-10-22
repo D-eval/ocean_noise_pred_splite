@@ -9,7 +9,7 @@ import torch
 import unittest
 
 from source.data import SpectrumNormaliser, eligible_origins
-from source.dclde import recording_start
+from source.dclde import _log_band_features, recording_start
 from source.dclde_separation_experiment import render_upcalls
 from source.inference import SeparationEngine
 from source.metrics import (
@@ -61,13 +61,22 @@ class JointPipelineTests(unittest.TestCase):
         def classifier(waveform):
             return 8.0 * waveform[:, 4:8].abs().mean(dim=1) - 2.0
 
-        metrics, curve = restoration_metrics(classifier, mixture, event, mask)
+        metrics, curve, examples = restoration_metrics(
+            classifier, mixture, event, mask, return_per_example=True
+        )
         self.assertGreater(metrics["removal_logit"], 5.0)
         self.assertGreater(metrics["monotonic_fraction"], 0.99)
         self.assertLess(metrics["leakage_outside_event"], 1e-8)
         self.assertLess(metrics["off_event_relative_error"], 1e-8)
         self.assertLess(metrics["reconstruction_relative_error"], 1e-8)
         self.assertGreater(curve[-1], curve[0])
+        self.assertEqual(len(examples["removal_logit"]), 1)
+
+    def test_dclde_causal_features_retain_absolute_level(self):
+        waveform = np.random.default_rng(7).normal(size=16000).astype(np.float32)
+        quiet = _log_band_features(waveform)
+        loud = _log_band_features(2.0 * waveform)
+        np.testing.assert_allclose(loud - quiet, 20.0 * np.log10(2.0), atol=1e-4)
 
     def test_subhour_band_power_finds_tone_and_aggregates_windows(self):
         rate = 8000

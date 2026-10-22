@@ -20,17 +20,29 @@
       "ece_10_bin": 0.040892181291574854
     }
   },
-  "separator": {
-    "updates_run": 2500,
-    "best_step": 2500,
-    "transferred_tensors": 257,
+  "forecaster": {
+    "updates_run": 1500,
+    "best_step": 1400,
     "validation": {
-      "examples": 512,
-      "si_sdri_db": 14.190099395811558,
-      "si_sdri_ci95_db": [13.589512760052457, 14.798309749737381],
-      "source_si_sdr_db": 11.62556486952235
-    },
-    "selection": "synthetic upcalls in annotation-clean, day-disjoint validation audio only"
+      "examples": 1257,
+      "mae_db": 1.9210340976715088,
+      "persistence_mae_db": 2.0806429386138916,
+      "skill_over_persistence": 0.07671130782714353
+    }
   },
-  "protocol": "Classifier and separator use day-disjoint train/validation/test partitions. The classifier is frozen before reference-free separator evaluation."
+  "separators": {
+    "bs_roformer": {
+      "updates_run": 2500,
+      "best_step": 2500,
+      "validation_si_sdri_db": 13.870638360269368,
+      "validation_si_sdri_ci95_db": [13.280857100826688, 14.454538240726105]
+    },
+    "fc_bsr": {
+      "updates_run": 2500,
+      "best_step": 2400,
+      "validation_si_sdri_db": 13.924517955631018,
+      "validation_si_sdri_ci95_db": [13.374744473630562, 14.488393401238136]
+    }
+  },
+  "protocol": "Matched separators use identical data, seeds, initialization, update budgets, and validation-only checkpoint selection. FC-BSR alone receives the frozen validation-selected causal forecaster. The event classifier is frozen before reference-free evaluation."
 }

@@ -23,6 +23,7 @@ DCLDE_ROOT = Path("data/dclde2013/nefsc_sbnms_200903_nopp6_ch10")
 AUDIO_ROOT = DCLDE_ROOT / "source-audio"
 ANNOTATIONS = DCLDE_ROOT / "detections/NEFSC_SBNMS_200903_NOPP6_CH10_upcall-detection-log.csv"
 MANIFEST = Path("data/dclde2013/clips_8s.csv")
+FEATURE_CACHE = Path("data/dclde2013/causal_features_8x8s_30band.npz")
 SAMPLE_RATE = 2000
 _EST = timezone(timedelta(hours=-5))
 _STAMP = re.compile(r"_(\d{8})_(\d{6})_CH\d+\.wav$", re.IGNORECASE)
@@ -185,6 +186,83 @@ class DCLDEClipDataset(Dataset):
             "path": row.path,
             "start_seconds": float(row.start_seconds),
         }
+
+
+def _log_band_features(waveforms: np.ndarray, bands: int = 30) -> np.ndarray:
+    """Return absolute log-power bands while retaining meaningful level changes."""
+    waveforms = np.asarray(waveforms, dtype=np.float32)
+    if waveforms.ndim == 1:
+        waveforms = waveforms[None]
+    samples = waveforms.shape[-1]
+    window = np.hanning(samples).astype(np.float32)
+    spectrum = np.fft.rfft(waveforms * window, axis=-1)
+    power = np.square(np.abs(spectrum), dtype=np.float64)
+    frequencies = np.fft.rfftfreq(samples, 1.0 / SAMPLE_RATE)
+    edges = np.geomspace(20.0, 950.0, bands + 1)
+    output = np.empty((len(waveforms), bands), dtype=np.float32)
+    for band, (low, high) in enumerate(zip(edges[:-1], edges[1:], strict=True)):
+        member = (frequencies >= low) & (frequencies < high)
+        output[:, band] = (10.0 * np.log10(power[:, member].mean(axis=1) + 1e-12)).astype(np.float32)
+    return output
+
+
+def build_causal_feature_cache(
+    manifest: Path = MANIFEST,
+    output: Path = FEATURE_CACHE,
+    history_steps: int = 8,
+    bands: int = 30,
+) -> dict:
+    """Cache strictly preceding 8-s spectra for every eligible manifest row.
+
+    To avoid inventing context across a recorder-file boundary, clips within
+    the first ``history_steps`` blocks of each 15-minute file are marked
+    ineligible. All compared models use the same eligible subset.
+    """
+    frame = pd.read_csv(manifest)
+    histories = np.full((len(frame), history_steps, bands), np.nan, dtype=np.float32)
+    targets = np.full((len(frame), bands), np.nan, dtype=np.float32)
+    eligible = np.zeros(len(frame), dtype=bool)
+    clip_seconds = float(frame["duration_seconds"].iloc[0])
+    clip_samples = round(clip_seconds * SAMPLE_RATE)
+    for path_text, group in frame.groupby("path", sort=False):
+        waveform, sample_rate = sf.read(path_text, dtype="float32", always_2d=True)
+        if sample_rate != SAMPLE_RATE:
+            raise ValueError(f"expected {SAMPLE_RATE} Hz: {path_text}")
+        waveform = waveform[:, 0]
+        block_indices = np.asarray(np.round(group["start_seconds"].to_numpy() / clip_seconds), dtype=int)
+        wanted: set[int] = set()
+        for block in block_indices:
+            if block >= history_steps:
+                wanted.update(range(block - history_steps, block + 1))
+        if not wanted:
+            continue
+        ordered = np.asarray(sorted(wanted), dtype=int)
+        blocks = np.stack([
+            waveform[index * clip_samples : (index + 1) * clip_samples]
+            for index in ordered
+        ])
+        features = _log_band_features(blocks, bands)
+        by_block = {int(index): value for index, value in zip(ordered, features, strict=True)}
+        for row_index, block in zip(group.index, block_indices, strict=True):
+            if block < history_steps:
+                continue
+            histories[row_index] = np.stack([
+                by_block[index] for index in range(block - history_steps, block)
+            ])
+            targets[row_index] = by_block[block]
+            eligible[row_index] = True
+    output.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(
+        output, history=histories, target=targets, eligible=eligible,
+        history_steps=np.int64(history_steps), bands=np.int64(bands),
+    )
+    summary = {
+        "output": str(output), "rows": len(frame), "eligible_rows": int(eligible.sum()),
+        "history_steps": history_steps, "window_seconds": clip_seconds, "bands": bands,
+        "causal_rule": "eight spectra ending exactly at target start; no file-boundary padding",
+    }
+    output.with_suffix(".json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    return summary
 
 
 @dataclass(frozen=True)
