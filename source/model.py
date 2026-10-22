@@ -25,18 +25,28 @@ def balanced_bands(frequency_bins: int, count: int) -> tuple[int, ...]:
 class NoiseForecaster(nn.Module):
     """Encode historical spectra and predict the next spectrum."""
 
-    def __init__(self, spectrum_dim: int, latent_dim: int = 32, layers: int = 1):
+    def __init__(
+        self, spectrum_dim: int, latent_dim: int = 32, layers: int = 1,
+        residual: bool = False,
+    ):
         super().__init__()
+        self.residual = residual
         self.encoder = nn.GRU(spectrum_dim, latent_dim, num_layers=layers, batch_first=True)
         self.norm = nn.LayerNorm(latent_dim)
         self.decoder = nn.Sequential(
             nn.Linear(latent_dim, latent_dim * 2), nn.GELU(), nn.Linear(latent_dim * 2, spectrum_dim)
         )
+        if residual:
+            nn.init.zeros_(self.decoder[-1].weight)
+            nn.init.zeros_(self.decoder[-1].bias)
 
     def forward(self, history: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         _, hidden = self.encoder(history)
         latent = self.norm(hidden[-1])
-        return latent, self.decoder(latent)
+        prediction = self.decoder(latent)
+        if self.residual:
+            prediction = history[:, -1] + prediction
+        return latent, prediction
 
 
 class ConditionedBandSplit(nn.Module):
@@ -190,6 +200,7 @@ class ForecastConditionedSeparator(nn.Module):
         variant: str,
         latent_dim: int = 32,
         initialization_seed: int = 0,
+        forecast_residual: bool = False,
         **separator_kwargs,
     ):
         super().__init__()
@@ -222,7 +233,9 @@ class ForecastConditionedSeparator(nn.Module):
         else:
             with torch.random.fork_rng(devices=[]):
                 torch.manual_seed(initialization_seed + 2)
-                self.forecaster = NoiseForecaster(spectrum_dim, latent_dim)
+                self.forecaster = NoiseForecaster(
+                    spectrum_dim, latent_dim, residual=forecast_residual
+                )
 
     def forward(
         self,

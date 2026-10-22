@@ -21,9 +21,42 @@ from source.model import ForecastConditionedSeparator
 from source.real_audio_data import RealAudioMixtureDataset
 from source.synthesis import BROAD_FAMILIES, make_mixture, mix_with_real_ocean
 from source.train import engineering_usability_gate
+from source.windowed_audio import (
+    BAND_CENTRES,
+    WindowForecastDataset,
+    _one_second_band_power,
+    aggregate_features,
+)
 
 
 class JointPipelineTests(unittest.TestCase):
+    def test_subhour_band_power_finds_tone_and_aggregates_windows(self):
+        rate = 8000
+        time = np.arange(rate * 10) / rate
+        audio = np.sin(2 * np.pi * 1000 * time).astype(np.float32)
+        one_second = _one_second_band_power(audio, rate)
+        peak = int(np.argmax(one_second.mean(axis=0)))
+        self.assertEqual(float(BAND_CENTRES[peak]), 1000.0)
+        five_second = one_second.reshape(2, 5, -1).mean(axis=1)
+        thirty_second_input = np.tile(five_second, (3, 1))
+        aggregated = aggregate_features(thirty_second_input, 30)
+        self.assertEqual(aggregated.shape, (1, len(BAND_CENTRES)))
+        self.assertTrue(np.isfinite(aggregated).all())
+
+    def test_subhour_history_is_strictly_causal_for_all_resolutions(self):
+        normaliser = SpectrumNormaliser(
+            np.zeros(3, dtype=np.float32), np.ones(3, dtype=np.float32)
+        )
+        for window_seconds in (5, 30, 60, 600):
+            with self.subTest(window_seconds=window_seconds):
+                context = 3600 // window_seconds
+                values = np.repeat(np.arange(context + 2, dtype=np.float32)[:, None], 3, axis=1)
+                dataset = WindowForecastDataset(values, normaliser, window_seconds)
+                item = dataset[0]
+                self.assertEqual(item["history"].shape, (context, 3))
+                self.assertEqual(float(item["history"][-1, 0]), context - 1)
+                self.assertEqual(float(item["target_spectrum"][0]), context)
+
     def test_origins_do_not_cross_time_gap(self):
         index = pd.to_datetime(
             ["2020-01-01 00:00", "2020-01-01 01:00", "2020-01-01 02:00", "2020-01-01 04:00"]
