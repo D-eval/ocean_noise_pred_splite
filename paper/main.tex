@@ -1,5 +1,14 @@
 \documentclass[conference]{IEEEtran}
 \usepackage{amsmath,amssymb,booktabs,graphicx,microtype,cite,url,balance}
+\usepackage[hidelinks]{hyperref}
+% First-page footer; keep the technical content's two-column layout unchanged.
+\makeatletter
+\def\ps@codeavailability{%
+  \let\@oddhead\@empty\let\@evenhead\@empty
+  \def\@oddfoot{\normalfont\footnotesize\hfil
+    Code and reproduction instructions: \url{https://github.com/D-eval/ocean_noise_pred_splite}\hfil}%
+  \let\@evenfoot\@oddfoot}
+\makeatother
 \newcommand{\method}{FC-BSR}
 \newcommand{\sisdr}{\mathrm{SI\text{-}SDR}}
 
@@ -8,6 +17,7 @@
 
 \begin{document}
 \maketitle
+\thispagestyle{codeavailability}
 
 \begin{abstract}
 We ask whether a strictly causal estimate of the expected ocean background can

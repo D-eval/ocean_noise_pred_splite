@@ -1,6 +1,15 @@
 \documentclass[conference]{IEEEtran}
 \usepackage{amsmath,amssymb,booktabs,graphicx,microtype,cite,url,balance}
 \usepackage{fontspec,xeCJK}
+\usepackage[hidelinks]{hyperref}
+% First-page footer; keep the technical content's two-column layout unchanged.
+\makeatletter
+\def\ps@codeavailability{%
+  \let\@oddhead\@empty\let\@evenhead\@empty
+  \def\@oddfoot{\normalfont\footnotesize\hfil
+    代码与复现实验说明：\url{https://github.com/D-eval/ocean_noise_pred_splite}\hfil}%
+  \let\@evenfoot\@oddfoot}
+\makeatother
 \setmainfont{Times New Roman}
 \setCJKmainfont{SimSun}
 \XeTeXlinebreaklocale "zh"
@@ -13,6 +22,7 @@
 
 \begin{document}
 \maketitle
+\thispagestyle{codeavailability}
 
 \begin{abstract}
 本文研究：在混合声音到达之前，仅由历史声景因果预测的海洋背景，能否帮助分离突发声学事件。
