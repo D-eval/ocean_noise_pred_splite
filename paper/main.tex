@@ -12,22 +12,26 @@
 
 \begin{abstract}
 Ocean source separators normally infer a changing background only from the
-mixture being separated. We study whether a causal forecast of the expected
-background, computed from prior soundscape measurements, improves separation.
-The proposed system encodes historical one-third-octave levels, predicts the
-current background spectrum, and injects it into BS-RoFormer band tokens by
+mixture being separated. We ask whether a strictly causal estimate of the
+expected background, computed before the mixture arrives, provides useful
+additional evidence. FC-BSR predicts a current spectrum from historical
+one-third-octave levels and injects it into BS-RoFormer band tokens through
 concatenation, feature-wise linear modulation (FiLM), or cross-attention.
-We use time-disjoint deployment splits, paired SI-SDR evaluation, and a
-real-time factor check. A six-family surrogate study selects FiLM: it improves
-SI-SDR improvement (SI-SDRi) over an unconditioned separator by $0.34$ dB on
-768 paired examples, while JS divergence alone does not predict gain. We then
-use 42 hours of continuous real hydrophone audio and compare 5-s, 30-s, 1-min,
-and 10-min prediction windows with a fixed one-hour history. A validation rule
-retains persistence unless the learned forecast beats it. All resolutions yield
-significant paired separation gains on 1,024 held-out real-background clips;
-5 s is best at $+1.226$ dB (95\% interval $[1.082,1.381]$), with real-time
-factor 0.0024. Only the 5-s learned forecast beats persistence on validation,
-showing that temporal conditioning helps even when elaborate dynamics do not.
+We separate three claims through a staged evaluation. First, a controlled
+surrogate-background study with exact stems selects FiLM: on 768 paired
+six-family examples it improves SI-SDR improvement (SI-SDRi) over an
+unconditioned separator by $0.34$ dB, while JS divergence alone does not
+predict gain. Second, we replace the surrogate with 42 hours of continuous raw
+hydrophone background, retain synthetic targets so exact stems remain
+available, and compare 5-s, 30-s, 1-min, and 10-min windows. All four temporal
+priors improve separation on 1,024 held-out clips; 5 s gains $+1.226$ dB
+($[1.082,1.381]$). However, learned forecasting beats persistence only at 5 s,
+so this stage supports time-correlated conditioning more strongly than a
+generally superior forecaster. Third, on 1,225 annotated real whale calls with
+no isolated stems, a matched reference-free comparison lowers residual event
+probability from .523 to .507 while leaving event-stem evidence unchanged; the
+off-event change rises from .0956 to .1022. The forecast prior therefore
+improves real-event semantic removal, but not every fidelity criterion.
 \end{abstract}
 
 \section{Introduction}
@@ -40,17 +44,32 @@ helps a separator reject predictable energy while retaining an unexpected
 injected source.
 
 We combine the band-split RoPE Transformer (BS-RoFormer) architecture
-\cite{lu2023bsroformer} with a causal recurrent forecast encoder. The
-contributions are: (i) a differentiable forecast--separation model; (ii) matched
-ablations of concatenation, FiLM, and cross-attention against no forecast;
-(iii) a leakage-audited deployment split; (iv) an evaluation protocol that
- reports separation, forecast error, uncertainty, and computational usability;
-(v) a six-family source generator with paired analysis by spectral shift,
-source--background overlap, and source entropy; (vi) a continuous real-audio
-study at four sub-hour prediction resolutions; and (vii) a reference-free,
-interventional evaluation on strongly annotated real whale calls.
+\cite{lu2023bsroformer} with a causal recurrent forecast encoder. The evidence
+is deliberately ordered from control to realism. The first study uses a
+TOL-derived background surrogate and exact source stems to select the injection
+mechanism and probe source diversity. The second replaces only the background
+with continuous raw hydrophone audio, retaining exact references through
+synthetic target injection. The third replaces the test target with annotated
+real whale calls; because isolated stems no longer exist, it uses semantic and
+partial-ground-truth checks instead of SI-SDR. Each stage removes one simplifying
+assumption, and its conclusion is restricted to the question it can identify.
 
-\section{Data and waveform construction}
+The contributions are therefore: a differentiable forecast-conditioning
+interface with matched concatenation, FiLM, and cross-attention ablations; a
+leakage-audited three-stage protocol reporting forecast accuracy, paired
+separation, semantic removal, preservation, uncertainty, and runtime; a
+six-family generator with spectral-shift and entropy analysis; and a usable
+local application for inspection, playback, and download.
+
+\section{Data and evaluation ladder}
+The three studies use different observations by design. ``Real background''
+means that the noise waveform is recorded rather than reconstructed; ``real
+target'' means that the event itself is recorded. These properties must not be
+conflated. The first study has synthetic background and targets with complete
+ground truth, the second has real background and synthetic targets with
+complete ground truth, and the third has real background and real targets but
+no separated ground truth.
+
 We use NOAA--Navy SanctSound hourly one-third-octave level (TOL) products
 \cite{noaa2020sanctsound}. MB03 deployments 01 and 02 form the training set,
 03 is validation, and 04 is held-out test. A sample at hour $t$ is eligible only
@@ -80,6 +99,11 @@ ranges. Parameters, family, and source-to-background SNR are drawn
 deterministically for every sample. The mixture is $x_t=n_t+s_t$, and clipping
 is prevented by common rescaling.
 
+The third stage uses a separate, strongly annotated 2-kHz DCLDE 2013
+right-whale recording set. Its day-disjoint construction and reference-free
+metrics are defined in Section~\ref{sec:real-events}; it is not pooled with
+SanctSound.
+
 \section{Method}
 Let $S_{t-H:t-1}\in\mathbb{R}^{H\times F}$ be normalized historical TOL.
 A GRU produces
@@ -105,22 +129,28 @@ same audio mapping. Concatenation doubles the local feature width before a
 fusion MLP; FiLM directly changes band-token gain and offset; cross-attention
 learns content-dependent alignment to forecast-frequency tokens.
 
-The end-to-end objective is
+For the controlled surrogate-background study, the end-to-end objective is
 \begin{equation}
  \mathcal L=\mathcal L_{\mathrm{wave}}
  +\tfrac12\sum_r\mathcal L_{\mathrm{complex\ STFT},r}
  +\lambda\lVert\widehat S_t-S_t\rVert_1,
 \end{equation}
-with $\lambda=0.2$ for conditioned variants. Gradients from both objectives
-reach the forecast encoder; this is joint training, not frozen feature export.
+with $\lambda=0.2$ for conditioned variants. In that first study, gradients
+from both objectives reach the forecast encoder. In the continuous-waveform
+and real-event studies, the predictor is instead selected by validation
+forecast error and then frozen before separator training. This deliberate
+difference prevents the separation loss from degrading an independently
+measured forecast, while preserving the same conditioning interface.
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=0.98\textwidth]{figures/architecture.png}
 \caption{FC-BSR architecture. Historical TOL ending at $t-1$ is encoded into a
 forecast of the current ocean spectrum. Concatenation, FiLM, and cross-attention
-inject that prior before the axial Transformer. Separation and forecast losses
-train the system jointly; the unconditioned baseline omits the forecast path.}
+inject that prior before the axial Transformer. The controlled study trains
+both paths jointly; the two real-waveform studies freeze a validation-selected
+predictor before training the separator. The unconditioned baseline omits the
+forecast path.}
 \label{fig:architecture}
 \end{figure*}
 
@@ -133,7 +163,11 @@ largest gain and its bootstrap interval excludes zero; cross-attention does not.
 \label{fig:conditioning}
 \end{figure*}
 
-\section{Experimental protocol}
+\section{Controlled surrogate study}
+This first evidence tier asks which conditioning operator works under complete
+ground truth. It is a mechanism-selection experiment, not yet evidence about
+raw ocean waveforms or real target events.
+
 All variants use identical samples, synthesis seeds, optimizer schedule, model
 width, matched separator-core initialization, and checkpoint rule. The checkpoint with maximum validation SI-SDR
 improvement (SI-SDRi) is evaluated once on MB03\_04. SI-SDR follows the
@@ -258,8 +292,13 @@ energy while retaining a diffuse band target.}
 \label{fig:signals}
 \end{figure*}
 
-\section{Sub-hour real-waveform study}
-The sub-hour experiment fixes history coverage at one hour, giving 720, 120,
+\section{Sub-hour real-background study}
+This second evidence tier replaces the reconstructed background with continuous
+raw audio while retaining injected synthetic targets. It can therefore test
+separation with exact signal and noise references in a real soundscape, but it
+does not yet test generalization to naturally occurring targets.
+
+The experiment fixes history coverage at one hour, giving 720, 120,
 60, or 6 causal history steps. For target window $t$, the model receives only
 $S_{t-H:t-1}$; the background target is the actual waveform $N_t$. A broad
 synthetic source is injected into a clip inside that window,
@@ -304,8 +343,13 @@ persistence on validation (by 1.4\%), while 10-min training has only 60 distinct
 next-window examples and strongly overfits. Temporal background information is
 useful; with the present data, persistence supplies most of that information.
 \section{Reference-free evaluation on real events}
-Real event recordings do not provide isolated source and background stems, so
-SI-SDR is unavailable. We use the DCLDE 2013 North Atlantic right-whale corpus
+\label{sec:real-events}
+The third evidence tier replaces the synthetic test target with a naturally
+occurring annotated event. Real event recordings do not provide isolated
+source and background stems, so SI-SDR is unavailable and waveform fidelity
+cannot be fully identified. This stage instead asks the narrower question of
+whether forecast conditioning improves semantic event removal without an
+obvious preservation failure. We use the DCLDE 2013 North Atlantic right-whale corpus
 \cite{gillespie2019dclde}: continuous 2-kHz mono WAV files are divided into
 8-s clips, and recording days---not clips---define the split. Certain upcall
 annotations yield positives; negatives exclude every certain or possible call
@@ -362,9 +406,10 @@ preservation cost: off-event relative change rises by 0.00662
 ($[0.00310,0.01574]$). Identity and all-to-event controls still reject the two
 trivial solutions: the former removes nothing, while the latter changes all
 off-event audio. Thus the forecast prior improves real-event semantic removal
-without reducing event-stem evidence, but it does not yield an unqualified
-improvement in source fidelity. This distinction is only visible because the
-semantic and partial-GT preservation criteria are reported together.
+without a detectable reduction in event-stem evidence, but it does not yield
+an unqualified improvement in source fidelity. This distinction is only visible
+because the semantic and partial-GT preservation criteria are reported
+together; the classifier does not substitute for unavailable separated stems.
 
 \begin{figure*}[t]
 \centering
@@ -377,17 +422,24 @@ Right: FC-BSR's stronger semantic removal comes with a small preservation cost.}
 \end{figure*}
 \clearpage
 
-\section{Usability criteria}
+\section{Interpretation and usability}
+The three evidence tiers support nested, not interchangeable, conclusions.
+The surrogate study selects FiLM and establishes controlled full-reference
+gain. The continuous-waveform study shows that a causal temporal prior helps
+on unseen real backgrounds, but the selection of persistence at three of four
+resolutions prevents a general claim that learned dynamics are necessary. The
+real-event study shows semantic transfer beyond matched BS-RoFormer, while its
+preservation cost and missing stems prevent an unconditional fidelity or
+deployment claim.
+
 The engineering gate requires overall SI-SDRi of at least 5 dB, at least 3 dB
 improvement for input SNR at or below 0 dB, at least 8 dB absolute target
 SI-SDR for stronger inputs, and frontend RTF below one. The conditioned model
 passes all four checks. Its batched RTF is 0.0040; the complete chunked frontend
-processes a 10-second WAV at RTF 0.043 on an RTX 3060. The scientific hypothesis is supported only
-if its positive paired SI-SDRi gain is reproduced on unseen, phase-aligned recordings.
-If forecast MAE improves while separation does not, the condition is either
-irrelevant or poorly injected. If oracle current spectra help but forecasts do
-not, forecasting is the bottleneck. These outcomes are explicitly falsifying,
-not post-hoc exceptions.
+processes a 10-second WAV at RTF 0.043 on an RTX 3060. These checks establish
+computational practicality, not field readiness. Field readiness still
+requires multi-site, multi-season evidence and either isolated real stems or
+stronger partial references.
 
 \section{Local application}
 The repository includes the validation-selected one-megabyte FiLM checkpoint and a dependency-light local
@@ -413,17 +465,18 @@ effects. Family-wise findings should be confirmed with real vessels, animals,
 sonar, weather, and anthropogenic events before selecting a production model.
 
 \section{Conclusion}
-\method{} supplies a concrete, leakage-resistant route from soundscape
-forecasting to source separation and a usable local interface. FiLM is selected
-among three matched injection mechanisms. On continuous real backgrounds, all
-four sub-hour priors significantly improve separation; 5 s is best in absolute
-score with a $+1.226$ dB paired gain. Learned dynamics beat persistence only at
-5 s, so current evidence supports temporal conditioning more strongly than a
-complex forecaster. On real annotated calls without isolated stems, FC-BSR
-reduces residual event probability beyond matched BS-RoFormer while preserving
-event-stem evidence, but slightly increases off-event change. The forecast prior
-therefore improves semantic removal, not every fidelity criterion. Multi-site,
-multi-season recordings with stronger references remain necessary for deployment.
+\method{} provides a concrete, leakage-resistant route from soundscape history
+to source separation and a usable local interface. The staged evidence yields
+three distinct conclusions. Controlled complete-reference experiments select
+FiLM and show a $+0.34$ dB paired gain. Continuous real-background experiments
+show that causal temporal conditioning improves separation at all four tested
+resolutions, with a $+1.226$ dB gain at 5 s; because learned dynamics beat
+persistence only at 5 s, they do not establish that a complex forecaster is
+generally necessary. Finally, annotated real calls show stronger semantic
+removal than matched BS-RoFormer without detectable loss of event-stem evidence,
+but with slightly greater off-event change. Forecast conditioning is therefore
+useful across progressively more realistic tests, yet the present evidence does
+not support an unconditional fidelity or deployment claim.
 
 \bibliographystyle{plain}
 \begingroup\small
