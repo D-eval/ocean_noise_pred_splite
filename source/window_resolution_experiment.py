@@ -156,11 +156,17 @@ def _pretrain_forecaster(
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, config.forecast_steps)
     iterator = iter(loader)
-    best_mae = float("inf")
-    best_state = None
+    # With the residual decoder zero-initialised, step 0 is exactly the strong
+    # persistence forecast. Learned dynamics must beat it on the validation
+    # deployment to be selected.
+    initial_metrics = _forecast_metrics(forecaster, validation, normaliser, device)
+    best_mae = initial_metrics["mae_db"]
+    best_state = {
+        key: value.detach().cpu().clone() for key, value in forecaster.state_dict().items()
+    }
     best_step = 0
     stale = 0
-    history = []
+    history = [{"step": 0, "train_loss": None, **initial_metrics}]
     for step in range(1, config.forecast_steps + 1):
         forecaster.train()
         try:
@@ -191,8 +197,6 @@ def _pretrain_forecaster(
                 stale += 1
             if step >= config.forecast_min_steps and stale >= config.patience:
                 break
-    if best_state is None:
-        raise RuntimeError("forecaster training produced no checkpoint")
     output.mkdir(parents=True, exist_ok=True)
     torch.save({"model": best_state, "step": best_step}, output / "forecast_best.pt")
     (output / "forecast_training.json").write_text(json.dumps(history, indent=2), encoding="utf-8")
@@ -327,7 +331,12 @@ def run_window(
     model = _make_conditioned_model(config).to(device)
     transfer = _load_separator_transfer(model, Path(config.separator_checkpoint))
     model.forecaster.load_state_dict(forecast_state, strict=True)
-    optimiser = torch.optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=1e-4)
+    for parameter in model.forecaster.parameters():
+        parameter.requires_grad_(False)
+    optimiser = torch.optim.AdamW(
+        (parameter for parameter in model.parameters() if parameter.requires_grad),
+        lr=config.learning_rate, weight_decay=1e-4,
+    )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, config.separation_steps)
     output.mkdir(parents=True, exist_ok=True)
     metadata = asdict(config) | {
@@ -343,6 +352,7 @@ def run_window(
         "test_deployment": "MB03_04",
         "transfer": transfer,
         "forecast_pretraining": forecast_summary,
+        "forecaster_frozen_during_separation": True,
     }
     (output / "config.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     iterator = iter(train_loader)
@@ -352,6 +362,7 @@ def run_window(
     history = []
     for step in range(1, config.separation_steps + 1):
         model.train()
+        model.forecaster.eval()
         try:
             batch = next(iterator)
         except StopIteration:
