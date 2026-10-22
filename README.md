@@ -118,3 +118,16 @@ python -m source.window_resolution_experiment --window 600
 四种分辨率相对同一真实波形无条件基线的 SI-SDRi 配对增益分别为 `+1.226 / +1.095 / +1.128 / +1.176 dB`，95% bootstrap 区间均高于零；5 秒配置的绝对 SI-SDRi 最高，为 `29.753 dB`。只有 5 秒预测器在验证集上略优于持续性预测（MAE 改善 `1.39%`），但该预测优势没有迁移到 MB03_04；30 秒、1 分钟和 10 分钟均由验证规则选择了持续性预测。因而当前结果证明短时、时间相关的背景条件有助于分离，但尚不能声称学习到的跨部署预测器优于简单持续性先验。
 
 完整数字见 [results/window_resolution_results.json](results/window_resolution_results.json)，可缩放的矢量汇总图见 [paper/figures/window_resolution.pdf](paper/figures/window_resolution.pdf)，中英文论文已同步更新。
+
+## 真实标注事件与无参考评估
+
+DCLDE 2013 连续录音保存在 `data/dclde2013/`（约 2.3 GiB，已由 `.gitignore` 排除）。实验按录音日划分数据，用确定的露脊鲸上扫声作正样本；“干净背景”会排除确定及不确定事件前后 2 秒。训练阶段只把合成上扫声加入干净真实海洋片段，真实事件只用于最终无参考评估。
+
+```powershell
+python -m source.event_classifier --prepare-only
+python -m source.event_classifier --epochs 30 --batch-size 64 --device cuda
+python -m source.dclde_separation_experiment --steps 2500 `
+  --minimum-steps 1500 --batch-size 4 --device cuda
+```
+
+冻结分类器在按日留出的测试集上达到 AUROC `0.9704`、AP `0.9738`、F1 `0.9196`。在 1338 个真实事件片段上，分离器把背景声轨事件概率从 `0.856` 降至 `0.523`，事件声轨概率为 `0.904`；逐步恢复曲线的相邻单调率为 `98.6%`，区间外相对改动为 `9.4%`。恒等输出和“全部归入事件”两个退化对照同时报告，避免单靠分类器分数得出错误结论。训练摘要见 [results/dclde_training_results.json](results/dclde_training_results.json)，完整评估见 [results/dclde_real_event_results.json](results/dclde_real_event_results.json)，矢量图见 [paper/figures/dclde_reference_free.pdf](paper/figures/dclde_reference_free.pdf)。引用文献 PDF 与目录说明位于 [ref](ref)。

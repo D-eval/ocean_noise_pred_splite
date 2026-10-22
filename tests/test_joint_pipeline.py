@@ -9,6 +9,8 @@ import torch
 import unittest
 
 from source.data import SpectrumNormaliser, eligible_origins
+from source.dclde import recording_start
+from source.dclde_separation_experiment import render_upcalls
 from source.inference import SeparationEngine
 from source.metrics import (
     jensen_shannon_bits,
@@ -19,6 +21,7 @@ from source.metrics import (
 )
 from source.model import ForecastConditionedSeparator
 from source.real_audio_data import RealAudioMixtureDataset
+from source.reference_free_eval import restoration_metrics
 from source.synthesis import BROAD_FAMILIES, make_mixture, mix_with_real_ocean
 from source.train import engineering_usability_gate
 from source.windowed_audio import (
@@ -30,6 +33,42 @@ from source.windowed_audio import (
 
 
 class JointPipelineTests(unittest.TestCase):
+    def test_synthetic_upcalls_are_localised_and_reproducible(self):
+        first, intervals = render_upcalls(16000, 91)
+        second, second_intervals = render_upcalls(16000, 91)
+        np.testing.assert_array_equal(first, second)
+        self.assertEqual(intervals, second_intervals)
+        self.assertTrue(intervals)
+        self.assertAlmostEqual(float(np.sqrt(np.mean(first * first))), 1.0, places=5)
+        occupied = np.zeros(len(first), dtype=bool)
+        for onset, offset in intervals:
+            occupied[round(onset * 2000) : round(offset * 2000)] = True
+        self.assertTrue(np.all(first[~occupied] == 0.0))
+
+    def test_dclde_filename_timestamp_uses_documented_est_offset(self):
+        stamp = recording_start("NOPP6_EST_20090330_001500_CH10.wav")
+        self.assertEqual(stamp.isoformat(), "2009-03-30T05:15:00+00:00")
+
+    def test_reference_free_curve_checks_semantics_and_partial_gt(self):
+        background = torch.zeros(1, 16)
+        background[:, :4] = 0.2
+        event = torch.zeros(1, 16)
+        event[:, 4:8] = 1.0
+        mixture = background + event
+        mask = torch.zeros_like(mixture)
+        mask[:, 4:8] = 1.0
+
+        def classifier(waveform):
+            return 8.0 * waveform[:, 4:8].abs().mean(dim=1) - 2.0
+
+        metrics, curve = restoration_metrics(classifier, mixture, event, mask)
+        self.assertGreater(metrics["removal_logit"], 5.0)
+        self.assertGreater(metrics["monotonic_fraction"], 0.99)
+        self.assertLess(metrics["leakage_outside_event"], 1e-8)
+        self.assertLess(metrics["off_event_relative_error"], 1e-8)
+        self.assertLess(metrics["reconstruction_relative_error"], 1e-8)
+        self.assertGreater(curve[-1], curve[0])
+
     def test_subhour_band_power_finds_tone_and_aggregates_windows(self):
         rate = 8000
         time = np.arange(rate * 10) / rate

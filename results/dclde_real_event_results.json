@@ -1,0 +1,81 @@
+{
+  "protocol": {
+    "test_examples": 1338,
+    "split": "three held-out recording days",
+    "separator_training": "real annotation-clean ocean + synthetic upcalls",
+    "real_event_source_gt": false,
+    "classifier_frozen": true,
+    "mixture_consistency": "background = mixture - event",
+    "restoration_gains_db": [
+      -60.0,
+      -30.0,
+      -24.0,
+      -18.0,
+      -12.0,
+      -6.0,
+      0.0
+    ]
+  },
+  "conditions": {
+    "separator": {
+      "mixture_event_probability": 0.8555255153610389,
+      "background_event_probability": 0.5233551828672355,
+      "event_stem_probability": 0.9042464690714496,
+      "removal_logit": 3.249780187692343,
+      "restoration_auc": 0.30489753990786317,
+      "monotonic_fraction": 0.9860488352754191,
+      "leakage_outside_event": 0.5969464622092711,
+      "off_event_relative_error": 0.09392271830139318,
+      "reconstruction_relative_error": 1.355036737856332e-08,
+      "restoration_curve": [
+        0.5240234759133671,
+        0.5447202861665432,
+        0.5665866138332806,
+        0.6092590603236838,
+        0.68177496807814,
+        0.7738302705533836,
+        0.855525564541553
+      ]
+    },
+    "identity": {
+      "mixture_event_probability": 0.8555255153610389,
+      "background_event_probability": 0.8555255153610389,
+      "event_stem_probability": 0.5090683102607727,
+      "removal_logit": 0.0,
+      "restoration_auc": 0.0,
+      "monotonic_fraction": 1.0,
+      "leakage_outside_event": 0.0,
+      "off_event_relative_error": 0.0,
+      "reconstruction_relative_error": 0.0,
+      "restoration_curve": [
+        0.8555253598009346,
+        0.8555253598009346,
+        0.8555253598009346,
+        0.8555253598009346,
+        0.8555253598009346,
+        0.8555253598009346,
+        0.8555253598009346
+      ]
+    },
+    "all_to_event": {
+      "mixture_event_probability": 0.8555255153610389,
+      "background_event_probability": 0.5090683102607727,
+      "event_stem_probability": 0.8555255153610389,
+      "removal_logit": 3.6125701852087126,
+      "restoration_auc": 0.2026332469576321,
+      "monotonic_fraction": 0.7932237349283535,
+      "leakage_outside_event": 0.7636026419331675,
+      "off_event_relative_error": 1.0,
+      "reconstruction_relative_error": 0.0,
+      "restoration_curve": [
+        0.509129316461104,
+        0.5668180477102419,
+        0.6349510909552353,
+        0.7523863570394359,
+        0.8434427630028204,
+        0.8653242178205596,
+        0.8555253598009346
+      ]
+    }
+  }
+}

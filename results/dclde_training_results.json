@@ -1,0 +1,36 @@
+{
+  "event_classifier": {
+    "best_epoch": 12,
+    "epochs_run": 19,
+    "temperature": 1.6218100973589298,
+    "validation": {
+      "examples": 2696,
+      "auroc": 0.9731594889450467,
+      "average_precision": 0.9794785496106339,
+      "f1": 0.9362818590704648,
+      "brier": 0.05132816731929779,
+      "ece_10_bin": 0.009711009370113337
+    },
+    "test": {
+      "examples": 2676,
+      "auroc": 0.9704442522918664,
+      "average_precision": 0.9738105812933529,
+      "f1": 0.9195668986852281,
+      "brier": 0.06095146760344505,
+      "ece_10_bin": 0.040892181291574854
+    }
+  },
+  "separator": {
+    "updates_run": 2500,
+    "best_step": 2500,
+    "transferred_tensors": 257,
+    "validation": {
+      "examples": 512,
+      "si_sdri_db": 14.190099395811558,
+      "si_sdri_ci95_db": [13.589512760052457, 14.798309749737381],
+      "source_si_sdr_db": 11.62556486952235
+    },
+    "selection": "synthetic upcalls in annotation-clean, day-disjoint validation audio only"
+  },
+  "protocol": "Classifier and separator use day-disjoint train/validation/test partitions. The classifier is frozen before reference-free separator evaluation."
+}

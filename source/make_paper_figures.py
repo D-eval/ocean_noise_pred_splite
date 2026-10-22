@@ -426,6 +426,44 @@ def window_resolution_figure(path: Path, results_path: Path) -> None:
     save_figure(figure, path)
 
 
+def reference_free_figure(path: Path, results_path: Path) -> None:
+    """Vector plot of the real-event restoration intervention and controls."""
+    results = json.loads(results_path.read_text(encoding="utf-8"))
+    gains = np.asarray(results["protocol"]["restoration_gains_db"])
+    conditions = results["conditions"]
+    styles = {
+        "separator": ("Separator", COLORS["coral"], "o"),
+        "identity": ("Identity (remove nothing)", COLORS["muted"], "s"),
+        "all_to_event": ("All-to-event", COLORS["navy"], "^"),
+    }
+    figure, axes = plt.subplots(1, 2, figsize=(9.2, 3.5), constrained_layout=True)
+    for key, (label, color, marker) in styles.items():
+        axes[0].plot(gains, conditions[key]["restoration_curve"], marker=marker,
+                     color=color, label=label, linewidth=2)
+    axes[0].set_xlabel("Restored event-stem gain (dB)")
+    axes[0].set_ylabel("Frozen classifier: event probability")
+    axes[0].set_title("Interventional restoration curve", loc="left", fontweight="bold")
+    axes[0].legend(frameon=False, fontsize=8)
+
+    labels = ["Separator", "Identity", "All-to-event"]
+    keys = ["separator", "identity", "all_to_event"]
+    leakage = [conditions[key]["leakage_outside_event"] for key in keys]
+    off_error = [conditions[key]["off_event_relative_error"] for key in keys]
+    x = np.arange(len(keys))
+    width = 0.34
+    axes[1].bar(x - width / 2, leakage, width, color=COLORS["gold"], label="stem energy outside label")
+    axes[1].bar(x + width / 2, off_error, width, color=COLORS["cyan"], label="off-event change")
+    axes[1].set_xticks(x, labels, rotation=10)
+    axes[1].set_ylim(0, 1.05)
+    axes[1].set_ylabel("Lower is better")
+    axes[1].set_title("Partial-GT preservation checks", loc="left", fontweight="bold")
+    axes[1].legend(frameon=False, fontsize=8)
+    for axis in axes:
+        axis.grid(alpha=0.16, axis="y")
+        axis.spines[["top", "right"]].set_visible(False)
+    save_figure(figure, path)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", type=Path, default=Path("paper/figures"))
@@ -437,6 +475,9 @@ def main() -> None:
     parser.add_argument(
         "--window-results", type=Path, default=Path("results/window_resolution_results.json")
     )
+    parser.add_argument(
+        "--dclde-results", type=Path, default=Path("results/dclde_real_event_results.json")
+    )
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = parser.parse_args()
@@ -447,6 +488,8 @@ def main() -> None:
     diversity_figure(args.output_dir / "diversity_results.png", args.diversity_results)
     if args.window_results.exists():
         window_resolution_figure(args.output_dir / "window_resolution.pdf", args.window_results)
+    if args.dclde_results.exists():
+        reference_free_figure(args.output_dir / "dclde_reference_free.pdf", args.dclde_results)
     signal_figure(
         args.output_dir / "signal_visualization.png",
         args.conditioned_checkpoint,

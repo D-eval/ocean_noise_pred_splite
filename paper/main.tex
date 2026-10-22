@@ -46,8 +46,9 @@ ablations of concatenation, FiLM, and cross-attention against no forecast;
 (iii) a leakage-audited deployment split; (iv) an evaluation protocol that
  reports separation, forecast error, uncertainty, and computational usability;
 (v) a six-family source generator with paired analysis by spectral shift,
-source--background overlap, and source entropy; and (vi) a continuous real-audio
-study at four sub-hour prediction resolutions.
+source--background overlap, and source entropy; (vi) a continuous real-audio
+study at four sub-hour prediction resolutions; and (vii) a reference-free,
+interventional evaluation on strongly annotated real whale calls.
 
 \section{Data and waveform construction}
 We use NOAA--Navy SanctSound hourly one-third-octave level (TOL) products
@@ -302,6 +303,69 @@ more expressive prediction is not automatically useful: only 5 s improves over
 persistence on validation (by 1.4\%), while 10-min training has only 60 distinct
 next-window examples and strongly overfits. Temporal background information is
 useful; with the present data, persistence supplies most of that information.
+\section{Reference-free evaluation on real events}
+Real event recordings do not provide isolated source and background stems, so
+SI-SDR is unavailable. We use the DCLDE 2013 North Atlantic right-whale corpus
+\cite{gillespie2019dclde}: continuous 2-kHz mono WAV files are divided into
+8-s clips, and recording days---not clips---define the split. Certain upcall
+annotations yield positives; negatives exclude every certain or possible call
+plus a 2-s margin. The balanced manifest contains 5,292 training, 2,696
+validation, and 2,676 test clips. Only clean training/validation backgrounds
+receive synthetic, time-localized upcalls for supervised separator training.
+The 1,338 real positive test clips never participate in checkpoint selection.
+
+Following learned referenceless separation assessment
+\cite{grais2019referenceless} and recent semantic reference-free metrics
+\cite{xiao2024clapscore}, we train a separate event classifier, calibrate its
+temperature on validation, and freeze it. Test AUROC is 0.9704, average
+precision 0.9738, and F1 0.9196. For event estimate $\hat e$ we enforce exact
+mixture consistency, $\hat n=x-\hat e$, then intervene with
+$y_g=\hat n+10^{g/20}\hat e$ for
+$g\in\{-60,-30,-24,-18,-12,-6,0\}$ dB. A credible output should reduce event
+probability in $\hat n$, retain event evidence in $\hat e$, recover that
+evidence monotonically as $g$ rises, and minimally change samples outside
+annotated intervals. Identity ($\hat e=0$) and all-to-event ($\hat e=x$)
+controls guard against gaming any one score.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Frozen-classifier and partial-GT diagnostics on 1,338 real calls.}
+\label{tab:reference-free}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lrrrrr}
+\toprule
+Estimate & $p(x)$ & $p(\hat n)$ & $p(\hat e)$ & Mono. & Off-event error\\
+\midrule
+Separator & .856 & .523 & .904 & .986 & .094\\
+Identity & .856 & .856 & .509 & 1.000 & .000\\
+All-to-event & .856 & .509 & .856 & .793 & 1.000\\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+The separator lowers event probability from 0.856 to 0.523 while its event stem
+scores 0.904; 98.6\% of adjacent restoration steps are nondecreasing. Exact
+reconstruction error is $1.36\times10^{-8}$. The controls show why the semantic
+score is insufficient alone: all-to-event removes the classifier label but
+changes all off-event audio, whereas identity preserves audio but removes
+nothing. The separator changes off-event audio by 9.4\%, but 59.7\% of its stem
+energy lies outside annotated intervals. Some of this reflects incomplete
+event boxes and reverberation, but the value is too high for a deployment claim;
+this is evidence of semantic removal, not clean real-source recovery.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.88\textwidth]{figures/dclde_reference_free.pdf}
+\caption{Real-event evaluation without separated ground truth. Left: restoring
+the separator event stem produces a nearly monotone increase in frozen
+classifier probability; identity is flat and all-to-event is non-monotone at
+high gain. Right: partial-GT preservation rejects the all-to-event degeneracy
+and quantifies the separator's remaining off-event leakage.}
+\label{fig:reference-free}
+\end{figure*}
+\clearpage
+
 \section{Usability criteria}
 The engineering gate requires overall SI-SDRi of at least 5 dB, at least 3 dB
 improvement for input SNR at or below 0 dB, at least 8 dB absolute target
@@ -344,8 +408,10 @@ among three matched injection mechanisms. On continuous real backgrounds, all
 four sub-hour priors significantly improve separation; 5 s is best in absolute
 score with a $+1.226$ dB paired gain. Learned dynamics beat persistence only at
 5 s, so current evidence supports temporal conditioning more strongly than a
-complex forecaster. The remaining gap is evaluation with real, rather than
-synthetically injected, target events across sites and seasons.
+complex forecaster. On real annotated calls without isolated stems, the
+frozen-classifier intervention supports semantic removal but exposes substantial
+stem energy outside event intervals. Multi-site, multi-season recordings with
+stronger partial or full source references remain necessary for deployment.
 
 \bibliographystyle{plain}
 \begingroup\small
