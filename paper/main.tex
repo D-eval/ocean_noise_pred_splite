@@ -1,7 +1,6 @@
 \documentclass[conference]{IEEEtran}
 \usepackage{amsmath,amssymb,booktabs,graphicx,microtype,cite,url,balance}
 \usepackage[hidelinks]{hyperref}
-\newcommand{\method}{FC-BSR}
 \newcommand{\sisdr}{\mathrm{SI\text{-}SDR}}
 
 \title{Causal Forecast-Conditioned BS-RoFormer\\for Ocean Sound Separation}
@@ -11,20 +10,19 @@
 \maketitle
 
 \begin{abstract}
-We ask whether a strictly causal estimate of the expected ocean background can
-help separate an unexpected acoustic event.  FC-BSR forecasts the current
-one-third-octave spectrum from preceding soundscape history and injects it into
-BS-RoFormer through concatenation, feature-wise linear modulation (FiLM), or
-cross-attention.  A three-tier evaluation separates mechanism selection from
-field realism.  With exact synthetic stems, FiLM improves SI-SDR improvement
-(SI-SDRi) by 0.34 dB over an unconditioned separator.  With 42 h of continuous
-hydrophone background and injected targets, causal priors improve all 5-s to
-10-min resolutions; the 5-s setting gains 1.226 dB, although persistence is the
-best forecaster at three resolutions.  On 1,225 annotated real whale calls
-without isolated stems, FC-BSR reduces residual event probability from .523 to
-.507 relative to matched BS-RoFormer, while slightly increasing off-event
-change.  The results support forecast conditioning, but not an unconditional
-fidelity or deployment claim.
+We test whether a background spectrum forecast from strictly preceding ocean
+audio helps separate the next 5-s acoustic event.  FC-BSR injects the forecast
+into BS-RoFormer by concatenation, feature-wise linear modulation (FiLM), or
+cross-attention.  A controlled 13-family study selects FiLM: at fixed 0-dB
+input SNR it improves SI-SDR improvement (SI-SDRi) by 0.692 dB (95\% paired
+bootstrap interval $[0.542,0.847]$).  On 42 h of continuous hydrophone
+background, however, forecast conditioning is strength dependent: it exceeds
+the unconditioned model by 0.728 dB at $-18$ dB and 0.525 dB at $-12$ dB, then
+falls behind above approximately $-4$ dB.  On 1,276 annotated real whale calls
+without isolated stems, FC-BSR slightly raises event-stem probability but does
+not reduce residual event probability or off-event change.  Thus the forecast
+prior is useful in controlled and weak-target regimes, while its benefit on
+real unknown events remains unproven.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -34,39 +32,36 @@ weak-reference evaluation
 
 \section{Introduction}
 Ocean backgrounds vary with shipping, weather, biology, and season
-\cite{miksisolds2013indian}.  Conventional separators infer the target and this
-changing background from the same mixture.  We instead provide a causal prior:
-the spectrum expected from observations ending before the mixture arrives.
-The scientific question is
+\cite{miksisolds2013indian}.  A mixture-only separator must infer both an
+unexpected event and this changing background from the same observation.  We
+instead ask whether the preceding soundscape can supply a causal prior:
 \begin{equation}
  S_{t-H:t-1}\xrightarrow{P_\psi}\widehat S_t,\qquad
- x_t=N_t+\alpha s_t\xrightarrow{F_\phi(\cdot\mid\widehat S_t)}(\hat s_t,\hat N_t).
+ x_t=N_t+\alpha s_t\xrightarrow{F_\phi(\cdot\mid\widehat S_t)}(\hat s_t,\hat N_t),
 \end{equation}
-The model never observes the current clean background $N_t$.
+where the separator never observes the current clean background $N_t$.
 
-Time-domain separators such as Conv-TasNet and DPRNN
-\cite{luo2019convtasnet,luo2020dprnn}, attention models such as SepFormer and
-TF-GridNet \cite{subakan2021sepformer,wang2023tfgridnet}, and band-split models
+Time-domain separators \cite{luo2019convtasnet,luo2020dprnn}, attention models
+\cite{subakan2021sepformer,wang2023tfgridnet}, and band-split systems
 \cite{luo2023bsrnn,lu2023bsroformer} provide strong mixture-only backbones.
-Hybrid Transformers offer another competitive design \cite{rouard2023htdemucs},
-while MixIT reduces dependence on isolated sources \cite{wisdom2020mixit}.
-None tests a forecast of the upcoming acoustic background as side information.
-Conditional modulation \cite{perez2018film}, cross-attention
-\cite{vaswani2017attention}, and cross-modal separation \cite{zhao2018pixels}
-suggest three plausible interfaces.  Meanwhile, DeepAR, N-BEATS, DLinear, and
-PatchTST span recurrent, basis, linear, and patch-based forecasting
-\cite{salinas2020deepar,oreshkin2020nbeats,zeng2023dlinear,nie2023patchtst}.
+Hybrid Transformers and MixIT broaden the architecture and supervision regimes
+\cite{rouard2023htdemucs,wisdom2020mixit}, but do not test a forecast of the
+upcoming background.  FiLM, cross-attention, and cross-modal separation
+\cite{perez2018film,vaswani2017attention,zhao2018pixels} motivate three
+interfaces.  Forecasting baselines range from recurrent to linear and
+patch-based models \cite{salinas2020deepar,oreshkin2020nbeats,zeng2023dlinear,nie2023patchtst}.
 
 Our contributions are: (1) FC-BSR,\footnote{Code and reproduction instructions:
-\url{https://github.com/D-eval/ocean_noise_pred_splite}.} a causal forecast-conditioned BS-RoFormer with a
-matched three-way conditioning ablation; (2) a leakage-audited evaluation that
-progresses from complete-reference surrogates to real background and finally
-real events; (3) tests across signal strength, source diversity, and 5-s,
-30-s, 1-min, and 10-min resolutions; and (4) a reference-free real-event test
-that directly compares FC-BSR with unconditioned BS-RoFormer.
+\url{https://github.com/D-eval/ocean_noise_pred_splite}.} with matched
+concatenation, FiLM, and cross-attention ablations; (2) a 13-family marine-aware
+source generator containing whale-like sweeps and vessel processes; (3) a
+5-s real-background strength sweep with baseline, oracle, forecast, and
+shuffled conditions; and (4) a matched BS-RoFormer comparison on untouched
+annotated whale calls.  The evidence is deliberately tiered so that synthetic
+ground truth is not conflated with semantic transfer.
 
 \section{Method}
-\subsection{Forecast and separator}
+\subsection{Forecast and conditional separator}
 Historical one-third-octave levels (TOL)
 $S_{t-H:t-1}\in\mathbb R^{H\times F}$ are normalized using training data only.
 A residual GRU predicts
@@ -74,226 +69,213 @@ A residual GRU predicts
  z_t=\operatorname{LN}(\operatorname{GRU}(S_{t-H:t-1})),\quad
  \widehat S_t=S_{t-1}+g_\psi(z_t).
 \end{equation}
-Residual initialization exactly represents persistence.  Learned forecasting
-is retained only when validation MAE improves on that baseline, consistent
-with proper point-forecast comparison \cite{gneiting2011pointForecast}.
+Residual initialization represents persistence exactly; a learned predictor is
+retained only if validation MAE improves upon persistence
+\cite{gneiting2011pointForecast}.
 
-BS-RoFormer maps the mixture STFT to band tokens $X_k$.  At the same pre-axial-
-Transformer location, we compare
+BS-RoFormer maps the mixture STFT to band tokens $X_k$.  At the same location
+before its axial Transformer, we compare
 \begin{align}
 \text{Concat: }\widetilde X_k&=X_k+f([X_k;P_k(\widehat S_t)]),\nonumber\\
 \text{FiLM: }\widetilde X_k&=(1+\tanh\gamma_k)\odot X_k+\beta_k,\label{eq:inject}\\
 \text{X-attn: }\widetilde X&=X+\operatorname{Attn}(X,E(\widehat S_t),E(\widehat S_t)).\nonumber
 \end{align}
-Residual branches start at zero so all models share the same initial audio
-mapping.  The loss combines waveform $L_1$, multi-resolution complex-STFT loss,
-and, in the surrogate study only, $0.2\|\widehat S_t-S_t\|_1$.  In real-waveform
-studies the validation-selected predictor is frozen before separator training.
+All residual branches begin at the identity.  The loss combines waveform
+$L_1$ and multi-resolution complex-STFT losses; the TOL-surrogate study adds
+$0.2\|\widehat S_t-S_t\|_1$.  Predictors are frozen before field-waveform
+separator training.
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=.94\textwidth]{figures/architecture.png}
-\caption{FC-BSR.  Causal history forecasts the current background spectrum;
-the prior enters the same BS-RoFormer backbone by concatenation, FiLM, or
-cross-attention.  The baseline removes the blue forecast path.}
+\caption{FC-BSR.  Strictly preceding soundscape features forecast the current
+background spectrum, which conditions a common BS-RoFormer backbone.  Removing
+the blue path gives the parameter-matched unconditioned baseline.}
 \label{fig:architecture}
 \end{figure*}
 
-\subsection{Data and evidence ladder}
+\subsection{Marine-aware source distribution}
+The generator contains 13 families: harmonic, linear chirp, inharmonic,
+impulse train, frequency-modulated tone, band noise, whale upsweep, downsweep,
+arch, S-curve, pulse packet, vessel tonal, and vessel cavitation.  Whale proxies
+use one to three localized events with variable duration, curvature, partials,
+taper, and flutter.  Vessel-tonal and narrow-band cavitation components draw a
+5--20 Hz low-frequency-oscillator amplitude envelope with probability 0.8;
+their broadband component is not modulated.  Training SNR is uniform on
+$[-12,12]$ dB.  This distribution is intended to cover contour and modulation
+patterns, not to claim species identity.
+
+We quantify spectral displacement with directional $D_{\rm KL}(p\|q)$ and
+finite symmetric Jensen--Shannon (JS) divergence \cite{lin1991divergence};
+spectral entropy and source--ocean overlap are reported separately.  Larger
+KL/JS expands coverage but is not treated as semantic diversity.
+
+\subsection{Evidence ladder and protocol}
 Tier 1 uses NOAA--Navy SanctSound hourly TOL products
-\cite{noaa2020sanctsound}.  MB03 deployments 01--02/03/04 are train/validation/
-test.  Random-phase inversion yields only a controlled spectral surrogate, not
-recovered audio.  Targets include harmonics, chirps, inharmonic and FM tones,
-impulses, and band noise.  Spectral shift uses Jensen--Shannon (JS) divergence
-\cite{lin1991divergence}; entropy separately measures diffuseness.
+\cite{noaa2020sanctsound}.  MB03 deployments 01--02/03/04 are
+train/validation/test.  Random-phase inversion creates controlled spectral
+surrogates, not recovered audio.  Every waveform is 5 s; 4,000 examples per
+training deployment and 2,500 updates are used.
 
-Tier 2 uses 42 h of continuous 8-kHz hydrophone WAV: 12/6/24 h for train/
-validation/test.  One-second periodograms are aggregated into 23 TOL bands and
-5-s, 30-s, 1-min, or 10-min windows.  The next real waveform $N_t$ receives a
-synthetic target, preserving exact references.  Each resolution covers one
-hour of causal history.
+Tier 2 uses 42 h of continuous 8-kHz hydrophone WAV (12/6/24 h for
+train/validation/test).  The exact clean current waveform $N_t$ is mixed with
+a synthetic target.  The principal experiment uses 5-s mixtures and 2,500
+updates, and evaluates 11 SNRs from $-18$ to $+12$ dB.  A separate
+predictor-resolution diagnostic holds history duration at one hour and changes
+its step to 5 s, 30 s, 1 min, or 10 min; all later experiments return to 5-s
+waveforms.
 
-Tier 3 uses day-disjoint, 2-kHz DCLDE 2013 right-whale recordings
-\cite{gillespie2019dclde}.  Strong event annotation supports detection
-\cite{shiu2020marine}, but no isolated event/background stems exist.  Clean
-training windows receive synthetic upcalls; 1,225 untouched real positive test
-clips evaluate transfer.  Both arms share samples, seeds, initialization,
+Tier 3 uses day-disjoint 2-kHz DCLDE 2013 right-whale recordings
+\cite{gillespie2019dclde}.  Event annotations support detection
+\cite{shiu2020marine}, but isolated stems do not exist.  Annotation-clean
+training clips receive the marine-aware proxies; 1,276 untouched real positive
+clips are evaluated.  Both arms share samples, seeds, core initialization,
 2,500-update budget, and validation-only checkpoint selection.
 
-\subsection{Protocol and metrics}
-Every comparison is paired at the waveform level.  Mixture time, target draw,
-SNR, random seed, separator-core initialization, optimizer schedule, and
-checkpoint rule are identical across conditioned and unconditioned arms.
-Deployment 03 selects all checkpoints; deployment 04 is evaluated once.  The
-continuous-audio split is chronological and DCLDE is split by recording day,
-so overlapping windows cannot cross partitions.  Feature normalization is fit
-only on training recordings, and the historical encoder ends at $t-1$.
-
-For complete-reference tiers we report SI-SDR and improvement over the input
-mixture, residual-background SI-SDR, forecast MAE in dB, parameter count, and
-real-time factor (RTF).  SI-SDR follows scale-invariant projection rather than
-the original BSS Eval decomposition \cite{vincent2006sdr,leroux2019sdr}.
-Uncertainty is a seeded paired bootstrap over test clips.  Diversity tests fix
-input SNR at 0 dB and pair 128 examples from each of six source families,
-preventing strength from confounding source shape.  We report both directional
-$D_{\mathrm{KL}}(p\|q)$ and finite symmetric JS divergence, but interpret them
-as spectral displacement rather than semantic diversity.
+Complete-reference tiers report SI-SDR and SI-SDRi using scale-invariant
+projection \cite{vincent2006sdr,leroux2019sdr}.  All uncertainty intervals are
+seeded paired bootstraps; continuous clips are block-bootstrapped by recording
+hour and real events by held-out day.  Current test spectra are supervision or
+oracle controls only; causal histories end before $t$.
 
 \section{Experiments and Results}
-\subsection{Controlled selection and diversity}
-All Tier-1 variants use 4,000 examples per training deployment, 2,000 updates,
-and SNR sampled from $[-12,12]$ dB.  Table~\ref{tab:ablation} selects FiLM on
-validation; its paired 0-dB gain is 0.34 dB ($95\%$ bootstrap CI
-$[0.21,0.48]$).  Band-wise scale and bias efficiently express ``expected
-energy here,'' whereas concatenation must compress doubled features and
-cross-attention must infer alignment from a coarse spectrum.
+\subsection{Conditioning selection and source diversity}
+Table~\ref{tab:ablation} selects FiLM solely by validation performance.  On
+832 fixed-0-dB pairs (64 per family), it improves 4.850 to 5.541 dB SI-SDRi.
+Band-wise scale and bias can directly encode ``expected energy here''; concat
+must compress doubled features, while cross-attention must learn alignment from
+a coarse condition under the same budget.
 
 \begin{table}[t]
-\caption{Matched conditioning ablation (dB).}
+\caption{Matched 5-s conditioning ablation (dB).}
 \label{tab:ablation}\centering\footnotesize
 \begin{tabular}{lrrr}
 \toprule
 Injection & Val. SI-SDRi & Test SI-SDRi & Paired $\Delta_0$\\
 \midrule
-None &4.96&5.00&0\\
-Concatenation &5.17&5.30&+0.15\\
-FiLM &\textbf{5.35}&\textbf{5.39}&\textbf{+0.34}\\
-Cross-attention &4.99&5.11&+0.01\\
+None &4.864&4.059&0\\
+Concatenation &5.343&4.432&+0.623\\
+FiLM &\textbf{5.419}&\textbf{4.468}&\textbf{+0.692}\\
+Cross-attention &5.128&4.261&+0.331\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-At SNR $-12,-6,0,+6,+12$ dB, FiLM obtains SI-SDRi
-$7.30,6.95,5.81,3.51,-0.10$ dB; absolute SI-SDR at $+12$ dB remains 11.94 dB.
-On 768 paired, fixed-0-dB examples, FiLM improves 5.36 to 5.70 dB.  Gain has
-weak correlation with JS shift ($-0.085$) but positive correlation with
-spectral entropy ($0.145$); the highest-entropy quintile gains 0.80 dB.  Thus
-KL/JS distance broadens coverage, but does not itself predict when the prior
-helps.  Fig.~\ref{fig:signals} visualizes the causal history, current spectrum,
-mixture, estimates, and spectra for a diffuse source.
+FiLM gains 0.869, 0.835, 0.919, 0.906, and 0.806 dB on the five whale proxy
+families.  Vessel tonal is the hardest family: the conditioned absolute
+SI-SDRi is $-8.295$ dB, despite a 0.320-dB relative gain.  Overall gain has
+weak correlation with JS ($r=-.057$) and entropy ($r=.122$), so increasing
+divergence broadens support but does not predict usefulness.
 
-The family breakdown supports that interpretation: band-limited noise gains
-0.54 dB ($[0.19,0.92]$), impulse trains 0.47 dB ($[0.16,0.79]$), and FM targets
-0.43 dB ($[0.08,0.82]$).  By contrast, gain falls from 0.54 dB in the lowest JS
-quintile to 0.00 dB in the highest.  A larger divergence therefore expands the
-tested support but does not guarantee benefit; overlap with predictable ocean
-bands and within-source diffuseness are more plausible explanatory variables.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{figures/signal_visualization.png}
-\caption{Representative high-entropy target: historical/predicted spectrum,
-mixture and separated spectrograms, and spectral overlays.}
-\label{fig:signals}
-\end{figure}
-
-\subsection{Continuous real background}
-Predictors train for at most 2,500 updates; separators train for 3,000--5,000.
-Table~\ref{tab:windows} reports 1,024 paired held-out clips per resolution.
-Every confidence interval excludes zero, but overlaps the other resolutions.
-Only 5 s selects a learned GRU (1.4\% lower MAE than persistence); 30 s, 1 min,
-and 10 min select persistence.  Temporal context is useful, but current data do
-not show that complex dynamics are generally necessary.
-
-Validation MAE is 1.366, 0.782, 0.687, and 1.371 dB from 5 s to 10 min.  The
-10-min training set contains only 60 distinct next-window targets, explaining
-its strong forecast overfitting.  All four separators pass the five-SNR
-engineering gate and run at RTF $\approx.0024$.  Thus the main positive result
-is the value of time-correlated conditioning, not a statistically established
-ranking of temporal resolution or universal superiority of the GRU.
+\subsection{Real background: time scale and target strength}
+The resolution diagnostic in Table~\ref{tab:windows} uses identical held-out
+examples.  Only the 5-s predictor beats persistence on validation (MAE 1.366
+versus 1.386 dB); the other scales select persistence.  Although all
+conditioned separators beat their matched baselines in this diagnostic, the
+intervals overlap, so it does not establish a best time scale.
 
 \begin{table}[t]
-\caption{Real-background full-reference results.}
+\caption{Predictor-resolution diagnostic on real background.}
 \label{tab:windows}\centering\footnotesize
 \begin{tabular}{lrrrr}
 \toprule
-Window & Forecast & Cond. & Base & Gain [95\% CI]\\
+Step & Predictor & Cond. & Base & Gain [95\% CI]\\
 \midrule
-5 s & GRU &29.753&28.527&1.226 [1.082,1.381]\\
+5 s &GRU&29.753&28.527&1.226 [1.082,1.381]\\
 30 s&Persist.&29.630&28.534&1.095 [0.935,1.265]\\
 1 min&Persist.&29.661&28.533&1.128 [0.971,1.298]\\
 10 min&Persist.&29.711&28.535&1.176 [1.036,1.326]\\
 \bottomrule
-\multicolumn{5}{l}{\scriptsize Cond./Base/Gain are SI-SDRi in dB.}
+\multicolumn{5}{l}{\scriptsize Cond./Base/Gain are target SI-SDRi in dB.}
 \end{tabular}
 \end{table}
 
-\subsection{Real events without separated ground truth}
-Without isolated stems, full-reference metrics are unavailable.  Following learned referenceless metrics
-\cite{kilgour2019fad,grais2019referenceless} and semantic audio embeddings
-\cite{wu2023clap,xiao2024clapscore}, we train, calibrate, and freeze an event
-classifier (test AUROC .9704).  Mixture consistency enforces $\hat N=x-\hat s$.
-We then restore $\hat s$ at gains $-60$ to 0 dB and require event probability
-to recover monotonically.  Identity and all-to-event controls reject trivial
-solutions; off-event relative change audits preservation.
+The harder fixed-5-s experiment compares BS-RoFormer, current-spectrum oracle,
+causal forecast, and time-shuffled condition on 1,152 paired test mixtures.
+Averaged across training SNRs, the baseline scores 23.470 dB and Forecast-FC-BSR
+22.871 dB ($\Delta=-0.599$, CI $[-0.851,-0.346]$); even the oracle is lower.
+This exposes conditioning/capacity effects that the simpler diagnostic misses.
+Figure~\ref{fig:strength} gives the more informative strength sweep.  Forecast
+conditioning helps weak targets by 0.728, 0.643, 0.525, 0.366, and 0.157 dB at
+$-18,-15,-12,-9,-6$ dB, respectively, then loses from $-3$ dB onward.  The
+shuffled condition also helps the weakest targets but collapses as SNR rises;
+therefore weak-target gain alone cannot prove that temporal forecast accuracy,
+rather than regularization or extra capacity, is responsible.
 
-The balanced classifier manifest contains 5,292/2,696/2,676 train/validation/
-test clips; certain upcalls define positives, while negatives exclude certain
-and possible calls with a 2-s margin.  Test average precision is .9738 and F1
-is .9196.  Each eligible target receives eight preceding 8-s, 30-band spectra.
-The residual GRU lowers validation forecast MAE from 2.081 to 1.921 dB, then is
-frozen.  Controlled validation SI-SDRi is 13.871 dB for BS-RoFormer and 13.925
-dB for FC-BSR before either model sees the real-event test set.
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/real_strength_sweep.pdf}
+\caption{Target-strength sweep on 5-s real ocean background.  Lines show all
+four model conditions; shaded bands are paired 95\% intervals.}
+\label{fig:strength}
+\end{figure}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=.98\textwidth]{figures/real_audio_visualization.png}
+\caption{A representative weak ($-12$ dB) 5-s target in real ocean audio.
+Unlike a visually dominant example, this view exposes the low-frequency
+background and compares BS-RoFormer and FC-BSR against the exact target.}
+\label{fig:example}
+\end{figure*}
+
+\subsection{Real events without separated ground truth}
+Following learned reference-free metrics \cite{kilgour2019fad,grais2019referenceless}
+and semantic audio embeddings \cite{wu2023clap,xiao2024clapscore}, we train,
+calibrate, and freeze a binary event classifier (test AUROC .9723, AP .9755,
+F1 .9275).  Mixture consistency imposes $\hat N=x-\hat s$.  We restore
+$\hat s$ at gains $\{-60,-30,-24,-18,-12,-6,0\}$ dB and test whether event
+probability recovers monotonically.  Identity and all-to-event controls reject
+trivial solutions; changes outside annotated intervals audit preservation.
+
+The 12-by-5-s forecaster reduces validation MAE from 2.076 to 1.974 dB and is
+then frozen.  On proxy validation, BS-RoFormer and FC-BSR score 11.125 and
+11.088 dB SI-SDRi.  Table~\ref{tab:events} shows the untouched-call result.
+FC-BSR produces a slightly more event-like event stem ($+.0051$), but residual
+event probability is higher, monotonicity is unchanged, and off-event change
+increases.  The day-block interval for residual probability difference
+$+.0145$ is $[-.0177,.0269]$.  Hence this tier demonstrates separator transfer
+to real events, not an advantage from forecast conditioning.
 
 \begin{table}[t]
-\caption{Matched comparison on 1,225 real calls.}
+\caption{Matched comparison on 1,276 real calls.}
 \label{tab:events}\centering\footnotesize
 \begin{tabular}{lrrrr}
 \toprule
 Method &$p(\hat N)\downarrow$&$p(\hat s)\uparrow$&Mono.$\uparrow$&Off-event$\downarrow$\\
 \midrule
-BS-RoFormer&.523&.901&.986&\textbf{.0956}\\
-FC-BSR&\textbf{.507}&.901&.985&.1022\\
+BS-RoFormer&\textbf{.751}&.863&\textbf{.940}&\textbf{.279}\\
+FC-BSR&.766&\textbf{.868}&.939&.288\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-FC-BSR lowers residual event probability by .0160; a paired bootstrap over
-three recording-day means gives $[-.0210,-.0132]$.  Event-stem probability and
-monotonicity are unchanged within uncertainty, but off-event change increases
-by .00662 $([.00331,.00781])$.  Hence forecast conditioning improves semantic
-removal beyond matched BS-RoFormer, with a small preservation cost.
-
-The restoration gains are $\{-60,-30,-24,-18,-12,-6,0\}$ dB.  Identity
-($\hat s=0$) retains the original event probability and all-to-event
-($\hat s=x$) destroys the background, showing why no single classifier score
-is sufficient.  Event-stem probability changes by only $-.00035$
-($[-.00283,.00552]$) and monotonicity by $-.00109$
-($[-.00342,.00265]$), whereas energy outside annotated intervals increases by
-.0101 ($[.00310,.01574]$).  These partial-ground-truth checks rule out obvious
-semantic gaming but cannot identify phase or waveform distortion inside an
-event interval.
-
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{figures/dclde_reference_free.pdf}
-\caption{Reference-free restoration curves (left) and preservation audit
-(right).  FC-BSR suppresses events more strongly but changes more off-event audio.}
+\caption{Reference-free restoration curves and preservation audit.  Both
+models perform nontrivial semantic separation, but FC-BSR is not uniformly
+better on real calls.}
 \label{fig:real}
 \end{figure}
 
 \section{Discussion and Conclusion}
-The evidence supports nested claims.  Controlled stems select FiLM; real
-background confirms the causal prior across four sub-hour resolutions; real
-events show a semantic advantage over unconditioned BS-RoFormer.  It does not
-show universal benefit from learned forecasting: persistence wins three of
-four resolutions.  Nor can classifier scores recover unavailable waveform
-fidelity.  Multi-site, multi-season recordings, more 10-min targets, multiple
-seeds, and isolated or stronger partial references remain necessary.
+The evidence supports a narrower claim than the initial hypothesis.  FiLM is
+the best conditioning interface on controlled stems, and the prior helps weak
+targets in 5-s real backgrounds.  It is not universally beneficial: the gain
+reverses for stronger targets, an oracle condition does not rescue the average,
+and no forecast advantage appears on untouched whale calls.  Persistence also
+wins three of four predictor resolutions.  These negative controls are central:
+they separate the existence of useful background information from a claim that
+the present architecture always exploits it.
 
-This ordering also limits interpretation.  Tier 1 identifies the conditioning
-mechanism but uses phase-synthesized backgrounds.  Tier 2 removes that
-assumption while retaining synthetic targets and exact stems.  Tier 3 removes
-the synthetic-test-target assumption but necessarily loses full-reference
-fidelity.  Agreement across tiers is stronger than any one result, yet it does
-not make their metrics interchangeable.  In particular, classifier-based
-event removal is evidence of semantic transfer, not a replacement for SI-SDR.
-
-Practical gates are met: 5 dB overall SI-SDRi, 3 dB improvement for SNR
-$\leq0$ dB, 8 dB absolute SI-SDR for stronger inputs, and RTF below one.  A
-local frontend visualizes the forecast and plays/downloads both estimates; its
-10-s chunked RTF is .043 on an RTX 3060.  This supports inspection, not field
-deployment.
+The system is practical for inspection: all field-waveform variants run at
+RTF about .0028, and a local frontend displays forecasts and permits playback
+and download of both estimates.  This does not establish field deployment.
+Future work should condition only under calibrated uncertainty, test multiple
+sites and seasons, and obtain isolated or stronger partial references for real
+events.  Classifier-based restoration is evidence of semantic transfer, not a
+replacement for waveform fidelity.
 
 \clearpage
 \balance

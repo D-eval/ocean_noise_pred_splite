@@ -6,6 +6,8 @@ import json
 import shutil
 from pathlib import Path
 
+from .synthesis import BROAD_FAMILIES
+
 
 VARIANTS = ("concat", "film", "cross_attention")
 
@@ -50,23 +52,29 @@ def run(experiments_root: Path, results_root: Path, model_output: Path) -> dict:
 
     selected = max(VARIANTS, key=lambda name: rows[name]["validation_si_sdri_db"])
     selected_experiment = experiments_root / f"broad_{selected}"
+    selected_diversity = json.loads(
+        (results_root / f"diversity_{selected}.json").read_text(encoding="utf-8")
+    )
     results_root.mkdir(parents=True, exist_ok=True)
     model_output.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(selected_experiment / "best.pt", model_output)
     shutil.copy2(results_root / f"diversity_{selected}.json", results_root / "diversity_results.json")
     shutil.copy2(results_root / f"diversity_{selected}.csv", results_root / "diversity_results.csv")
+    selected_config = json.loads((selected_experiment / "config.json").read_text(encoding="utf-8"))
     summary = {
         "selection_rule": "highest MB03_03 validation SI-SDRi; MB03_04 test metrics were not used for selection",
         "selected_variant": selected,
         "selected_checkpoint": str(model_output),
         "matched_protocol": {
-            "training_updates": 2000,
-            "train_examples_per_deployment": 4000,
+            "training_updates": selected_config["steps"],
+            "waveform_window_seconds": selected_config["seconds"],
+            "train_examples_per_deployment": selected_config["train_examples_per_deployment"],
             "train_snr_db": [-12, 12],
-            "source_profile": "six-family broad synthetic distribution",
+            "source_profile": f"{len(BROAD_FAMILIES)}-family broad marine-aware synthetic distribution",
+            "source_families": list(BROAD_FAMILIES),
             "separator_core_initialisation": "identical across variants",
             "conditioning_initialisation": "identity residual mapping",
-            "fixed_0_db_paired_examples": 768,
+            "fixed_0_db_paired_examples": selected_diversity["overall"]["examples"],
         },
         "variants": rows,
         "interpretation": {

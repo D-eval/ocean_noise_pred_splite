@@ -10,7 +10,7 @@ import unittest
 
 from source.data import SpectrumNormaliser, eligible_origins
 from source.dclde import _log_band_features, recording_start
-from source.dclde_separation_experiment import render_upcalls
+from source.dclde_separation_experiment import render_marine_training_target, render_upcalls
 from source.inference import SeparationEngine
 from source.metrics import (
     jensen_shannon_bits,
@@ -22,7 +22,7 @@ from source.metrics import (
 from source.model import ForecastConditionedSeparator
 from source.real_audio_data import RealAudioMixtureDataset
 from source.reference_free_eval import restoration_metrics
-from source.synthesis import BROAD_FAMILIES, make_mixture, mix_with_real_ocean
+from source.synthesis import BROAD_FAMILIES, MARINE_FAMILIES, draw_injection, make_mixture, mix_with_real_ocean
 from source.train import engineering_usability_gate
 from source.windowed_audio import (
     BAND_CENTRES,
@@ -44,6 +44,29 @@ class JointPipelineTests(unittest.TestCase):
         for onset, offset in intervals:
             occupied[round(onset * 2000) : round(offset * 2000)] = True
         self.assertTrue(np.all(first[~occupied] == 0.0))
+
+    def test_marine_training_targets_cover_whales_vessels_and_lfo(self):
+        families = set()
+        for seed in range(256):
+            waveform, parameters = render_marine_training_target(10000, seed)
+            self.assertTrue(np.isfinite(waveform).all())
+            self.assertAlmostEqual(float(np.sqrt(np.mean(waveform * waveform))), 1.0, places=4)
+            families.add(parameters["family"])
+            if parameters["family"].startswith("vessel_"):
+                self.assertGreaterEqual(parameters["modulation_hz"], 5.0)
+                self.assertLessEqual(parameters["modulation_hz"], 20.0)
+        self.assertEqual(families, set(MARINE_FAMILIES))
+
+    def test_vessel_lfo_is_frequency_selective_metadata(self):
+        found = None
+        for seed in range(500):
+            parameters = draw_injection(seed, profile="marine", family="vessel_tonal")
+            if parameters.lfo_enabled:
+                found = parameters
+                break
+        self.assertIsNotNone(found)
+        self.assertGreaterEqual(found.modulation_hz, 5.0)
+        self.assertLessEqual(found.modulation_hz, 20.0)
 
     def test_dclde_filename_timestamp_uses_documented_est_offset(self):
         stamp = recording_start("NOPP6_EST_20090330_001500_CH10.wav")

@@ -14,10 +14,17 @@
       "inharmonic",
       "impulse_train",
       "frequency_modulated",
-      "band_noise"
+      "band_noise",
+      "whale_upsweep",
+      "whale_downsweep",
+      "whale_arch",
+      "whale_s_curve",
+      "whale_pulse_packet",
+      "vessel_tonal",
+      "vessel_cavitation"
     ],
-    "examples_per_family": 128,
-    "examples": 768,
+    "examples_per_family": 64,
+    "examples": 832,
     "snr_db": 0.0,
     "background": "held-out MB03_04 TOL-derived surrogate",
     "pairing": "same timestamp, ocean waveform, source waveform, and SNR for both models",
@@ -25,405 +32,510 @@
     "conditioned_checkpoint": "experiments\\broad_concat\\best.pt"
   },
   "overall": {
-    "examples": 768,
-    "mean_js_bits": 0.740511155108733,
-    "mean_kl_bits": 3.9093844795828203,
-    "mean_source_ocean_spectral_overlap": 0.1491387485351495,
-    "mean_source_spectral_entropy": 0.45355575901109874,
-    "baseline_si_sdri_db": 5.359228632568072,
-    "conditioned_si_sdri_db": 5.50708358893947,
-    "paired_conditioned_gain_db": 0.14785495637139925,
+    "examples": 832,
+    "mean_js_bits": 0.5917968221786087,
+    "mean_kl_bits": 3.624131708754326,
+    "mean_source_ocean_spectral_overlap": 0.15103874384830396,
+    "mean_source_spectral_entropy": 0.5287867489079181,
+    "baseline_si_sdri_db": 4.849699464722876,
+    "conditioned_si_sdri_db": 5.4727232299113755,
+    "paired_conditioned_gain_db": 0.6230237651884986,
     "paired_gain_ci95_db": [
-      0.024368156424558644,
-      0.27304725237227107
+      0.48804199567715,
+      0.7635658998238237
     ],
-    "conditioned_wins_fraction": 0.4192708333333333
+    "conditioned_wins_fraction": 0.5733173076923077
   },
   "by_divergence_quintile": {
     "Q1": {
-      "examples": 154,
-      "mean_js_bits": 0.4934201137227486,
-      "mean_kl_bits": 2.258095482874671,
-      "mean_source_ocean_spectral_overlap": 0.2411361486827076,
-      "mean_source_spectral_entropy": 0.6766203130458188,
-      "baseline_si_sdri_db": 0.3385386166537737,
-      "conditioned_si_sdri_db": 0.6483014596553592,
-      "paired_conditioned_gain_db": 0.3097628430015855,
+      "examples": 167,
+      "mean_js_bits": 0.26120577975812853,
+      "mean_kl_bits": 1.1864014646986047,
+      "mean_source_ocean_spectral_overlap": 0.17787885688087415,
+      "mean_source_spectral_entropy": 0.7319492858120059,
+      "baseline_si_sdri_db": 5.134967932890275,
+      "conditioned_si_sdri_db": 5.925334004674129,
+      "paired_conditioned_gain_db": 0.7903660717838539,
       "paired_gain_ci95_db": [
-        0.09531288810388802,
-        0.5465494767218442
+        0.577205056045762,
+        1.0163963959346007
       ],
-      "conditioned_wins_fraction": 0.42857142857142855,
+      "conditioned_wins_fraction": 0.6946107784431138,
       "js_range_bits": [
-        0.14488080107255963,
-        0.6261454284272112
+        0.12271455879552995,
+        0.3579038294315361
       ]
     },
     "Q2": {
-      "examples": 153,
-      "mean_js_bits": 0.6845369497052011,
-      "mean_kl_bits": 3.0999526278698446,
-      "mean_source_ocean_spectral_overlap": 0.20149627706525494,
-      "mean_source_spectral_entropy": 0.5741626816221368,
-      "baseline_si_sdri_db": 5.217654010585321,
-      "conditioned_si_sdri_db": 5.607486939897724,
-      "paired_conditioned_gain_db": 0.3898329293124037,
+      "examples": 166,
+      "mean_js_bits": 0.4550946286295209,
+      "mean_kl_bits": 2.1820711666540307,
+      "mean_source_ocean_spectral_overlap": 0.1849499628598037,
+      "mean_source_spectral_entropy": 0.6234335378053351,
+      "baseline_si_sdri_db": 5.276400372700159,
+      "conditioned_si_sdri_db": 5.840408727571548,
+      "paired_conditioned_gain_db": 0.5640083548713879,
       "paired_gain_ci95_db": [
-        0.07995608676882353,
-        0.7097318339545061
+        0.297787703264011,
+        0.8462281145694026
       ],
-      "conditioned_wins_fraction": 0.49019607843137253,
+      "conditioned_wins_fraction": 0.6144578313253012,
       "js_range_bits": [
-        0.6261454284272112,
-        0.7332075629555198
+        0.3579038294315361,
+        0.5474853855984982
       ]
     },
     "Q3": {
-      "examples": 154,
-      "mean_js_bits": 0.7798443525465683,
-      "mean_kl_bits": 4.034953318880235,
-      "mean_source_ocean_spectral_overlap": 0.1413723394077837,
-      "mean_source_spectral_entropy": 0.4369521501751192,
-      "baseline_si_sdri_db": 5.160765185250671,
-      "conditioned_si_sdri_db": 5.354992681896531,
-      "paired_conditioned_gain_db": 0.19422749664586086,
+      "examples": 166,
+      "mean_js_bits": 0.617254515282918,
+      "mean_kl_bits": 3.209662767095093,
+      "mean_source_ocean_spectral_overlap": 0.16719308413748468,
+      "mean_source_spectral_entropy": 0.5557408554566399,
+      "baseline_si_sdri_db": 5.249676930347839,
+      "conditioned_si_sdri_db": 6.033388059103794,
+      "paired_conditioned_gain_db": 0.783711128755955,
       "paired_gain_ci95_db": [
-        -0.1084349098633491,
-        0.5287763536175979
+        0.4220581950493583,
+        1.1470865320122565
       ],
-      "conditioned_wins_fraction": 0.44805194805194803,
+      "conditioned_wins_fraction": 0.572289156626506,
       "js_range_bits": [
-        0.7332075629555198,
-        0.8170463323892687
+        0.5474853855984982,
+        0.6796262744962468
       ]
     },
     "Q4": {
-      "examples": 153,
-      "mean_js_bits": 0.8430019288535647,
-      "mean_kl_bits": 4.689501166920251,
-      "mean_source_ocean_spectral_overlap": 0.0993724145340749,
-      "mean_source_spectral_entropy": 0.36490381844836073,
-      "baseline_si_sdri_db": 7.516751540861294,
-      "conditioned_si_sdri_db": 7.453752417336492,
-      "paired_conditioned_gain_db": -0.0629991235248014,
+      "examples": 166,
+      "mean_js_bits": 0.7545853931836255,
+      "mean_kl_bits": 4.80153223991214,
+      "mean_source_ocean_spectral_overlap": 0.14620438913983339,
+      "mean_source_spectral_entropy": 0.4502516801404568,
+      "baseline_si_sdri_db": 4.776006693390748,
+      "conditioned_si_sdri_db": 5.506169152098248,
+      "paired_conditioned_gain_db": 0.7301624587075,
       "paired_gain_ci95_db": [
-        -0.3090384866263157,
-        0.20532299744732244
+        0.37315976865258604,
+        1.1304425317813722
       ],
-      "conditioned_wins_fraction": 0.35294117647058826,
+      "conditioned_wins_fraction": 0.5421686746987951,
       "js_range_bits": [
-        0.8170463323892687,
-        0.87199586571363
+        0.6796262744962468,
+        0.8171451918609589
       ]
     },
     "Q5": {
-      "examples": 154,
-      "mean_js_bits": 0.9020544863541621,
-      "mean_kl_bits": 5.464229443158871,
-      "mean_source_ocean_spectral_overlap": 0.06233338892442646,
-      "mean_source_spectral_entropy": 0.21534733164748826,
-      "baseline_si_sdri_db": 8.575524382777028,
-      "conditioned_si_sdri_db": 8.484177122400565,
-      "paired_conditioned_gain_db": -0.0913472603764627,
+      "examples": 167,
+      "mean_js_bits": 0.8711524411679535,
+      "mean_kl_bits": 6.736924264977022,
+      "mean_source_ocean_spectral_overlap": 0.07923827176000425,
+      "mean_source_spectral_entropy": 0.2828162645268218,
+      "baseline_si_sdri_db": 3.8159542901073387,
+      "conditioned_si_sdri_db": 4.064075465085442,
+      "paired_conditioned_gain_db": 0.24812117497810346,
       "paired_gain_ci95_db": [
-        -0.3393403886902061,
-        0.1775327645931635
+        -0.06500249765757582,
+        0.5665182013382499
       ],
-      "conditioned_wins_fraction": 0.37662337662337664,
+      "conditioned_wins_fraction": 0.4431137724550898,
       "js_range_bits": [
-        0.87199586571363,
-        0.9654659294768204
+        0.8171451918609589,
+        0.9869761035707023
       ]
     }
   },
   "by_source_ocean_overlap_quintile": {
     "Q1": {
-      "examples": 154,
-      "mean_js_bits": 0.7996262396656458,
-      "mean_kl_bits": 4.281666830348216,
-      "mean_source_ocean_spectral_overlap": 0.004561527231149484,
-      "mean_source_spectral_entropy": 0.38084231635681876,
-      "baseline_si_sdri_db": 14.297573657004865,
-      "conditioned_si_sdri_db": 15.58214441599784,
-      "paired_conditioned_gain_db": 1.2845707589929753,
+      "examples": 167,
+      "mean_js_bits": 0.6724171991463942,
+      "mean_kl_bits": 3.493448073150585,
+      "mean_source_ocean_spectral_overlap": 0.007444440470615935,
+      "mean_source_spectral_entropy": 0.481821897816135,
+      "baseline_si_sdri_db": 11.201542392373085,
+      "conditioned_si_sdri_db": 13.75886564884714,
+      "paired_conditioned_gain_db": 2.557323256474055,
       "paired_gain_ci95_db": [
-        0.7870864629551962,
-        1.7799357145831185
+        2.114504065725975,
+        3.020387018467495
       ],
-      "conditioned_wins_fraction": 0.5714285714285714,
+      "conditioned_wins_fraction": 0.8502994011976048,
       "overlap_range": [
-        2.9865643090310113e-05,
-        0.01544606651781601
+        4.331286361566463e-05,
+        0.018657013814450087
       ]
     },
     "Q2": {
-      "examples": 153,
-      "mean_js_bits": 0.7449703445644331,
-      "mean_kl_bits": 4.004650010202064,
-      "mean_source_ocean_spectral_overlap": 0.04019949514288816,
-      "mean_source_spectral_entropy": 0.40093399303567434,
-      "baseline_si_sdri_db": 5.912593223544118,
-      "conditioned_si_sdri_db": 5.723565638016641,
-      "paired_conditioned_gain_db": -0.18902758552747614,
+      "examples": 166,
+      "mean_js_bits": 0.601090368914802,
+      "mean_kl_bits": 4.073232801387066,
+      "mean_source_ocean_spectral_overlap": 0.045707995430406094,
+      "mean_source_spectral_entropy": 0.4851440024600095,
+      "baseline_si_sdri_db": 5.594153757016342,
+      "conditioned_si_sdri_db": 6.201944875160613,
+      "paired_conditioned_gain_db": 0.6077911181442709,
       "paired_gain_ci95_db": [
-        -0.4314108444134297,
-        0.04631811354820636
+        0.358815747768764,
+        0.8541747415774917
       ],
-      "conditioned_wins_fraction": 0.35294117647058826,
+      "conditioned_wins_fraction": 0.6746987951807228,
       "overlap_range": [
-        0.01544606651781601,
-        0.06479185881170556
+        0.018657013814450087,
+        0.07643605287988238
       ]
     },
     "Q3": {
-      "examples": 154,
-      "mean_js_bits": 0.7920176550761685,
-      "mean_kl_bits": 4.420667370925725,
-      "mean_source_ocean_spectral_overlap": 0.10417774896892831,
-      "mean_source_spectral_entropy": 0.3907217609564725,
-      "baseline_si_sdri_db": 3.693289624793189,
-      "conditioned_si_sdri_db": 3.660064979178178,
-      "paired_conditioned_gain_db": -0.03322464561501107,
+      "examples": 166,
+      "mean_js_bits": 0.6186331906328425,
+      "mean_kl_bits": 3.978043881462454,
+      "mean_source_ocean_spectral_overlap": 0.11139419338807807,
+      "mean_source_spectral_entropy": 0.4624176209385276,
+      "baseline_si_sdri_db": 3.4020298966711544,
+      "conditioned_si_sdri_db": 3.5502780338143367,
+      "paired_conditioned_gain_db": 0.14824813714318247,
       "paired_gain_ci95_db": [
-        -0.19407463224556346,
-        0.11838760325902863
+        -0.09464899474945683,
+        0.3997300419541279
       ],
-      "conditioned_wins_fraction": 0.4675324675324675,
+      "conditioned_wins_fraction": 0.5060240963855421,
       "overlap_range": [
-        0.06479185881170556,
-        0.14486355260502956
+        0.07643605287988238,
+        0.15345834664313707
       ]
     },
     "Q4": {
-      "examples": 153,
-      "mean_js_bits": 0.7499320370178251,
-      "mean_kl_bits": 3.98617050666176,
-      "mean_source_ocean_spectral_overlap": 0.2014096400102688,
-      "mean_source_spectral_entropy": 0.4619059424266714,
-      "baseline_si_sdri_db": 2.2821281244552214,
-      "conditioned_si_sdri_db": 1.998171554476607,
-      "paired_conditioned_gain_db": -0.28395656997861424,
+      "examples": 166,
+      "mean_js_bits": 0.5607409995461833,
+      "mean_kl_bits": 3.2188295415702073,
+      "mean_source_ocean_spectral_overlap": 0.196236804059789,
+      "mean_source_spectral_entropy": 0.5438467549292677,
+      "baseline_si_sdri_db": 2.9760142267199168,
+      "conditioned_si_sdri_db": 2.918509837958109,
+      "paired_conditioned_gain_db": -0.057504388761807634,
       "paired_gain_ci95_db": [
-        -0.40642249525396845,
-        -0.172452807367408
+        -0.24854801283722902,
+        0.1371563771156124
       ],
-      "conditioned_wins_fraction": 0.39869281045751637,
+      "conditioned_wins_fraction": 0.463855421686747,
       "overlap_range": [
-        0.14486355260502956,
-        0.2709849750614713
+        0.15345834664313707,
+        0.2624197116974387
       ]
     },
     "Q5": {
-      "examples": 154,
-      "mean_js_bits": 0.6160996295531298,
-      "mean_kl_bits": 2.8548848976834673,
-      "mean_source_ocean_spectral_overlap": 0.39497735494642733,
-      "mean_source_spectral_entropy": 0.6330873044710262,
-      "baseline_si_sdri_db": 0.5941706374771409,
-      "conditioned_si_sdri_db": 0.5500919415385692,
-      "paired_conditioned_gain_db": -0.04407869593857171,
+      "examples": 167,
+      "mean_js_bits": 0.5061327364405935,
+      "mean_kl_bits": 3.3594857497830937,
+      "mean_source_ocean_spectral_overlap": 0.39381281739762103,
+      "mean_source_spectral_entropy": 0.6701348943333993,
+      "baseline_si_sdri_db": 1.059326508835315,
+      "conditioned_si_sdri_db": 0.9115780116042156,
+      "paired_conditioned_gain_db": -0.14774849723109942,
       "paired_gain_ci95_db": [
-        -0.13632354520188716,
-        0.053081509125019855
+        -0.31269779599851705,
+        0.024224381888296457
       ],
-      "conditioned_wins_fraction": 0.3051948051948052,
+      "conditioned_wins_fraction": 0.3712574850299401,
       "overlap_range": [
-        0.2709849750614713,
-        0.7744688316868564
+        0.2624197116974387,
+        0.81401862528966
       ]
     }
   },
   "by_spectral_entropy_quintile": {
     "Q1": {
-      "examples": 154,
-      "mean_js_bits": 0.882537305883897,
-      "mean_kl_bits": 5.409184428371012,
-      "mean_source_ocean_spectral_overlap": 0.055694375627969354,
-      "mean_source_spectral_entropy": 0.18372248814940828,
-      "baseline_si_sdri_db": 8.487198960374702,
-      "conditioned_si_sdri_db": 8.10098598868429,
-      "paired_conditioned_gain_db": -0.38621297169041324,
+      "examples": 167,
+      "mean_js_bits": 0.831179978084242,
+      "mean_kl_bits": 6.211733280668026,
+      "mean_source_ocean_spectral_overlap": 0.0816125293167228,
+      "mean_source_spectral_entropy": 0.24171115048516326,
+      "baseline_si_sdri_db": 3.886372921709529,
+      "conditioned_si_sdri_db": 3.9068773071878327,
+      "paired_conditioned_gain_db": 0.020504385478303817,
       "paired_gain_ci95_db": [
-        -0.7186491427362546,
-        -0.05202250981147025
+        -0.2625469600469499,
+        0.30686917026042054
       ],
-      "conditioned_wins_fraction": 0.2987012987012987,
+      "conditioned_wins_fraction": 0.4431137724550898,
       "entropy_range": [
-        6.045948795416739e-07,
-        0.2737483646677219
+        0.0001475792535154913,
+        0.36266835996408064
       ]
     },
     "Q2": {
-      "examples": 153,
-      "mean_js_bits": 0.8368916522327401,
-      "mean_kl_bits": 4.604718822845647,
-      "mean_source_ocean_spectral_overlap": 0.1020834091322081,
-      "mean_source_spectral_entropy": 0.34565950190576006,
-      "baseline_si_sdri_db": 6.542176839183359,
-      "conditioned_si_sdri_db": 6.431406195744191,
-      "paired_conditioned_gain_db": -0.11077064343916825,
+      "examples": 166,
+      "mean_js_bits": 0.7267019438406012,
+      "mean_kl_bits": 4.896838810891864,
+      "mean_source_ocean_spectral_overlap": 0.11258109108476382,
+      "mean_source_spectral_entropy": 0.4310617280797984,
+      "baseline_si_sdri_db": 5.0696627215807695,
+      "conditioned_si_sdri_db": 5.545568286878876,
+      "paired_conditioned_gain_db": 0.4759055652981063,
       "paired_gain_ci95_db": [
-        -0.31400306127490657,
-        0.11982763474259314
+        0.19752923485385368,
+        0.7859456237775824
       ],
-      "conditioned_wins_fraction": 0.38562091503267976,
+      "conditioned_wins_fraction": 0.5783132530120482,
       "entropy_range": [
-        0.2737483646677219,
-        0.4046325787537364
+        0.36266835996408064,
+        0.48961024585170715
       ]
     },
     "Q3": {
-      "examples": 154,
-      "mean_js_bits": 0.7793020008597974,
-      "mean_kl_bits": 4.0321506596309495,
-      "mean_source_ocean_spectral_overlap": 0.126388969322497,
-      "mean_source_spectral_entropy": 0.45388489942132904,
-      "baseline_si_sdri_db": 5.891814698985257,
-      "conditioned_si_sdri_db": 6.16622197598993,
-      "paired_conditioned_gain_db": 0.2744072770046723,
+      "examples": 166,
+      "mean_js_bits": 0.6035606756376644,
+      "mean_kl_bits": 3.0729529378795655,
+      "mean_source_ocean_spectral_overlap": 0.1469027454044821,
+      "mean_source_spectral_entropy": 0.5432865011071413,
+      "baseline_si_sdri_db": 5.499093156655779,
+      "conditioned_si_sdri_db": 6.191491938229785,
+      "paired_conditioned_gain_db": 0.6923987815740058,
       "paired_gain_ci95_db": [
-        -0.014701617809085096,
-        0.5948462339759164
+        0.404036589353682,
+        1.0016778016577936
       ],
-      "conditioned_wins_fraction": 0.461038961038961,
+      "conditioned_wins_fraction": 0.5783132530120482,
       "entropy_range": [
-        0.4046325787537364,
-        0.5140322406818232
+        0.48961024585170715,
+        0.5945429580413488
       ]
     },
     "Q4": {
-      "examples": 153,
-      "mean_js_bits": 0.674077486971285,
-      "mean_kl_bits": 3.143256601994409,
-      "mean_source_ocean_spectral_overlap": 0.18784772536641642,
-      "mean_source_spectral_entropy": 0.5771499903810182,
-      "baseline_si_sdri_db": 3.8467260773957164,
-      "conditioned_si_sdri_db": 4.082506001774782,
-      "paired_conditioned_gain_db": 0.23577992437906514,
+      "examples": 166,
+      "mean_js_bits": 0.4714814607600346,
+      "mean_kl_bits": 2.1640072978419185,
+      "mean_source_ocean_spectral_overlap": 0.18081108815412905,
+      "mean_source_spectral_entropy": 0.6571346053816784,
+      "baseline_si_sdri_db": 5.911268758935383,
+      "conditioned_si_sdri_db": 7.123900721074048,
+      "paired_conditioned_gain_db": 1.2126319621386656,
       "paired_gain_ci95_db": [
-        0.007207161726223108,
-        0.4813568783741373
+        0.8181874243688422,
+        1.6483770815678032
       ],
-      "conditioned_wins_fraction": 0.4117647058823529,
+      "conditioned_wins_fraction": 0.6265060240963856,
       "entropy_range": [
-        0.5140322406818232,
-        0.6366944619000037
+        0.5945429580413488,
+        0.7111160423272054
       ]
     },
     "Q5": {
-      "examples": 154,
-      "mean_js_bits": 0.5299417895244289,
-      "mean_kl_bits": 2.3571521867972436,
-      "mean_source_ocean_spectral_overlap": 0.27362506606710024,
-      "mean_source_spectral_entropy": 0.7074638500957995,
-      "baseline_si_sdri_db": 2.026086623599003,
-      "conditioned_si_sdri_db": 2.7510493735407855,
-      "paired_conditioned_gain_db": 0.7249627499417826,
+      "examples": 167,
+      "mean_js_bits": 0.3262178586405756,
+      "mean_kl_bits": 1.7707034854743884,
+      "mean_source_ocean_spectral_overlap": 0.23320949098859844,
+      "mean_source_spectral_entropy": 0.7710099546226047,
+      "baseline_si_sdri_db": 3.893662197325758,
+      "conditioned_si_sdri_db": 4.6104053887399195,
+      "paired_conditioned_gain_db": 0.7167431914141613,
       "paired_gain_ci95_db": [
-        0.4616505081777449,
-        1.0153068654541557
+        0.4895711504067936,
+        0.9619769492858609
       ],
-      "conditioned_wins_fraction": 0.538961038961039,
+      "conditioned_wins_fraction": 0.6407185628742516,
       "entropy_range": [
-        0.6366944619000037,
-        0.8863317053270249
+        0.7111160423272054,
+        0.9051210613249173
       ]
     }
   },
   "by_family": {
     "harmonic": {
-      "examples": 128,
-      "mean_js_bits": 0.7542042337744539,
-      "mean_kl_bits": 4.049026222888483,
-      "mean_source_ocean_spectral_overlap": 0.13750450162811734,
-      "mean_source_spectral_entropy": 0.40822700622574015,
-      "baseline_si_sdri_db": 4.772771655145334,
-      "conditioned_si_sdri_db": 4.577852695249021,
-      "paired_conditioned_gain_db": -0.19491895989631303,
+      "examples": 64,
+      "mean_js_bits": 0.74097060323648,
+      "mean_kl_bits": 3.9632809884970834,
+      "mean_source_ocean_spectral_overlap": 0.11803576263720185,
+      "mean_source_spectral_entropy": 0.3965545845391732,
+      "baseline_si_sdri_db": 5.924261917214608,
+      "conditioned_si_sdri_db": 6.551176795270294,
+      "paired_conditioned_gain_db": 0.6269148780556861,
       "paired_gain_ci95_db": [
-        -0.4743910838144075,
-        0.08327912808381371
+        0.12983821617235664,
+        1.1758554193955206
       ],
-      "conditioned_wins_fraction": 0.375
+      "conditioned_wins_fraction": 0.515625
     },
     "chirp": {
-      "examples": 128,
-      "mean_js_bits": 0.7286933508345206,
-      "mean_kl_bits": 3.636939549400155,
-      "mean_source_ocean_spectral_overlap": 0.16920495358272025,
-      "mean_source_spectral_entropy": 0.4952777864717212,
-      "baseline_si_sdri_db": 6.818997841561213,
-      "conditioned_si_sdri_db": 7.001291470485739,
-      "paired_conditioned_gain_db": 0.18229362892452627,
+      "examples": 64,
+      "mean_js_bits": 0.7088754296126673,
+      "mean_kl_bits": 3.4507440385355497,
+      "mean_source_ocean_spectral_overlap": 0.1589389637370284,
+      "mean_source_spectral_entropy": 0.5304683415115221,
+      "baseline_si_sdri_db": 6.767482843250036,
+      "conditioned_si_sdri_db": 7.417156364885159,
+      "paired_conditioned_gain_db": 0.6496735216351226,
       "paired_gain_ci95_db": [
-        -0.10775603571091778,
-        0.4909686702943873
+        0.013205489111715004,
+        1.340070950333029
       ],
-      "conditioned_wins_fraction": 0.375
+      "conditioned_wins_fraction": 0.4375
     },
     "inharmonic": {
-      "examples": 128,
-      "mean_js_bits": 0.7696746926688267,
-      "mean_kl_bits": 4.265023621272807,
-      "mean_source_ocean_spectral_overlap": 0.13275708153834082,
-      "mean_source_spectral_entropy": 0.3924473320959147,
-      "baseline_si_sdri_db": 5.140375651651993,
-      "conditioned_si_sdri_db": 5.06541959621245,
-      "paired_conditioned_gain_db": -0.07495605543954298,
+      "examples": 64,
+      "mean_js_bits": 0.759259544680674,
+      "mean_kl_bits": 4.380397781570949,
+      "mean_source_ocean_spectral_overlap": 0.11591281801853401,
+      "mean_source_spectral_entropy": 0.3935938823937067,
+      "baseline_si_sdri_db": 5.80367296654731,
+      "conditioned_si_sdri_db": 6.118202366167679,
+      "paired_conditioned_gain_db": 0.3145293996203691,
       "paired_gain_ci95_db": [
-        -0.4026799437298905,
-        0.2581916081267991
+        -0.14786937384633347,
+        0.7876015208195896
       ],
-      "conditioned_wins_fraction": 0.4296875
+      "conditioned_wins_fraction": 0.453125
     },
     "impulse_train": {
-      "examples": 128,
-      "mean_js_bits": 0.7114313440300309,
-      "mean_kl_bits": 3.716811831490758,
-      "mean_source_ocean_spectral_overlap": 0.1621135113991576,
-      "mean_source_spectral_entropy": 0.49422763491084615,
-      "baseline_si_sdri_db": 5.1520139820931945,
-      "conditioned_si_sdri_db": 5.505110856669489,
-      "paired_conditioned_gain_db": 0.3530968745762948,
+      "examples": 64,
+      "mean_js_bits": 0.703750394948615,
+      "mean_kl_bits": 3.8321423046727854,
+      "mean_source_ocean_spectral_overlap": 0.1451912468533002,
+      "mean_source_spectral_entropy": 0.5018224936999542,
+      "baseline_si_sdri_db": 5.358092030975968,
+      "conditioned_si_sdri_db": 5.9468427518731914,
+      "paired_conditioned_gain_db": 0.5887507208972238,
       "paired_gain_ci95_db": [
-        0.084337200630398,
-        0.63704260701561
+        0.05336987976916135,
+        1.1836351820966233
       ],
-      "conditioned_wins_fraction": 0.4375
+      "conditioned_wins_fraction": 0.546875
     },
     "frequency_modulated": {
-      "examples": 128,
-      "mean_js_bits": 0.6988414990024758,
-      "mean_kl_bits": 3.764895559919168,
-      "mean_source_ocean_spectral_overlap": 0.15696145976865195,
-      "mean_source_spectral_entropy": 0.47998211012762027,
-      "baseline_si_sdri_db": 3.598941363452468,
-      "conditioned_si_sdri_db": 3.766958007006906,
-      "paired_conditioned_gain_db": 0.1680166435544379,
+      "examples": 64,
+      "mean_js_bits": 0.7060800730141253,
+      "mean_kl_bits": 4.137799264849936,
+      "mean_source_ocean_spectral_overlap": 0.13025902740123815,
+      "mean_source_spectral_entropy": 0.46549659317035574,
+      "baseline_si_sdri_db": 5.389008958707564,
+      "conditioned_si_sdri_db": 6.125380383105949,
+      "paired_conditioned_gain_db": 0.736371424398385,
       "paired_gain_ci95_db": [
-        -0.14956129132624482,
-        0.5248207441545674
+        0.18759560008184054,
+        1.3383049426454818
       ],
-      "conditioned_wins_fraction": 0.4375
+      "conditioned_wins_fraction": 0.484375
     },
     "band_noise": {
-      "examples": 128,
-      "mean_js_bits": 0.7802218103420897,
-      "mean_kl_bits": 4.0236100925255505,
-      "mean_source_ocean_spectral_overlap": 0.13629098329390893,
-      "mean_source_spectral_entropy": 0.4511726842347495,
-      "baseline_si_sdri_db": 6.6722713015042245,
-      "conditioned_si_sdri_db": 7.125868908013217,
-      "paired_conditioned_gain_db": 0.4535976065089926,
+      "examples": 64,
+      "mean_js_bits": 0.7622878410881488,
+      "mean_kl_bits": 3.9653577743250468,
+      "mean_source_ocean_spectral_overlap": 0.13232035047967328,
+      "mean_source_spectral_entropy": 0.4612811000749528,
+      "baseline_si_sdri_db": 6.331531068775803,
+      "conditioned_si_sdri_db": 7.136552320676856,
+      "paired_conditioned_gain_db": 0.8050212519010529,
       "paired_gain_ci95_db": [
-        0.1423115081866854,
-        0.7896367086214015
+        0.14494521818996872,
+        1.5477144123404287
       ],
-      "conditioned_wins_fraction": 0.4609375
+      "conditioned_wins_fraction": 0.515625
+    },
+    "whale_upsweep": {
+      "examples": 64,
+      "mean_js_bits": 0.3904683248129136,
+      "mean_kl_bits": 1.6320741172891935,
+      "mean_source_ocean_spectral_overlap": 0.1343191308581812,
+      "mean_source_spectral_entropy": 0.6152286816342738,
+      "baseline_si_sdri_db": 6.684458024799824,
+      "conditioned_si_sdri_db": 7.454709762707353,
+      "paired_conditioned_gain_db": 0.7702517379075289,
+      "paired_gain_ci95_db": [
+        0.3181677641347051,
+        1.23811527476646
+      ],
+      "conditioned_wins_fraction": 0.671875
+    },
+    "whale_downsweep": {
+      "examples": 64,
+      "mean_js_bits": 0.48733708822119803,
+      "mean_kl_bits": 2.17439302151876,
+      "mean_source_ocean_spectral_overlap": 0.1321503256323936,
+      "mean_source_spectral_entropy": 0.5563039869575899,
+      "baseline_si_sdri_db": 7.91465276107192,
+      "conditioned_si_sdri_db": 8.683699656277895,
+      "paired_conditioned_gain_db": 0.7690468952059746,
+      "paired_gain_ci95_db": [
+        0.2919633277691901,
+        1.2625397975556554
+      ],
+      "conditioned_wins_fraction": 0.65625
+    },
+    "whale_arch": {
+      "examples": 64,
+      "mean_js_bits": 0.5459238865047755,
+      "mean_kl_bits": 2.647098276568873,
+      "mean_source_ocean_spectral_overlap": 0.13471592710257274,
+      "mean_source_spectral_entropy": 0.5035354110418855,
+      "baseline_si_sdri_db": 7.86932204477489,
+      "conditioned_si_sdri_db": 8.75484163314104,
+      "paired_conditioned_gain_db": 0.8855195883661509,
+      "paired_gain_ci95_db": [
+        0.3675688753835857,
+        1.4410984925925732
+      ],
+      "conditioned_wins_fraction": 0.65625
+    },
+    "whale_s_curve": {
+      "examples": 64,
+      "mean_js_bits": 0.3274553754966565,
+      "mean_kl_bits": 1.360082509045999,
+      "mean_source_ocean_spectral_overlap": 0.153333972091078,
+      "mean_source_spectral_entropy": 0.6750392480817616,
+      "baseline_si_sdri_db": 6.626252526417375,
+      "conditioned_si_sdri_db": 7.447573205456138,
+      "paired_conditioned_gain_db": 0.821320679038763,
+      "paired_gain_ci95_db": [
+        0.3829554852563888,
+        1.2838111303746702
+      ],
+      "conditioned_wins_fraction": 0.6875
+    },
+    "whale_pulse_packet": {
+      "examples": 64,
+      "mean_js_bits": 0.30133805922373136,
+      "mean_kl_bits": 1.3707885314593449,
+      "mean_source_ocean_spectral_overlap": 0.16712402155372624,
+      "mean_source_spectral_entropy": 0.7066584232196018,
+      "baseline_si_sdri_db": 5.103189143817872,
+      "conditioned_si_sdri_db": 5.822120516211726,
+      "paired_conditioned_gain_db": 0.718931372393854,
+      "paired_gain_ci95_db": [
+        0.3759388133243192,
+        1.0460553499870004
+      ],
+      "conditioned_wins_fraction": 0.75
+    },
+    "vessel_tonal": {
+      "examples": 64,
+      "mean_js_bits": 0.7737162473529631,
+      "mean_kl_bits": 11.295068782954985,
+      "mean_source_ocean_spectral_overlap": 0.137836632186344,
+      "mean_source_spectral_entropy": 0.32211379144178776,
+      "baseline_si_sdri_db": -8.615135746542364,
+      "conditioned_si_sdri_db": -8.470977201359347,
+      "paired_conditioned_gain_db": 0.14415854518301785,
+      "paired_gain_ci95_db": [
+        -0.2798766342632007,
+        0.6273424986866304
+      ],
+      "conditioned_wins_fraction": 0.5
+    },
+    "vessel_cavitation": {
+      "examples": 64,
+      "mean_js_bits": 0.48589582012896343,
+      "mean_kl_bits": 2.9044848225177304,
+      "mean_source_ocean_spectral_overlap": 0.30336549147668,
+      "mean_source_spectral_entropy": 0.7461311980363701,
+      "baseline_si_sdri_db": 1.8893045015865937,
+      "conditioned_si_sdri_db": 2.1581234344339464,
+      "paired_conditioned_gain_db": 0.2688189328473527,
+      "paired_gain_ci95_db": [
+        0.05058864757811534,
+        0.48725641087730776
+      ],
+      "conditioned_wins_fraction": 0.578125
     }
   },
-  "gain_js_pearson_r": -0.07634465002486364,
-  "gain_overlap_pearson_r": -0.15740062398298807,
-  "gain_entropy_pearson_r": 0.18645703781271294,
+  "gain_js_pearson_r": -0.06471796041616257,
+  "gain_overlap_pearson_r": -0.3217565540607773,
+  "gain_entropy_pearson_r": 0.13995564083177145,
   "scope": "controlled surrogate-waveform result; not field-audio validation"
 }

@@ -31,21 +31,24 @@ CONDITIONS = {
     "film": "forecast",
     "shuffled_film": "shuffled",
 }
+STRENGTH_LEVELS_DB = tuple(float(value) for value in range(-18, 13, 3))
 
 
 @dataclass
 class RealExperimentConfig:
     variant: str
-    steps: int = 1500
-    batch_size: int = 8
+    steps: int = 2500
+    batch_size: int = 4
     learning_rate: float = 1e-4
     forecast_weight: float = 0.2
-    validate_every: int = 100
+    validate_every: int = 250
     context_hours: int = 24
     sample_rate: int = 8000
-    seconds: float = 0.5
+    seconds: float = 5.0
     clips_per_hour: int = 96
-    strength_clips_per_hour: int = 32
+    validation_clips_per_hour: int = 24
+    test_clips_per_hour: int = 48
+    strength_clips_per_hour: int = 24
     train_snr_low_db: float = -12.0
     train_snr_high_db: float = 12.0
     seed: int = 20261021
@@ -77,12 +80,14 @@ def _datasets(config: RealExperimentConfig, snr_range: tuple[float, float] | Non
         source_profile="broad",
         snr_range=snr_range or (config.train_snr_low_db, config.train_snr_high_db),
     )
-    sets = {
-        name: RealAudioMixtureDataset(
-            frames[name], name, clips_per_hour=config.clips_per_hour, **common
+    sets = {}
+    for name in frames:
+        clips = (
+            config.validation_clips_per_hour if name == "MB03_03"
+            else config.test_clips_per_hour if name == "MB03_04"
+            else config.clips_per_hour
         )
-        for name in frames
-    }
+        sets[name] = RealAudioMixtureDataset(frames[name], name, clips_per_hour=clips, **common)
     return frames, normaliser, sets
 
 
@@ -149,6 +154,7 @@ def run_variant(config: RealExperimentConfig, output: Path) -> dict:
         "condition": CONDITIONS[config.variant],
         "background_waveform": "time-aligned real NOAA SanctSound current-hour FLAC",
         "target": "clean broad synthetic source injected at measured waveform RMS",
+        "source_distribution": "general acoustic, five whale-contour, and two vessel families; vessel tonal bands optionally use 5--20 Hz LFO",
         "history": "24 hourly TOL rows ending at t-1",
         "normalisation": "mean/std fitted on MB03_01+02 only",
         "train_deployments": ["MB03_01", "MB03_02"],
@@ -203,8 +209,10 @@ def run_variant(config: RealExperimentConfig, output: Path) -> dict:
     model.load_state_dict(checkpoint["model"])
     test, rows = evaluate(model, test_loader, normaliser, device)
     strength = {}
-    for snr in (-12.0, -6.0, 0.0, 6.0, 12.0):
-        strength_config = RealExperimentConfig(**(asdict(config) | {"clips_per_hour": config.strength_clips_per_hour}))
+    for snr in STRENGTH_LEVELS_DB:
+        strength_config = RealExperimentConfig(**(
+            asdict(config) | {"test_clips_per_hour": config.strength_clips_per_hour}
+        ))
         _, _, strength_sets = _datasets(strength_config, (snr, snr))
         summary, _ = evaluate(
             model, DataLoader(strength_sets["MB03_04"], batch_size=config.batch_size), normaliser, device
@@ -217,6 +225,7 @@ def run_variant(config: RealExperimentConfig, output: Path) -> dict:
         "best_step": checkpoint["step"],
         "test": test,
         "strength_sweep": strength,
+        "waveform_window_seconds": config.seconds,
         "engineering_usability_gate": engineering_usability_gate(test, strength),
         "scope": "real current-hour NOAA SanctSound waveform; synthetic injected target",
     }
@@ -259,6 +268,7 @@ def aggregate(experiments_root: Path, output_path: Path) -> dict:
             "forecast_mae_db": results[variant]["test"]["forecast_mae_db"],
             "real_time_factor": results[variant]["test"]["real_time_factor"],
             "engineering_gate_passed": results[variant]["engineering_usability_gate"]["passed"],
+            "strength_sweep": results[variant]["strength_sweep"],
         }
     proxy = json.loads(Path("results/broad_training_results.json").read_text(encoding="utf-8"))
     summary = {
@@ -267,6 +277,8 @@ def aggregate(experiments_root: Path, output_path: Path) -> dict:
             "history": "real-recording-derived TOL at t-24...t-1",
             "ground_truth": "noise=N_t, signal=s_t, mixture=N_t+alpha*s_t",
             "paired_test_examples": len(baseline),
+            "waveform_window_seconds": results["film"]["waveform_window_seconds"],
+            "strength_sweep_snr_db": list(STRENGTH_LEVELS_DB),
             "selection": "best MB03_03 validation checkpoint; MB03_04 test used once",
         },
         "conditions": table,
@@ -286,9 +298,9 @@ def aggregate(experiments_root: Path, output_path: Path) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--variant", choices=tuple(DISPLAY_NAMES) + ("all",), default="all")
-    parser.add_argument("--steps", type=int, default=1500)
+    parser.add_argument("--steps", type=int, default=2500)
     parser.add_argument("--clips-per-hour", type=int, default=96)
-    parser.add_argument("--batch-size", type=int, default=8)
+    parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--experiments-root", type=Path, default=Path("experiments"))
     args = parser.parse_args()

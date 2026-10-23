@@ -1,55 +1,51 @@
 {
-  "scope": "six-family broad synthetic profile on MB03 TOL-derived surrogate backgrounds",
+  "scope": "13-family marine-aware synthetic profile on MB03 TOL-derived surrogate backgrounds",
   "training": {
-    "updates": 2000,
+    "updates": 2500,
+    "waveform_window_seconds": 5.0,
     "train_examples_per_deployment": 4000,
     "train_snr_db": [-12, 12],
-    "validation_examples": 128,
-    "test_examples": 256,
+    "fixed_0_db_paired_examples": 832,
     "source_families": [
-      "harmonic",
-      "chirp",
-      "inharmonic",
-      "impulse_train",
-      "frequency_modulated",
-      "band_noise"
+      "harmonic", "chirp", "inharmonic", "impulse_train",
+      "frequency_modulated", "band_noise", "whale_upsweep",
+      "whale_downsweep", "whale_arch", "whale_s_curve",
+      "whale_pulse_packet", "vessel_tonal", "vessel_cavitation"
     ]
   },
   "unconditioned": {
-    "best_step": 1750,
-    "source_si_sdri_db": 5.0024835564,
-    "source_si_sdri_ci95_db": [4.0407977601, 5.9714884737],
-    "ocean_si_sdr_db": 4.8903429218,
-    "real_time_factor": 0.0022933938,
-    "engineering_gate_passed": true
-  },
-  "predicted_spectrum": {
-    "best_step": 1750,
-    "source_si_sdri_db": 4.7773597387,
-    "source_si_sdri_ci95_db": [3.6856107387, 5.8757159192],
-    "ocean_si_sdr_db": 5.2504289075,
-    "forecast_mae_db": 3.2902610472,
-    "real_time_factor": 0.0024447289,
-    "engineering_gate_passed": false
+    "best_step": 2000,
+    "source_si_sdri_db": 4.059,
+    "test_si_sdri_db": 4.059,
+    "fixed_0_db_si_sdri_db": 4.8496994647
   },
   "conditioning_ablation": {
     "selection_rule": "highest MB03_03 validation SI-SDRi",
     "selected": "film",
     "concat": {
-      "validation_si_sdri_db": 5.1678403486,
-      "test_si_sdri_db": 5.3037027506,
-      "fixed_0_db_gain_over_unconditioned_db": 0.1478549564
+      "best_step": 2000,
+      "validation_si_sdri_db": 5.3434872504,
+      "test_si_sdri_db": 4.4323875393,
+      "fixed_0_db_conditioned_si_sdri_db": 5.4727232299,
+      "fixed_0_db_gain_over_unconditioned_db": 0.6230237652,
+      "fixed_0_db_gain_ci95_db": [0.4880419957, 0.7635658998]
     },
     "film": {
-      "validation_si_sdri_db": 5.3545672208,
-      "test_si_sdri_db": 5.3861183743,
-      "fixed_0_db_gain_over_unconditioned_db": 0.3415025352
+      "best_step": 2000,
+      "validation_si_sdri_db": 5.4192773523,
+      "test_si_sdri_db": 4.4679719844,
+      "fixed_0_db_conditioned_si_sdri_db": 5.5413160517,
+      "fixed_0_db_gain_over_unconditioned_db": 0.6916165869,
+      "fixed_0_db_gain_ci95_db": [0.5418641859, 0.8467499917]
     },
     "cross_attention": {
-      "validation_si_sdri_db": 4.9872153522,
-      "test_si_sdri_db": 5.1057837141,
-      "fixed_0_db_gain_over_unconditioned_db": 0.0095487027
+      "best_step": 2000,
+      "validation_si_sdri_db": 5.1279980054,
+      "test_si_sdri_db": 4.2614456916,
+      "fixed_0_db_conditioned_si_sdri_db": 5.1806722828,
+      "fixed_0_db_gain_over_unconditioned_db": 0.3309728181,
+      "fixed_0_db_gain_ci95_db": [0.2429457269, 0.4204490745]
     }
   },
-  "note": "Full injection ablation and fixed-0-dB paired analyses are in conditioning_ablation.json and diversity_*.json."
+  "note": "Full matched ablation and 13-family analyses are in conditioning_ablation.json and diversity_*.json."
 }

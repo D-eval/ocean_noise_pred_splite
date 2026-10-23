@@ -24,6 +24,10 @@ class InjectionParameters:
     pulse_rate_hz: float
     pulse_width_seconds: float
     fm_index: float
+    event_count: int
+    event_duration_seconds: float
+    sweep_curvature: float
+    lfo_enabled: bool
     snr_db: float
 
 
@@ -34,7 +38,16 @@ BROAD_FAMILIES = (
     "impulse_train",
     "frequency_modulated",
     "band_noise",
+    "whale_upsweep",
+    "whale_downsweep",
+    "whale_arch",
+    "whale_s_curve",
+    "whale_pulse_packet",
+    "vessel_tonal",
+    "vessel_cavitation",
 )
+
+MARINE_FAMILIES = tuple(name for name in BROAD_FAMILIES if name.startswith(("whale_", "vessel_")))
 
 
 def _normalise_rms(audio: np.ndarray, target: float) -> np.ndarray:
@@ -85,15 +98,29 @@ def draw_injection(
     family: str | None = None,
 ) -> InjectionParameters:
     """Draw a deterministic source from either the original or broad distribution."""
-    if profile not in {"narrow", "broad"}:
-        raise ValueError("profile must be 'narrow' or 'broad'")
+    if profile not in {"narrow", "broad", "marine"}:
+        raise ValueError("profile must be 'narrow', 'broad', or 'marine'")
     rng = np.random.default_rng(seed)
-    chosen_family = "harmonic" if profile == "narrow" else (family or str(rng.choice(BROAD_FAMILIES)))
+    if profile == "narrow":
+        chosen_family = "harmonic"
+    elif profile == "marine":
+        chosen_family = family or str(rng.choice(MARINE_FAMILIES))
+    else:
+        chosen_family = family or str(rng.choice(BROAD_FAMILIES))
     if chosen_family not in BROAD_FAMILIES:
         raise ValueError(f"unknown source family: {chosen_family}")
-    broad = profile == "broad"
-    fundamental = float(rng.uniform(25.0 if broad else 55.0, 1500.0 if broad else 420.0))
-    sweep_end = float(rng.uniform(40.0, 3800.0)) if broad else fundamental
+    broad = profile != "narrow"
+    whale = chosen_family.startswith("whale_")
+    vessel = chosen_family.startswith("vessel_")
+    if whale:
+        fundamental = float(rng.uniform(45.0, 220.0))
+        sweep_end = float(rng.uniform(160.0, 850.0))
+    elif vessel:
+        fundamental = float(rng.uniform(12.0, 120.0))
+        sweep_end = fundamental
+    else:
+        fundamental = float(rng.uniform(25.0 if broad else 55.0, 1500.0 if broad else 420.0))
+        sweep_end = float(rng.uniform(40.0, 3800.0)) if broad else fundamental
     noise_low = float(rng.uniform(20.0 if broad else 80.0, 2800.0 if broad else 1200.0))
     noise_high = float(rng.uniform(max(noise_low + 80.0, 400.0), 3900.0 if broad else 7000.0))
     return InjectionParameters(
@@ -105,16 +132,91 @@ def draw_injection(
         spectral_slope=float(rng.uniform(0.25 if broad else 0.65, 2.6 if broad else 1.8)),
         noise_low_hz=noise_low,
         noise_high_hz=noise_high,
-        noise_mix=float(rng.uniform(0.0, 0.9 if broad else 0.45)),
+        noise_mix=float(
+            rng.uniform(0.0, 0.25) if whale
+            else rng.uniform(0.0, 0.35) if vessel
+            else rng.uniform(0.0, 0.9 if broad else 0.45)
+        ),
         attack_seconds=float(rng.uniform(0.001 if broad else 0.005, 0.2 if broad else 0.12)),
         release_seconds=float(rng.uniform(0.005 if broad else 0.04, 0.4 if broad else 0.35)),
-        modulation_hz=float(rng.uniform(0.05 if broad else 0.08, 30.0 if broad else 2.5)),
-        modulation_depth=float(rng.uniform(0.0, 1.0 if broad else 0.5)),
+        modulation_hz=float(rng.uniform(5.0, 20.0) if vessel else rng.uniform(0.05 if broad else 0.08, 30.0 if broad else 2.5)),
+        modulation_depth=float(rng.uniform(0.2, 0.85) if vessel else rng.uniform(0.0, 1.0 if broad else 0.5)),
         pulse_rate_hz=float(rng.uniform(0.5, 35.0)),
         pulse_width_seconds=float(rng.uniform(0.001, 0.08)),
         fm_index=float(rng.uniform(0.1, 12.0)),
+        event_count=int(rng.integers(1, 4 if whale else 2)),
+        event_duration_seconds=float(rng.uniform(0.35, 2.5) if whale else rng.uniform(0.1, 1.0)),
+        sweep_curvature=float(rng.uniform(0.45, 2.4)),
+        lfo_enabled=bool(vessel and rng.random() < 0.8),
         snr_db=float(rng.uniform(*snr_range)),
     )
+
+
+def _whale_phase(params: InjectionParameters, time: np.ndarray, duration: float) -> np.ndarray:
+    """Integrate several smooth whale-like instantaneous-frequency contours."""
+    u = np.clip(time / max(duration, 1e-6), 0.0, 1.0)
+    low = min(params.fundamental_hz, params.sweep_end_hz)
+    high = max(params.fundamental_hz, params.sweep_end_hz)
+    if params.family == "whale_upsweep":
+        frequency = low + (high - low) * np.power(u, params.sweep_curvature)
+    elif params.family == "whale_downsweep":
+        frequency = high - (high - low) * np.power(u, params.sweep_curvature)
+    elif params.family == "whale_arch":
+        frequency = low + (high - low) * np.sin(np.pi * u) ** params.sweep_curvature
+    elif params.family == "whale_s_curve":
+        sigmoid = 0.5 + 0.5 * np.tanh((u - 0.5) * (2.0 + 2.0 * params.sweep_curvature))
+        frequency = low + (high - low) * sigmoid
+    else:  # pulse packet: repeated short upsweeps inside the event envelope
+        cycles = max(2.0, min(8.0, params.pulse_rate_hz * duration))
+        local = np.mod(u * cycles, 1.0)
+        frequency = low + (high - low) * np.power(local, params.sweep_curvature)
+    return 2.0 * np.pi * np.cumsum(frequency, dtype=np.float64) / max(len(time) / duration, 1.0)
+
+
+def _render_whale(params: InjectionParameters, sample_rate: int, samples: int, rng: np.random.Generator) -> np.ndarray:
+    output = np.zeros(samples, dtype=np.float32)
+    total_seconds = samples / sample_rate
+    for _ in range(params.event_count):
+        duration = min(params.event_duration_seconds * rng.uniform(0.75, 1.25), total_seconds * 0.8)
+        length = max(8, min(samples, round(duration * sample_rate)))
+        maximum_start = max(0, samples - length)
+        start = int(rng.integers(0, maximum_start + 1)) if maximum_start else 0
+        local_time = np.arange(length, dtype=np.float64) / sample_rate
+        phase = _whale_phase(params, local_time, duration) + rng.uniform(0.0, 2.0 * np.pi)
+        call = np.sin(phase)
+        if rng.random() < 0.75:
+            call += rng.uniform(0.08, 0.35) * np.sin(2.0 * phase + rng.uniform(0.0, 2.0 * np.pi))
+        taper = np.sin(np.pi * np.linspace(0.0, 1.0, length)) ** rng.uniform(1.1, 2.8)
+        flutter = 1.0 + rng.uniform(0.0, 0.22) * np.sin(2 * np.pi * rng.uniform(1.0, 5.0) * local_time)
+        output[start : start + length] += (call * taper * flutter).astype(np.float32)
+    return output
+
+
+def _render_vessel(params: InjectionParameters, sample_rate: int, samples: int, rng: np.random.Generator) -> np.ndarray:
+    time = np.arange(samples, dtype=np.float32) / sample_rate
+    tonal = np.zeros(samples, dtype=np.float32)
+    for harmonic in range(1, params.partials + 1):
+        frequency = params.fundamental_hz * harmonic
+        if frequency >= sample_rate / 2:
+            break
+        tonal += harmonic ** (-params.spectral_slope) * np.sin(
+            2 * np.pi * frequency * time + rng.uniform(0.0, 2.0 * np.pi)
+        )
+    # Apply the 5--20 Hz machinery LFO only to the tonal/narrow-band component.
+    if params.lfo_enabled:
+        lfo = 1.0 - params.modulation_depth + params.modulation_depth * (
+            0.5 + 0.5 * np.sin(2 * np.pi * params.modulation_hz * time + rng.uniform(0.0, 2.0 * np.pi))
+        )
+        tonal *= lfo.astype(np.float32)
+    if params.family == "vessel_tonal":
+        return tonal
+    white = rng.standard_normal(samples).astype(np.float32)
+    spectrum = np.fft.rfft(white)
+    frequencies = np.fft.rfftfreq(samples, 1.0 / sample_rate)
+    upper = min(sample_rate * 0.48, max(300.0, params.noise_high_hz))
+    spectrum[(frequencies < max(15.0, params.noise_low_hz * 0.25)) | (frequencies > upper)] = 0
+    cavitation = _normalise_rms(np.fft.irfft(spectrum, n=samples).astype(np.float32), 1.0)
+    return (0.35 * tonal + 0.65 * cavitation).astype(np.float32)
 
 
 def render_injection(params: InjectionParameters, sample_rate: int, samples: int) -> np.ndarray:
@@ -123,7 +225,11 @@ def render_injection(params: InjectionParameters, sample_rate: int, samples: int
     time = np.arange(samples, dtype=np.float32) / sample_rate
     signal = np.zeros(samples, dtype=np.float32)
 
-    if params.family == "harmonic":
+    if params.family.startswith("whale_"):
+        signal = _render_whale(params, sample_rate, samples, rng)
+    elif params.family.startswith("vessel_"):
+        signal = _render_vessel(params, sample_rate, samples, rng)
+    elif params.family == "harmonic":
         for harmonic in range(1, params.partials + 1):
             frequency = params.fundamental_hz * harmonic
             if frequency >= sample_rate / 2:
@@ -181,9 +287,14 @@ def render_injection(params: InjectionParameters, sample_rate: int, samples: int
         envelope[-release:] = np.minimum(
             envelope[-release:], np.linspace(1.0, 0.0, release, dtype=np.float32)
         )
-    lfo = 1.0 - params.modulation_depth + params.modulation_depth * (
-        0.5 + 0.5 * np.sin(2 * np.pi * params.modulation_hz * time)
-    )
+    # Vessel LFO is frequency-selective inside ``_render_vessel``; applying it
+    # again here would unrealistically modulate the entire broadband source.
+    if params.family.startswith("vessel_"):
+        lfo = np.ones(samples, dtype=np.float32)
+    else:
+        lfo = 1.0 - params.modulation_depth + params.modulation_depth * (
+            0.5 + 0.5 * np.sin(2 * np.pi * params.modulation_hz * time)
+        )
     return _normalise_rms((signal * envelope * lfo).astype(np.float32), 1.0)
 
 

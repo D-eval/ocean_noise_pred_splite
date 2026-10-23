@@ -200,13 +200,16 @@ def signal_figure(
 def real_signal_figure(
     path: Path,
     checkpoint_path: Path,
-    examples_csv: Path,
+    baseline_checkpoint_path: Path,
     data_root: Path,
     device_name: str,
 ) -> None:
-    """Visualize the causal history, actual current WAV, and separated outputs."""
+    """Compare baseline and FC-BSR on a deterministic weak-target 5-s example."""
     device = torch.device(device_name)
     model, config = load_checkpoint(checkpoint_path, device)
+    baseline, baseline_config = load_checkpoint(baseline_checkpoint_path, device)
+    if float(config["seconds"]) != 5.0 or float(baseline_config["seconds"]) != 5.0:
+        raise ValueError("the paper real-audio visualization requires 5-second checkpoints")
     normaliser = SpectrumNormaliser(
         mean=np.asarray(config["normaliser_mean"], dtype=np.float32),
         scale=np.asarray(config["normaliser_scale"], dtype=np.float32),
@@ -217,35 +220,49 @@ def real_signal_figure(
         condition="forecast", context_hours=int(config["context_hours"]),
         sample_rate=int(config["sample_rate"]), seconds=float(config["seconds"]),
         clips_per_hour=int(config["clips_per_hour"]), seed=int(config["seed"]),
-        snr_range=(0.0, 0.0), source_profile="broad",
+        snr_range=(-12.0, -12.0), source_profile="broad",
     )
-    rows = list(csv.DictReader(examples_csv.open(encoding="utf-8")))
-    mean_score = np.mean([float(row["source_si_sdri_db"]) for row in rows])
-    index = min(range(len(rows)), key=lambda value: abs(float(rows[value]["source_si_sdri_db"]) - mean_score))
-    # The ordinary test uses random SNR, so recreate that exact deterministic item.
-    dataset.snr_range = (-12.0, 12.0)
+    candidate_indices = np.linspace(0, len(dataset) - 1, min(192, len(dataset)), dtype=int)
+    candidate_rows = []
+    for index in candidate_indices:
+        candidate = dataset[int(index)]
+        with torch.inference_mode():
+            fc_estimate = model(candidate["mixture"][None].to(device), candidate["history"][None].to(device))["estimate"][0]
+            base_estimate = baseline(candidate["mixture"][None].to(device), candidate["history"][None].to(device))["estimate"][0]
+        length = min(len(candidate["source"]), len(fc_estimate), len(base_estimate))
+        target = candidate["source"][:length].to(device)
+        mixture_tensor = candidate["mixture"][:length].to(device)
+        mixture_score = float(si_sdr(mixture_tensor, target))
+        fc_gain = float(si_sdr(fc_estimate[:length], target)) - mixture_score
+        base_gain = float(si_sdr(base_estimate[:length], target)) - mixture_score
+        candidate_rows.append((int(index), fc_gain, fc_gain - base_gain))
+    fc_median = float(np.median([row[1] for row in candidate_rows]))
+    delta_median = float(np.median([row[2] for row in candidate_rows]))
+    index = min(candidate_rows, key=lambda row: abs(row[1] - fc_median) + abs(row[2] - delta_median))[0]
     item = dataset[index]
     with torch.inference_mode():
         output = model(item["mixture"][None].to(device), item["history"][None].to(device))
+        baseline_output = baseline(item["mixture"][None].to(device), item["history"][None].to(device))
     estimate = output["estimate"][0].detach().cpu().numpy()
-    length = min(len(estimate), len(item["source"]))
+    baseline_estimate = baseline_output["estimate"][0].detach().cpu().numpy()
+    length = min(len(estimate), len(baseline_estimate), len(item["source"]))
     source = item["source"].numpy()[:length]
     mixture = item["mixture"].numpy()[:length]
     ocean = item["ocean"].numpy()[:length]
     estimate = estimate[:length]
-    residual = mixture - estimate
+    baseline_estimate = baseline_estimate[:length]
     predicted = output["prediction"][0].detach().cpu().numpy() * normaliser.scale + normaliser.mean
     history_db = item["history"].numpy() * normaliser.scale + normaliser.mean
 
-    figure = plt.figure(figsize=(12.2, 7.8), constrained_layout=True)
-    grid = figure.add_gridspec(3, 4, height_ratios=(1.0, 1.15, 0.85))
-    history_axis = figure.add_subplot(grid[0, :3])
+    figure = plt.figure(figsize=(13.2, 7.8), constrained_layout=True)
+    grid = figure.add_gridspec(3, 5, height_ratios=(1.0, 1.15, 0.85))
+    history_axis = figure.add_subplot(grid[0, :4])
     image = history_axis.imshow(history_db.T, origin="lower", aspect="auto", cmap="viridis")
     history_axis.set_title("Past real soundscape: 24 hourly TOL spectra", loc="left", fontweight="bold")
     history_axis.set_xlabel("Hours before current recording")
     history_axis.set_ylabel("TOL band index")
     figure.colorbar(image, ax=history_axis, label="dB", pad=0.01)
-    forecast_axis = figure.add_subplot(grid[0, 3])
+    forecast_axis = figure.add_subplot(grid[0, 4])
     bands = np.arange(len(predicted))
     current_db = item["target_spectrum"].numpy() * normaliser.scale + normaliser.mean
     forecast_axis.plot(predicted, bands, color=COLORS["gold"], lw=2, label="forecast")
@@ -257,9 +274,10 @@ def real_signal_figure(
 
     for column, (audio, title) in enumerate((
         (ocean, "Real current ocean WAV"),
-        (mixture, "Real ocean + synthetic target"),
-        (estimate, "Separated target"),
-        (residual, "Estimated ocean residual"),
+        (mixture, f"Mixture (target at {item['snr_db']:+.0f} dB)"),
+        (source, "Synthetic target GT"),
+        (baseline_estimate, "BS-RoFormer target"),
+        (estimate, "FC-BSR target"),
     )):
         axis = figure.add_subplot(grid[1, column])
         frequencies, times, values = _db_spectrogram(audio, int(config["sample_rate"]))
@@ -274,23 +292,48 @@ def real_signal_figure(
     spectrum_axis = figure.add_subplot(grid[2, :])
     frequencies = np.fft.rfftfreq(length, 1 / int(config["sample_rate"]))
     for audio, label, color in (
-        (ocean, "real ocean", COLORS["cyan"]),
         (source, "synthetic target GT", COLORS["gold"]),
-        (estimate, "separated target", COLORS["coral"]),
+        (baseline_estimate, "BS-RoFormer", COLORS["navy"]),
+        (estimate, "FC-BSR", COLORS["coral"]),
     ):
         power = 20 * np.log10(np.maximum(np.abs(np.fft.rfft(audio * np.hanning(length))), 1e-6))
         spectrum_axis.plot(frequencies / 1000, power, lw=1.2, label=label, color=color, alpha=0.9)
-    improvement = float(si_sdr(torch.from_numpy(estimate), torch.from_numpy(source))) - float(
-        si_sdr(torch.from_numpy(mixture), torch.from_numpy(source))
-    )
+    mixture_score = float(si_sdr(torch.from_numpy(mixture), torch.from_numpy(source)))
+    improvement = float(si_sdr(torch.from_numpy(estimate), torch.from_numpy(source))) - mixture_score
+    baseline_improvement = float(si_sdr(torch.from_numpy(baseline_estimate), torch.from_numpy(source))) - mixture_score
     spectrum_axis.set_title(
-        f"Spectra · input SNR {item['snr_db']:+.1f} dB · SI-SDRi {improvement:+.2f} dB",
+        f"Spectra · 5-s input at {item['snr_db']:+.1f} dB · SI-SDRi: BS-RoFormer {baseline_improvement:+.2f}, FC-BSR {improvement:+.2f} dB",
         loc="left", fontweight="bold",
     )
     spectrum_axis.set_xlabel("Frequency (kHz)")
     spectrum_axis.set_ylabel("Relative magnitude (dB)")
     spectrum_axis.grid(alpha=0.18)
     spectrum_axis.legend(ncol=3, frameon=False, loc="upper right")
+    save_figure(figure, path)
+
+
+def strength_sweep_figure(path: Path, results_path: Path) -> None:
+    """Plot all real-background model settings across fixed input SNR."""
+    results = json.loads(results_path.read_text(encoding="utf-8"))
+    variants = ("none_film", "oracle_film", "film", "shuffled_film")
+    labels = ("BS-RoFormer", "Oracle-FC-BSR", "Forecast-FC-BSR", "Shuffled-FC-BSR")
+    colors = (COLORS["navy"], COLORS["mint"], COLORS["coral"], COLORS["gold"])
+    markers = ("o", "s", "D", "^")
+    figure, axis = plt.subplots(figsize=(7.2, 4.3), constrained_layout=True)
+    for variant, label, color, marker in zip(variants, labels, colors, markers, strict=True):
+        sweep = results["conditions"][variant]["strength_sweep"]
+        snr = np.asarray(sorted(float(key.removesuffix("_dB")) for key in sweep))
+        rows = [sweep[f"{value:+.0f}_dB"] for value in snr]
+        score = np.asarray([row["source_si_sdri_db"] for row in rows])
+        interval = np.asarray([row["source_si_sdri_ci95_db"] for row in rows])
+        axis.plot(snr, score, marker=marker, color=color, linewidth=1.8, label=label)
+        axis.fill_between(snr, interval[:, 0], interval[:, 1], color=color, alpha=0.10)
+    axis.set_xlabel("Synthetic-target input SNR (dB)")
+    axis.set_ylabel("Target SI-SDR improvement (dB)")
+    axis.set_title("Real ocean background · 5-s separation windows", loc="left", fontweight="bold")
+    axis.grid(alpha=0.18)
+    axis.spines[["top", "right"]].set_visible(False)
+    axis.legend(frameon=False, ncol=2, fontsize=8)
     save_figure(figure, path)
 
 
@@ -349,13 +392,13 @@ def diversity_figure(path: Path, results_path: Path) -> None:
     axes[1].set_xticks(x)
 
     family_rows = results["by_family"]
-    labels = ["harmonic", "chirp", "inharm.", "impulse", "FM", "band noise"]
     keys = list(family_rows)
+    labels = [key.replace("frequency_modulated", "FM").replace("_", " ") for key in keys]
     family_gain = np.asarray([family_rows[key]["paired_conditioned_gain_db"] for key in keys])
     colors = [COLORS["mint"] if value > 0 else COLORS["coral"] for value in family_gain]
     axes[2].barh(np.arange(len(keys)), family_gain, color=colors)
     axes[2].axvline(0, color=COLORS["muted"], lw=1)
-    axes[2].set_yticks(np.arange(len(keys)), labels)
+    axes[2].set_yticks(np.arange(len(keys)), labels, fontsize=7)
     axes[2].invert_yaxis()
     axes[2].set_xlabel("Conditioned − baseline (dB)")
     axes[2].set_title("Gain by source family", loc="left", fontweight="bold")
@@ -478,6 +521,7 @@ def main() -> None:
     parser.add_argument("--ablation-results", type=Path, default=Path("results/conditioning_ablation.json"))
     parser.add_argument("--real-results", type=Path, default=Path("results/real_audio_ablation.json"))
     parser.add_argument("--real-checkpoint", type=Path, default=Path("experiments/real_film/best.pt"))
+    parser.add_argument("--real-baseline-checkpoint", type=Path, default=Path("experiments/real_none_film/best.pt"))
     parser.add_argument(
         "--window-results", type=Path, default=Path("results/window_resolution_results.json")
     )
@@ -505,9 +549,10 @@ def main() -> None:
     )
     if args.real_results.exists() and args.real_checkpoint.exists():
         real_ablation_figure(args.output_dir / "real_audio_ablation.png", args.real_results)
+        strength_sweep_figure(args.output_dir / "real_strength_sweep.pdf", args.real_results)
         real_signal_figure(
             args.output_dir / "real_audio_visualization.png", args.real_checkpoint,
-            args.real_checkpoint.parent / "test_examples.csv", args.data_root, args.device,
+            args.real_baseline_checkpoint, args.data_root, args.device,
         )
     print(f"wrote figures to {args.output_dir}")
 

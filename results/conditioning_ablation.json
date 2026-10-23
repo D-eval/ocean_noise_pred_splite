@@ -3,109 +3,146 @@
   "selected_variant": "film",
   "selected_checkpoint": "models\\practical_film.pt",
   "matched_protocol": {
-    "training_updates": 2000,
+    "training_updates": 2500,
+    "waveform_window_seconds": 5.0,
     "train_examples_per_deployment": 4000,
     "train_snr_db": [
       -12,
       12
     ],
-    "source_profile": "six-family broad synthetic distribution",
+    "source_profile": "13-family broad marine-aware synthetic distribution",
+    "source_families": [
+      "harmonic",
+      "chirp",
+      "inharmonic",
+      "impulse_train",
+      "frequency_modulated",
+      "band_noise",
+      "whale_upsweep",
+      "whale_downsweep",
+      "whale_arch",
+      "whale_s_curve",
+      "whale_pulse_packet",
+      "vessel_tonal",
+      "vessel_cavitation"
+    ],
     "separator_core_initialisation": "identical across variants",
     "conditioning_initialisation": "identity residual mapping",
-    "fixed_0_db_paired_examples": 768
+    "fixed_0_db_paired_examples": 832
   },
   "variants": {
     "concat": {
-      "validation_si_sdri_db": 5.167840348556638,
-      "best_step": 1750,
-      "test_si_sdri_db": 5.3037027505924925,
+      "validation_si_sdri_db": 5.343487250385806,
+      "best_step": 2000,
+      "test_si_sdri_db": 4.432387539301999,
       "test_si_sdri_ci95_db": [
-        4.277834857240668,
-        6.325737766121165
+        3.736612137508928,
+        5.132606725225924
       ],
-      "test_ocean_si_sdr_db": 5.646705716091674,
-      "forecast_mae_db": 3.108093195129186,
-      "real_time_factor": 0.003569509374926838,
+      "test_ocean_si_sdr_db": 5.11649112953819,
+      "forecast_mae_db": 3.125338009907864,
+      "real_time_factor": 0.002805880585935583,
       "parameters": 237984,
-      "engineering_gate_passed": true,
-      "fixed_0_db_paired_gain_over_unconditioned_db": 0.14785495637139925,
+      "engineering_gate_passed": false,
+      "fixed_0_db_paired_gain_over_unconditioned_db": 0.6230237651884986,
       "fixed_0_db_paired_gain_ci95_db": [
-        0.024368156424558644,
-        0.27304725237227107
+        0.48804199567715,
+        0.7635658998238237
       ],
-      "fixed_0_db_conditioned_si_sdri_db": 5.50708358893947,
-      "gain_js_pearson_r": -0.07634465002486364,
-      "gain_overlap_pearson_r": -0.15740062398298807,
-      "gain_entropy_pearson_r": 0.18645703781271294,
+      "fixed_0_db_conditioned_si_sdri_db": 5.4727232299113755,
+      "gain_js_pearson_r": -0.06471796041616257,
+      "gain_overlap_pearson_r": -0.3217565540607773,
+      "gain_entropy_pearson_r": 0.13995564083177145,
       "family_gain_db": {
-        "harmonic": -0.19491895989631303,
-        "chirp": 0.18229362892452627,
-        "inharmonic": -0.07495605543954298,
-        "impulse_train": 0.3530968745762948,
-        "frequency_modulated": 0.1680166435544379,
-        "band_noise": 0.4535976065089926
+        "harmonic": 0.6269148780556861,
+        "chirp": 0.6496735216351226,
+        "inharmonic": 0.3145293996203691,
+        "impulse_train": 0.5887507208972238,
+        "frequency_modulated": 0.736371424398385,
+        "band_noise": 0.8050212519010529,
+        "whale_upsweep": 0.7702517379075289,
+        "whale_downsweep": 0.7690468952059746,
+        "whale_arch": 0.8855195883661509,
+        "whale_s_curve": 0.821320679038763,
+        "whale_pulse_packet": 0.718931372393854,
+        "vessel_tonal": 0.14415854518301785,
+        "vessel_cavitation": 0.2688189328473527
       }
     },
     "film": {
-      "validation_si_sdri_db": 5.354567220783792,
-      "best_step": 1750,
-      "test_si_sdri_db": 5.386118374328362,
+      "validation_si_sdri_db": 5.419277352280915,
+      "best_step": 2000,
+      "test_si_sdri_db": 4.4679719844134524,
       "test_si_sdri_ci95_db": [
-        4.348183467721538,
-        6.428196622371615
+        3.76919876653119,
+        5.17272224999615
       ],
-      "test_ocean_si_sdr_db": 5.773904238594696,
-      "forecast_mae_db": 3.146620258456096,
-      "real_time_factor": 0.004042486718759619,
+      "test_ocean_si_sdr_db": 5.165665820781214,
+      "forecast_mae_db": 3.1979115274734795,
+      "real_time_factor": 0.0027762218359356438,
       "parameters": 254688,
-      "engineering_gate_passed": true,
-      "fixed_0_db_paired_gain_over_unconditioned_db": 0.34150253516175627,
+      "engineering_gate_passed": false,
+      "fixed_0_db_paired_gain_over_unconditioned_db": 0.6916165869490494,
       "fixed_0_db_paired_gain_ci95_db": [
-        0.20654837243916216,
-        0.47846360408815
+        0.5418641858733071,
+        0.8467499916712629
       ],
-      "fixed_0_db_conditioned_si_sdri_db": 5.700731167729828,
-      "gain_js_pearson_r": -0.08471121293042967,
-      "gain_overlap_pearson_r": -0.23750846058365038,
-      "gain_entropy_pearson_r": 0.14463153245428953,
+      "fixed_0_db_conditioned_si_sdri_db": 5.541316051671926,
+      "gain_js_pearson_r": -0.05743904853634269,
+      "gain_overlap_pearson_r": -0.3240732557357717,
+      "gain_entropy_pearson_r": 0.12153356498905678,
       "family_gain_db": {
-        "harmonic": 0.15779481240315363,
-        "chirp": 0.31392928096465766,
-        "inharmonic": 0.13846696668770164,
-        "impulse_train": 0.47035574915935285,
-        "frequency_modulated": 0.428091402805876,
-        "band_noise": 0.540376998949796
+        "harmonic": 0.6609835942799691,
+        "chirp": 0.6486718850210309,
+        "inharmonic": 0.4276637446600944,
+        "impulse_train": 0.6558049796149135,
+        "frequency_modulated": 0.8136397317284718,
+        "band_noise": 0.8938217730610631,
+        "whale_upsweep": 0.8686635475605726,
+        "whale_downsweep": 0.8354486636817455,
+        "whale_arch": 0.9190115351229906,
+        "whale_s_curve": 0.9059936925768852,
+        "whale_pulse_packet": 0.8058316910173744,
+        "vessel_tonal": 0.3202555561438203,
+        "vessel_cavitation": 0.23522523586871102
       }
     },
     "cross_attention": {
-      "validation_si_sdri_db": 4.987215352244675,
-      "best_step": 1750,
-      "test_si_sdri_db": 5.1057837140979245,
+      "validation_si_sdri_db": 5.127998005365953,
+      "best_step": 2000,
+      "test_si_sdri_db": 4.2614456915762275,
       "test_si_sdri_ci95_db": [
-        4.084605032179388,
-        6.12282869706687
+        3.5887505352584412,
+        4.923047957805101
       ],
-      "test_ocean_si_sdr_db": 5.505491598050867,
-      "forecast_mae_db": 3.1148858189117163,
-      "real_time_factor": 0.003748895312469358,
+      "test_ocean_si_sdr_db": 4.858586335712971,
+      "forecast_mae_db": 3.137452010763809,
+      "real_time_factor": 0.002839973632811166,
       "parameters": 220320,
-      "engineering_gate_passed": true,
-      "fixed_0_db_paired_gain_over_unconditioned_db": 0.009548702650742294,
+      "engineering_gate_passed": false,
+      "fixed_0_db_paired_gain_over_unconditioned_db": 0.33097281809582807,
       "fixed_0_db_paired_gain_ci95_db": [
-        -0.08061822635851665,
-        0.10317995359813116
+        0.242945726893287,
+        0.42044907454725877
       ],
-      "fixed_0_db_conditioned_si_sdri_db": 5.368777335218813,
-      "gain_js_pearson_r": -0.07991511775259723,
-      "gain_overlap_pearson_r": -0.11037599099670851,
-      "gain_entropy_pearson_r": 0.19821145790490907,
+      "fixed_0_db_conditioned_si_sdri_db": 5.180672282818705,
+      "gain_js_pearson_r": -0.054218058994384165,
+      "gain_overlap_pearson_r": -0.283931916245813,
+      "gain_entropy_pearson_r": 0.10202169178285425,
       "family_gain_db": {
-        "harmonic": -0.2850259418191854,
-        "chirp": 0.07520658371504396,
-        "inharmonic": -0.15055533219128847,
-        "impulse_train": 0.14598246358218603,
-        "frequency_modulated": 0.06580854003550485,
-        "band_noise": 0.2058759025821928
+        "harmonic": 0.3641129095631186,
+        "chirp": 0.47991918167099357,
+        "inharmonic": 0.261378631927073,
+        "impulse_train": 0.22902375063858926,
+        "frequency_modulated": 0.33427179127465934,
+        "band_noise": 0.2567746160784736,
+        "whale_upsweep": 0.4242111463099718,
+        "whale_downsweep": 0.4962980169802904,
+        "whale_arch": 0.5882834736257792,
+        "whale_s_curve": 0.4343190584331751,
+        "whale_pulse_packet": 0.40039163501933217,
+        "vessel_tonal": -0.14170383289456367,
+        "vessel_cavitation": 0.17536625661887228
       }
     }
   },

@@ -22,8 +22,8 @@ from torch.utils.data import Dataset
 DCLDE_ROOT = Path("data/dclde2013/nefsc_sbnms_200903_nopp6_ch10")
 AUDIO_ROOT = DCLDE_ROOT / "source-audio"
 ANNOTATIONS = DCLDE_ROOT / "detections/NEFSC_SBNMS_200903_NOPP6_CH10_upcall-detection-log.csv"
-MANIFEST = Path("data/dclde2013/clips_8s.csv")
-FEATURE_CACHE = Path("data/dclde2013/causal_features_8x8s_30band.npz")
+MANIFEST = Path("data/dclde2013/clips_5s.csv")
+FEATURE_CACHE = Path("data/dclde2013/causal_features_12x5s_30band.npz")
 SAMPLE_RATE = 2000
 _EST = timezone(timedelta(hours=-5))
 _STAMP = re.compile(r"_(\d{8})_(\d{6})_CH\d+\.wav$", re.IGNORECASE)
@@ -67,7 +67,7 @@ def build_clip_manifest(
     output: Path = MANIFEST,
     audio_root: Path = AUDIO_ROOT,
     annotations_path: Path = ANNOTATIONS,
-    clip_seconds: float = 8.0,
+    clip_seconds: float = 5.0,
     exclusion_buffer_seconds: float = 2.0,
     negative_ratio: float = 1.0,
     seed: int = 20261022,
@@ -209,10 +209,10 @@ def _log_band_features(waveforms: np.ndarray, bands: int = 30) -> np.ndarray:
 def build_causal_feature_cache(
     manifest: Path = MANIFEST,
     output: Path = FEATURE_CACHE,
-    history_steps: int = 8,
+    history_steps: int = 12,
     bands: int = 30,
 ) -> dict:
-    """Cache strictly preceding 8-s spectra for every eligible manifest row.
+    """Cache one minute of strictly preceding 5-s spectra for every eligible row.
 
     To avoid inventing context across a recorder-file boundary, clips within
     the first ``history_steps`` blocks of each 15-minute file are marked
@@ -259,7 +259,7 @@ def build_causal_feature_cache(
     summary = {
         "output": str(output), "rows": len(frame), "eligible_rows": int(eligible.sum()),
         "history_steps": history_steps, "window_seconds": clip_seconds, "bands": bands,
-        "causal_rule": "eight spectra ending exactly at target start; no file-boundary padding",
+        "causal_rule": "twelve 5-second spectra ending exactly at target start; no file-boundary padding",
     }
     output.with_suffix(".json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     return summary

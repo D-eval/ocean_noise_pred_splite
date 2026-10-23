@@ -1,10 +1,10 @@
 {
   "protocol": {
-    "test_examples": 1225,
+    "test_examples": 1276,
     "split": "three held-out recording days",
     "comparison": "paired BS-RoFormer versus FC-BSR on identical eligible real events",
-    "history": "eight strictly preceding 8-second, 30-band spectra",
-    "separator_training": "real annotation-clean ocean + identical synthetic upcalls",
+    "history": "twelve strictly preceding 5-second, 30-band spectra",
+    "separator_training": "real annotation-clean ocean + identical whale-sweep and vessel proxies",
     "real_event_source_gt": false,
     "classifier_frozen": true,
     "mixture_consistency": "background = mixture - event",
@@ -20,49 +20,49 @@
   },
   "conditions": {
     "bs_roformer": {
-      "mixture_event_probability": 0.8553161999157497,
-      "background_event_probability": 0.5226683417145087,
-      "event_stem_probability": 0.9010635798804614,
-      "removal_logit": 3.2439943034308296,
-      "restoration_auc": 0.32607096168459676,
-      "monotonic_fraction": 0.9861224552076691,
-      "leakage_outside_event": 0.5968839746105428,
-      "off_event_relative_error": 0.09555560841852305,
-      "reconstruction_relative_error": 1.3654365435873305e-08,
+      "mixture_event_probability": 0.9096810272121131,
+      "background_event_probability": 0.7513694925741716,
+      "event_stem_probability": 0.8627787060498444,
+      "removal_logit": 2.6691509399294477,
+      "restoration_auc": 0.5877147494905794,
+      "monotonic_fraction": 0.9403082700358663,
+      "leakage_outside_event": 0.5815166496557875,
+      "off_event_relative_error": 0.2787833658505383,
+      "reconstruction_relative_error": 1.780011965897785e-08,
       "restoration_curve": [
-        0.5233448164317073,
-        0.5443716580527169,
-        0.5666098395172431,
-        0.609914660259169,
-        0.6829253465788705,
-        0.7738374164639688,
-        0.8553159042767116
+        0.7525711336105968,
+        0.7892206505548244,
+        0.8185505035528943,
+        0.8567989362070927,
+        0.8937223542446627,
+        0.9111049612487745,
+        0.9096657467486343
       ]
     },
     "fc_bsr": {
-      "mixture_event_probability": 0.8553161999157497,
-      "background_event_probability": 0.506699158902071,
-      "event_stem_probability": 0.9007122647519015,
-      "removal_logit": 3.3551768445482058,
-      "restoration_auc": 0.2545958565692512,
-      "monotonic_fraction": 0.9850340197037677,
-      "leakage_outside_event": 0.6069685914078538,
-      "off_event_relative_error": 0.10217228411107647,
-      "reconstruction_relative_error": 1.4075699766200781e-08,
+      "mixture_event_probability": 0.9096810272121131,
+      "background_event_probability": 0.7658808210800434,
+      "event_stem_probability": 0.8678358137420726,
+      "removal_logit": 2.4824118715562045,
+      "restoration_auc": 0.7173439170172595,
+      "monotonic_fraction": 0.9391327214465246,
+      "leakage_outside_event": 0.5830989579048277,
+      "off_event_relative_error": 0.2881394383675626,
+      "reconstruction_relative_error": 1.7834173382942548e-08,
       "restoration_curve": [
-        0.5074067825200607,
-        0.5302498706992792,
-        0.5555533630020765,
-        0.6035804772863582,
-        0.6821355903391936,
-        0.7757484285198912,
-        0.8553163585370901
+        0.7669471672336136,
+        0.7992295400476007,
+        0.8263092620245716,
+        0.8635014390870696,
+        0.898527082417826,
+        0.9135355106715498,
+        0.9096658526916863
       ]
     },
     "identity": {
-      "mixture_event_probability": 0.8553161999157497,
-      "background_event_probability": 0.8553161999157497,
-      "event_stem_probability": 0.5090683102607727,
+      "mixture_event_probability": 0.9096810272121131,
+      "background_event_probability": 0.9096810272121131,
+      "event_stem_probability": 0.4694890449039615,
       "removal_logit": 0.0,
       "restoration_auc": 0.0,
       "monotonic_fraction": 1.0,
@@ -70,82 +70,82 @@
       "off_event_relative_error": 0.0,
       "reconstruction_relative_error": 0.0,
       "restoration_curve": [
-        0.8553160516096621,
-        0.8553160516096621,
-        0.8553160516096621,
-        0.8553160516096621,
-        0.8553160516096621,
-        0.8553160516096621,
-        0.8553160516096621
+        0.9096658756740414,
+        0.9096658756740414,
+        0.9096658756740414,
+        0.9096658756740414,
+        0.9096658756740414,
+        0.9096658756740414,
+        0.9096658756740414
       ]
     },
     "all_to_event": {
-      "mixture_event_probability": 0.8553161999157497,
-      "background_event_probability": 0.5090683102607727,
-      "event_stem_probability": 0.8553161999157497,
-      "removal_logit": 3.611622862815857,
-      "restoration_auc": 0.18923481067832634,
-      "monotonic_fraction": 0.7937415146341129,
-      "leakage_outside_event": 0.7613454421685667,
+      "mixture_event_probability": 0.9096810272121131,
+      "background_event_probability": 0.4694890449039615,
+      "event_stem_probability": 0.9096810272121131,
+      "removal_logit": 5.818688526609475,
+      "restoration_auc": 0.3620742860492494,
+      "monotonic_fraction": 0.835161981537798,
+      "leakage_outside_event": 0.6450173774483062,
       "off_event_relative_error": 1.0,
       "reconstruction_relative_error": 0.0,
       "restoration_curve": [
-        0.5091323748899966,
-        0.5676180250790654,
-        0.6351881303106035,
-        0.75214964034606,
-        0.8432181058611189,
-        0.8655791197990884,
-        0.8553160516096621
+        0.46959516191183587,
+        0.5610201609172044,
+        0.6477938548524551,
+        0.7896560759379946,
+        0.8937085782846313,
+        0.9180590112381221,
+        0.9096658756740414
       ]
     }
   },
   "paired_fc_bsr_minus_bs_roformer": {
     "background_event_probability": {
-      "fc_bsr_minus_bs_roformer": -0.015969181891758832,
+      "fc_bsr_minus_bs_roformer": 0.01451132824457598,
       "day_block_bootstrap_ci95": [
-        -0.021015069345395043,
-        -0.013184150732137431
+        -0.017745465259341633,
+        0.02691776456852113
       ],
       "independent_day_blocks": 3
     },
     "event_stem_probability": {
-      "fc_bsr_minus_bs_roformer": -0.00035131278086681755,
+      "fc_bsr_minus_bs_roformer": 0.0050571116974262,
       "day_block_bootstrap_ci95": [
-        -0.00282545286474876,
-        0.005523701556145199
+        0.0034560699871861457,
+        0.006758801079709833
       ],
       "independent_day_blocks": 3
     },
     "removal_logit": {
-      "fc_bsr_minus_bs_roformer": 0.11118256908138188,
+      "fc_bsr_minus_bs_roformer": -0.18673904948722977,
       "day_block_bootstrap_ci95": [
-        0.09124475471753761,
-        0.13922880165397175
+        -0.3080018587940203,
+        0.06310146594356641
       ],
       "independent_day_blocks": 3
     },
     "monotonic_fraction": {
-      "fc_bsr_minus_bs_roformer": -0.0010884351511390841,
+      "fc_bsr_minus_bs_roformer": -0.0011755483090690685,
       "day_block_bootstrap_ci95": [
-        -0.0034246574321838276,
-        0.0026455028189553156
+        -0.0037634410685108556,
+        0.001031991959356302
       ],
       "independent_day_blocks": 3
     },
     "leakage_outside_event": {
-      "fc_bsr_minus_bs_roformer": 0.010084619018800405,
+      "fc_bsr_minus_bs_roformer": 0.0015823076505412502,
       "day_block_bootstrap_ci95": [
-        0.003098429167923862,
-        0.015743295827874475
+        0.0008119698493711409,
+        0.0022188936350041565
       ],
       "independent_day_blocks": 3
     },
     "off_event_relative_error": {
-      "fc_bsr_minus_bs_roformer": 0.00661667496270063,
+      "fc_bsr_minus_bs_roformer": 0.00935607309946586,
       "day_block_bootstrap_ci95": [
-        0.0033071701370534444,
-        0.007813423923025392
+        0.008575645641599646,
+        0.009908372644455201
       ],
       "independent_day_blocks": 3
     }

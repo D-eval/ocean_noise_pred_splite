@@ -48,7 +48,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=Path("experiments/ablation"))
     parser.add_argument("--steps", type=int, default=1000)
     parser.add_argument("--batch-size", type=int, default=8)
-    parser.add_argument("--seconds", type=float, default=0.5)
+    parser.add_argument("--seconds", type=float, default=5.0)
     parser.add_argument("--validation-examples", type=int, default=128)
     parser.add_argument("--test-examples", type=int, default=256)
     parser.add_argument("--strength-examples", type=int, default=128)

@@ -225,7 +225,7 @@ class RealAudioMixtureDataset(Dataset):
         condition: str = "forecast",
         context_hours: int = 24,
         sample_rate: int = 8000,
-        seconds: float = 0.5,
+        seconds: float = 5.0,
         clips_per_hour: int = 96,
         seed: int = 20261021,
         snr_range: tuple[float, float] = (-12.0, 12.0),

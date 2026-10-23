@@ -32,7 +32,7 @@ class ExperimentConfig:
     variant: str = "latent"
     context_hours: int = 24
     sample_rate: int = 8000
-    seconds: float = 0.5
+    seconds: float = 5.0
     steps: int = 1000
     batch_size: int = 8
     learning_rate: float = 2e-4
@@ -353,7 +353,7 @@ def main() -> None:
     parser.add_argument("--steps", type=int, default=1000)
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--context-hours", type=int, default=24)
-    parser.add_argument("--seconds", type=float, default=0.5)
+    parser.add_argument("--seconds", type=float, default=5.0)
     parser.add_argument("--validation-examples", type=int, default=128)
     parser.add_argument("--test-examples", type=int, default=256)
     parser.add_argument("--strength-examples", type=int, default=128)

@@ -1,8 +1,8 @@
 """Matched BSR/FC-BSR training and reference-free evaluation on real calls.
 
 Both separators train on identical annotation-clean DCLDE backgrounds with
-identical synthetic upcalls. FC-BSR alone receives eight strictly preceding
-8-second spectra. The learned residual forecaster must beat causal persistence
+identical diverse whale-like sweeps and vessel sounds. FC-BSR alone receives
+twelve strictly preceding 5-second spectra. The learned residual forecaster must beat causal persistence
 on a day-disjoint validation split; otherwise persistence remains selected.
 Real annotated calls are used only for the final frozen-classifier evaluation.
 """
@@ -32,6 +32,7 @@ from .event_classifier import load_classifier
 from .metrics import paired_bootstrap_interval, si_sdr
 from .model import ForecastConditionedSeparator, NoiseForecaster, multi_resolution_loss
 from .reference_free_eval import RESTORATION_GAINS_DB, restoration_metrics, trivial_estimates
+from .synthesis import draw_injection, render_injection
 
 
 def render_upcalls(samples: int, seed: int, sample_rate: int = SAMPLE_RATE) -> tuple[np.ndarray, list[list[float]]]:
@@ -67,6 +68,22 @@ def render_upcalls(samples: int, seed: int, sample_rate: int = SAMPLE_RATE) -> t
     rms = float(np.sqrt(np.mean(np.square(output), dtype=np.float64)))
     output /= max(rms, 1e-8)
     return output, intervals
+
+
+def render_marine_training_target(
+    samples: int,
+    seed: int,
+    sample_rate: int = SAMPLE_RATE,
+) -> tuple[np.ndarray, dict]:
+    """Render whale contours and vessel proxies for clean-background training.
+
+    Whale coverage includes rising, falling, arch-shaped, sigmoid, and pulsed
+    sweeps. Vessel coverage includes harmonic machinery tones and cavitation;
+    80% of vessel draws apply a 5--20 Hz amplitude LFO to tonal bands only.
+    """
+    parameters = draw_injection(seed, snr_range=(0.0, 0.0), profile="marine")
+    waveform = render_injection(parameters, sample_rate, samples)
+    return waveform, asdict(parameters)
 
 
 class CausalFeatureStore:
@@ -144,7 +161,7 @@ class InjectedUpcallDataset(Dataset):
         manifest_index = int(self.rows[local])
         base_item = self.base[local]
         ocean = base_item["waveform"].numpy()
-        source, _ = render_upcalls(len(ocean), self.seed + item * 104729)
+        source, parameters = render_marine_training_target(len(ocean), self.seed + item * 104729)
         rng = np.random.default_rng(self.seed + item * 130363)
         snr_db = float(rng.uniform(-18.0, 12.0))
         ocean_rms = float(np.sqrt(np.mean(np.square(ocean), dtype=np.float64)))
@@ -161,6 +178,7 @@ class InjectedUpcallDataset(Dataset):
             "history": torch.from_numpy(self.store.normalized_history(manifest_index)),
             "target_spectrum": torch.from_numpy(self.store.normalized_target(manifest_index)),
             "snr_db": torch.tensor(snr_db, dtype=torch.float32),
+            "source_family": parameters["family"],
         }
 
 
@@ -398,7 +416,7 @@ def train_separator(
         "variant": variant, "config": asdict(config), "transferred_tensors": transferred,
         "best_step": best_step, "updates_run": history_rows[-1]["step"],
         "validation": _validation_score(model, validation_loader, device),
-        "selection": "matched synthetic upcalls in annotation-clean day-disjoint validation audio",
+        "selection": "matched whale-sweep and vessel proxies in annotation-clean day-disjoint validation audio",
         "forecaster_frozen": forecast_checkpoint is not None,
     }
     (output / "result.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
@@ -480,8 +498,8 @@ def evaluate_real_events(
         "protocol": {
             "test_examples": seen, "split": "three held-out recording days",
             "comparison": "paired BS-RoFormer versus FC-BSR on identical eligible real events",
-            "history": "eight strictly preceding 8-second, 30-band spectra",
-            "separator_training": "real annotation-clean ocean + identical synthetic upcalls",
+            "history": "twelve strictly preceding 5-second, 30-band spectra",
+            "separator_training": "real annotation-clean ocean + identical whale-sweep and vessel proxies",
             "real_event_source_gt": False, "classifier_frozen": True,
             "mixture_consistency": "background = mixture - event",
             "restoration_gains_db": list(RESTORATION_GAINS_DB),
