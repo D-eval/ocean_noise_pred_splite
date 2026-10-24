@@ -22,11 +22,16 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from .dclde import (
+    CLEAN_BACKGROUND_MANIFEST,
+    EVENT_MASKED_FEATURE_CACHE,
     DCLDEClipDataset,
+    CLEAN_OCEAN_FEATURE_CACHE,
     FEATURE_CACHE,
     MANIFEST,
     SAMPLE_RATE,
     build_causal_feature_cache,
+    build_clip_manifest,
+    build_event_masked_feature_cache,
 )
 from .event_classifier import load_classifier
 from .metrics import paired_bootstrap_interval, si_sdr
@@ -74,6 +79,7 @@ def render_marine_training_target(
     samples: int,
     seed: int,
     sample_rate: int = SAMPLE_RATE,
+    source_family: str | None = None,
 ) -> tuple[np.ndarray, dict]:
     """Render whale contours and vessel proxies for clean-background training.
 
@@ -81,7 +87,9 @@ def render_marine_training_target(
     sweeps. Vessel coverage includes harmonic machinery tones and cavitation;
     80% of vessel draws apply a 5--20 Hz amplitude LFO to tonal bands only.
     """
-    parameters = draw_injection(seed, snr_range=(0.0, 0.0), profile="marine")
+    parameters = draw_injection(
+        seed, snr_range=(0.0, 0.0), profile="marine", family=source_family,
+    )
     waveform = render_injection(parameters, sample_rate, samples)
     return waveform, asdict(parameters)
 
@@ -89,7 +97,7 @@ def render_marine_training_target(
 class CausalFeatureStore:
     """Cached causal histories with normalization fitted on training negatives."""
 
-    def __init__(self, manifest: Path = MANIFEST, cache: Path = FEATURE_CACHE):
+    def __init__(self, manifest: Path = MANIFEST, cache: Path = EVENT_MASKED_FEATURE_CACHE):
         self.frame = pd.read_csv(manifest)
         values = np.load(cache)
         self.history = values["history"].astype(np.float32)
@@ -144,7 +152,13 @@ class ForecastFeatureDataset(Dataset):
 
 
 class InjectedUpcallDataset(Dataset):
-    def __init__(self, store: CausalFeatureStore, split: str, examples: int, seed: int):
+    """(H_t, N_t, s_t, x_t) tuples from annotated clean real backgrounds."""
+
+    def __init__(
+        self, store: CausalFeatureStore, split: str, examples: int, seed: int,
+        source_family: str | None = None, snr_range: tuple[float, float] = (-18.0, 12.0),
+        spread_rows: bool = False,
+    ):
         self.store = store
         self.rows = store.indices(split, label=0)
         selected = store.frame.iloc[self.rows].copy()
@@ -152,18 +166,26 @@ class InjectedUpcallDataset(Dataset):
         self.base = DCLDEClipDataset(selected, split)
         self.examples = examples
         self.seed = seed
+        self.source_family = source_family
+        self.snr_range = snr_range
+        self.spread_rows = spread_rows
 
     def __len__(self) -> int:
         return self.examples
 
     def __getitem__(self, item: int) -> dict:
-        local = item % len(self.rows)
+        local = (
+            round(item * (len(self.rows) - 1) / max(1, self.examples - 1))
+            if self.spread_rows and self.examples > 1 else item % len(self.rows)
+        )
         manifest_index = int(self.rows[local])
         base_item = self.base[local]
         ocean = base_item["waveform"].numpy()
-        source, parameters = render_marine_training_target(len(ocean), self.seed + item * 104729)
+        source, parameters = render_marine_training_target(
+            len(ocean), self.seed + item * 104729, source_family=self.source_family,
+        )
         rng = np.random.default_rng(self.seed + item * 130363)
-        snr_db = float(rng.uniform(-18.0, 12.0))
+        snr_db = float(rng.uniform(*self.snr_range))
         ocean_rms = float(np.sqrt(np.mean(np.square(ocean), dtype=np.float64)))
         source *= ocean_rms * 10.0 ** (snr_db / 20.0)
         mixture = ocean + source
@@ -171,14 +193,19 @@ class InjectedUpcallDataset(Dataset):
         if peak > 0.98:
             scale = peak / 0.98
             mixture, ocean, source = mixture / scale, ocean / scale, source / scale
+        row = self.store.frame.iloc[manifest_index]
         return {
             "mixture": torch.from_numpy(mixture.astype(np.float32)),
             "source": torch.from_numpy(source.astype(np.float32)),
             "ocean": torch.from_numpy(ocean.astype(np.float32)),
+            "background": torch.from_numpy(ocean.astype(np.float32)),
+            "event": torch.from_numpy(source.astype(np.float32)),
             "history": torch.from_numpy(self.store.normalized_history(manifest_index)),
             "target_spectrum": torch.from_numpy(self.store.normalized_target(manifest_index)),
             "snr_db": torch.tensor(snr_db, dtype=torch.float32),
             "source_family": parameters["family"],
+            "example_id": f"{row.day}:{Path(row.path).stem}:{float(row.start_seconds):.1f}",
+            "mixture_identity": "x_t = N_t + s_t",
         }
 
 
@@ -201,19 +228,19 @@ class RealEventDataset(Dataset):
 
 @dataclass
 class ExperimentConfig:
-    forecast_steps: int = 1500
-    forecast_minimum_steps: int = 800
+    forecast_steps: int = 5000
+    forecast_minimum_steps: int = 2500
     forecast_validate_every: int = 100
-    separation_steps: int = 2500
-    separation_minimum_steps: int = 1500
+    separation_steps: int = 10000
+    separation_minimum_steps: int = 5000
     separation_validate_every: int = 100
     patience: int = 7
     batch_size: int = 4
     forecast_batch_size: int = 64
     learning_rate: float = 5e-5
     forecast_learning_rate: float = 3e-4
-    train_examples: int = 12000
-    validation_examples: int = 512
+    train_examples: int = 48000
+    validation_examples: int = 4096
     seed: int = 20261022
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     transfer_checkpoint: str = "models/practical_real.pt"
@@ -233,6 +260,16 @@ def _make_model(variant: str, bands: int, seed: int, device: torch.device) -> Fo
         forecast_residual=True, model_dim=32, depth=2, heads=4, dim_head=8,
         n_fft=256, hop_length=64, bands=20,
     ).to(device)
+
+
+def _write_rows(path: Path, rows: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not rows:
+        return
+    with path.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def _load_transfer(model: ForecastConditionedSeparator, path: Path) -> int:
@@ -348,6 +385,57 @@ def _validation_score(model: ForecastConditionedSeparator, loader: DataLoader, d
     return {"examples": len(improvements), "si_sdri_db": float(np.mean(improvements)), "si_sdri_ci95_db": [low, high], "source_si_sdr_db": float(np.mean(source_scores))}
 
 
+@torch.no_grad()
+def _full_reference_test(
+    model: ForecastConditionedSeparator,
+    dataset: InjectedUpcallDataset,
+    batch_size: int,
+    device: torch.device,
+) -> tuple[dict, list[dict]]:
+    model.eval()
+    rows: list[dict] = []
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+    for batch in loader:
+        mixture = batch["mixture"].to(device)
+        source = batch["source"].to(device)
+        history = batch["history"].to(device)
+        estimate = model(mixture, history)["estimate"]
+        length = min(estimate.shape[-1], source.shape[-1], mixture.shape[-1])
+        estimate = estimate[..., :length]
+        source = source[..., :length]
+        mixture = mixture[..., :length]
+        ocean = batch["ocean"].to(device)[..., :length]
+        mixture_scores = si_sdr(mixture, source)
+        estimate_scores = si_sdr(estimate, source)
+        ocean_scores = si_sdr(mixture - estimate, ocean)
+        for index, example_id in enumerate(batch["example_id"]):
+            rows.append({
+                "example_id": example_id,
+                "day": example_id.split(":", 1)[0],
+                "source_family": batch["source_family"][index],
+                "snr_db": float(batch["snr_db"][index]),
+                "mixture_si_sdr_db": float(mixture_scores[index]),
+                "source_si_sdr_db": float(estimate_scores[index]),
+                "source_si_sdri_db": float(estimate_scores[index] - mixture_scores[index]),
+                "background_si_sdr_db": float(ocean_scores[index]),
+            })
+    gains = np.asarray([row["source_si_sdri_db"] for row in rows], dtype=np.float64)
+    days = sorted({row["day"] for row in rows})
+    day_means = np.asarray([
+        np.mean([row["source_si_sdri_db"] for row in rows if row["day"] == day])
+        for day in days
+    ])
+    summary = {
+        "examples": len(rows),
+        "source_si_sdri_db": float(gains.mean()),
+        "source_si_sdri_ci95_db": list(paired_bootstrap_interval(day_means)),
+        "confidence_interval_unit": "held-out recording day",
+        "source_si_sdr_db": float(np.mean([row["source_si_sdr_db"] for row in rows])),
+        "background_si_sdr_db": float(np.mean([row["background_si_sdr_db"] for row in rows])),
+    }
+    return summary, rows
+
+
 def train_separator(
     config: ExperimentConfig,
     store: CausalFeatureStore,
@@ -412,13 +500,23 @@ def train_separator(
             break
     checkpoint = torch.load(output / "best.pt", map_location=device, weights_only=False)
     model.load_state_dict(checkpoint["model"])
+    test_set = InjectedUpcallDataset(
+        store, "test", config.validation_examples, config.seed + 20_000_000,
+        spread_rows=True,
+    )
     summary = {
         "variant": variant, "config": asdict(config), "transferred_tensors": transferred,
         "best_step": best_step, "updates_run": history_rows[-1]["step"],
         "validation": _validation_score(model, validation_loader, device),
+        "test_full_reference": None,
         "selection": "matched whale-sweep and vessel proxies in annotation-clean day-disjoint validation audio",
         "forecaster_frozen": forecast_checkpoint is not None,
     }
+    test_summary, test_rows = _full_reference_test(
+        model, test_set, config.batch_size * 2, device,
+    )
+    summary["test_full_reference"] = test_summary
+    _write_rows(output / "clean_synthetic_test.csv", test_rows)
     (output / "result.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     return summary
 
@@ -498,8 +596,8 @@ def evaluate_real_events(
         "protocol": {
             "test_examples": seen, "split": "three held-out recording days",
             "comparison": "paired BS-RoFormer versus FC-BSR on identical eligible real events",
-            "history": "twelve strictly preceding 5-second, 30-band spectra",
-            "separator_training": "real annotation-clean ocean + identical whale-sweep and vessel proxies",
+            "history": "12 strictly preceding 5-s 30-band features; annotated call intervals and 2-s guards are excluded",
+            "separator_training": "real annotation-clean 5-s ocean + identical whale-sweep and vessel proxies",
             "real_event_source_gt": False, "classifier_frozen": True,
             "mixture_consistency": "background = mixture - event",
             "restoration_gains_db": list(RESTORATION_GAINS_DB),
@@ -519,31 +617,173 @@ def evaluate_real_events(
     return summary
 
 
+def compare_clean_synthetic_tests(
+    baseline_csv: Path,
+    conditioned_csv: Path,
+    output: Path,
+) -> dict:
+    """Paired held-out test on clean current audio with injected synthetic events."""
+    def read_rows(path: Path) -> dict[str, dict]:
+        with path.open(encoding="utf-8", newline="") as stream:
+            return {row["example_id"]: row for row in csv.DictReader(stream)}
+
+    baseline = read_rows(baseline_csv)
+    conditioned = read_rows(conditioned_csv)
+    common = sorted(set(baseline) & set(conditioned))
+    if not common:
+        raise ValueError("full-reference test files contain no matched examples")
+    rows = []
+    for example_id in common:
+        left, right = baseline[example_id], conditioned[example_id]
+        rows.append({
+            "example_id": example_id,
+            "day": left["day"],
+            "source_family": left["source_family"],
+            "snr_db": float(left["snr_db"]),
+            "baseline_si_sdri_db": float(left["source_si_sdri_db"]),
+            "fc_bsr_si_sdri_db": float(right["source_si_sdri_db"]),
+            "paired_gain_db": float(right["source_si_sdri_db"]) - float(left["source_si_sdri_db"]),
+        })
+    days = sorted({row["day"] for row in rows})
+    day_means = np.asarray([
+        np.mean([row["paired_gain_db"] for row in rows if row["day"] == day]) for day in days
+    ])
+    ci = paired_bootstrap_interval(day_means)
+    by_family = {}
+    for family in sorted({row["source_family"] for row in rows}):
+        subset = [row for row in rows if row["source_family"] == family]
+        by_family[family] = {
+            "examples": len(subset),
+            "baseline_si_sdri_db": float(np.mean([row["baseline_si_sdri_db"] for row in subset])),
+            "fc_bsr_si_sdri_db": float(np.mean([row["fc_bsr_si_sdri_db"] for row in subset])),
+            "paired_gain_db": float(np.mean([row["paired_gain_db"] for row in subset])),
+        }
+    summary = {
+        "protocol": {
+            "examples": len(rows), "split": "three held-out recording days",
+            "current_background": "annotation-clean real 5-s WAV",
+            "target": "marine-aware synthetic event with exact stem references",
+            "history": "12 preceding event-masked 5-s background features (60 s total)",
+            "models": "matched BS-RoFormer versus GRU + FiLM + BS-RoFormer",
+            "independent_day_blocks": len(days),
+        },
+        "baseline_mean_si_sdri_db": float(np.mean([row["baseline_si_sdri_db"] for row in rows])),
+        "fc_bsr_mean_si_sdri_db": float(np.mean([row["fc_bsr_si_sdri_db"] for row in rows])),
+        "paired_gain_db": float(np.mean([row["paired_gain_db"] for row in rows])),
+        "paired_gain_day_block_ci95_db": list(ci),
+        "by_family": by_family,
+    }
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    with output.with_suffix(".csv").open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+    return summary
+
+
+def evaluate_saved_clean_separator(
+    store: CausalFeatureStore,
+    variant: str,
+    checkpoint_path: Path,
+    config: ExperimentConfig,
+    output: Path,
+) -> dict:
+    """Run the held-out full-reference test for an already-trained separator."""
+    device = torch.device(config.device)
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+    model = _make_model(variant, store.bands, config.seed, device)
+    model.load_state_dict(checkpoint["model"])
+    dataset = InjectedUpcallDataset(
+        store, "test", config.validation_examples, config.seed + 20_000_000,
+        spread_rows=True,
+    )
+    summary, rows = _full_reference_test(model, dataset, config.batch_size * 2, device)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    _write_rows(output.parent / "clean_synthetic_test.csv", rows)
+    result = {
+        "variant": variant, "checkpoint": str(checkpoint_path),
+        "best_step": checkpoint.get("step"), "test_full_reference": summary,
+    }
+    output.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--forecast-steps", type=int, default=1500)
-    parser.add_argument("--separation-steps", type=int, default=2500)
+    parser.add_argument("--forecast-steps", type=int, default=5000)
+    parser.add_argument("--separation-steps", type=int, default=10000)
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--prepare-features-only", action="store_true")
     parser.add_argument("--skip-train", action="store_true")
+    parser.add_argument("--skip-forecast", action="store_true")
+    parser.add_argument("--skip-baseline", action="store_true")
     args = parser.parse_args()
+    if not MANIFEST.exists() or not CLEAN_BACKGROUND_MANIFEST.exists():
+        _, summary = build_clip_manifest()
+        print(json.dumps(summary, indent=2))
+    if not CLEAN_OCEAN_FEATURE_CACHE.exists():
+        print(json.dumps(build_event_masked_feature_cache(
+            CLEAN_BACKGROUND_MANIFEST, CLEAN_OCEAN_FEATURE_CACHE,
+        ), indent=2))
+    if not EVENT_MASKED_FEATURE_CACHE.exists():
+        print(json.dumps(build_event_masked_feature_cache(), indent=2))
     if not FEATURE_CACHE.exists():
         print(json.dumps(build_causal_feature_cache(), indent=2))
     if args.prepare_features_only:
         return
-    store = CausalFeatureStore()
+    store = CausalFeatureStore(CLEAN_BACKGROUND_MANIFEST, CLEAN_OCEAN_FEATURE_CACHE)
     config = ExperimentConfig(forecast_steps=args.forecast_steps, separation_steps=args.separation_steps, batch_size=args.batch_size, device=args.device)
+    train_clean_hours = float(
+        store.frame.loc[store.indices("train", label=0), "duration_seconds"].sum() / 3600.0
+    )
+    if train_clean_hours < 24.0:
+        raise RuntimeError(f"main setup needs >=24 h of clean training background; found {train_clean_hours:.2f} h")
     forecast_folder = Path("experiments/dclde_forecaster")
     baseline_folder = Path("experiments/dclde_bsr")
     conditioned_folder = Path("experiments/dclde_fc_bsr")
     if not args.skip_train:
-        print(json.dumps(train_forecaster(config, store, forecast_folder), indent=2))
-        print(json.dumps(train_separator(config, store, "none_film", baseline_folder), indent=2))
+        if not args.skip_forecast:
+            print(json.dumps(train_forecaster(config, store, forecast_folder), indent=2))
+        if not args.skip_baseline:
+            print(json.dumps(train_separator(config, store, "none_film", baseline_folder), indent=2))
         print(json.dumps(train_separator(config, store, "film", conditioned_folder, forecast_folder / "best.pt"), indent=2))
+        deployment_config = {
+            "variant": "film", "latent_dim": 16, "seed": config.seed,
+            "model_dim": 32, "depth": 2, "heads": 4, "dim_head": 8,
+            "n_fft": 256, "hop_length": 64, "bands": 20,
+            "sample_rate": SAMPLE_RATE, "seconds": 5.0, "history_steps": 12,
+            "normaliser_mean": store.mean.tolist(), "normaliser_scale": store.scale.tolist(),
+            "spectrum_columns": [f"event-masked-band-{index + 1:02d}" for index in range(store.bands)],
+            "history_definition": "12 consecutive preceding 5-s background spectra; annotated call intervals and 2-s guards excluded",
+            "current_background_definition": "annotation-clean real 5-s DCLDE recording",
+            "model_family": "BS-RoFormer",
+            "conditioning": "FiLM",
+            "forecaster": "causal GRU",
+            "waveform_window_seconds": 5.0,
+            "clean_training_background_hours": train_clean_hours,
+            "clean_background_pool_hours": float(
+                store.frame.loc[store.frame["label"].eq(0), "duration_seconds"].sum() / 3600.0
+            ),
+            "main_setup": "12 event-masked 5-s history features -> GRU forecast; current annotated-clean 5-s ocean N_t + synthetic marine event s_t; FiLM-conditioned BS-RoFormer separates x_t",
+        }
+        main_checkpoint = torch.load(conditioned_folder / "best.pt", map_location="cpu", weights_only=False)
+        Path("models/practical_film.pt").parent.mkdir(parents=True, exist_ok=True)
+        torch.save({"model": main_checkpoint["model"], "config": deployment_config,
+                    "step": main_checkpoint["step"]}, "models/practical_film.pt")
+        print(json.dumps({"exported_main_checkpoint": "models/practical_film.pt", "config": deployment_config}, indent=2))
+    print(json.dumps(compare_clean_synthetic_tests(
+        baseline_folder / "clean_synthetic_test.csv",
+        conditioned_folder / "clean_synthetic_test.csv",
+        Path("results/dclde_clean_synthetic_test.json"),
+    ), indent=2))
+    evaluation_store = CausalFeatureStore(MANIFEST, EVENT_MASKED_FEATURE_CACHE)
+    evaluation_store.mean = store.mean.copy()
+    evaluation_store.scale = store.scale.copy()
     print(json.dumps(evaluate_real_events(
         {"bs_roformer": ("none_film", baseline_folder / "best.pt"), "fc_bsr": ("film", conditioned_folder / "best.pt")},
-        Path("experiments/dclde_event_classifier/best.pt"), store,
+        Path("experiments/dclde_event_classifier/best.pt"), evaluation_store,
         Path("results/dclde_real_event_results.json"), device_name=args.device,
     ), indent=2))
 

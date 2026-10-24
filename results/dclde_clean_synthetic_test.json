@@ -1,0 +1,62 @@
+{
+  "protocol": {
+    "examples": 4096,
+    "split": "three held-out recording days",
+    "current_background": "annotation-clean real 5-s WAV",
+    "target": "marine-aware synthetic event with exact stem references",
+    "history": "12 preceding event-masked 5-s background features (60 s total)",
+    "models": "matched BS-RoFormer versus GRU + FiLM + BS-RoFormer",
+    "independent_day_blocks": 3
+  },
+  "baseline_mean_si_sdri_db": 9.630817150777148,
+  "fc_bsr_mean_si_sdri_db": 9.49678738861985,
+  "paired_gain_db": -0.13402976215729723,
+  "paired_gain_day_block_ci95_db": [
+    -0.31975918180987206,
+    0.12499373420555158
+  ],
+  "by_family": {
+    "vessel_cavitation": {
+      "examples": 602,
+      "baseline_si_sdri_db": 9.16850981898482,
+      "fc_bsr_si_sdri_db": 9.247995603520213,
+      "paired_gain_db": 0.07948578453539218
+    },
+    "vessel_tonal": {
+      "examples": 626,
+      "baseline_si_sdri_db": 2.9314498476707898,
+      "fc_bsr_si_sdri_db": 2.848057002305223,
+      "paired_gain_db": -0.08339284536556694
+    },
+    "whale_arch": {
+      "examples": 579,
+      "baseline_si_sdri_db": 12.233518747056292,
+      "fc_bsr_si_sdri_db": 11.87564848288765,
+      "paired_gain_db": -0.35787026416864215
+    },
+    "whale_downsweep": {
+      "examples": 569,
+      "baseline_si_sdri_db": 11.851334153244073,
+      "fc_bsr_si_sdri_db": 11.410854873632086,
+      "paired_gain_db": -0.4404792796119864
+    },
+    "whale_pulse_packet": {
+      "examples": 543,
+      "baseline_si_sdri_db": 9.319754510788627,
+      "fc_bsr_si_sdri_db": 9.736875983013412,
+      "paired_gain_db": 0.41712147222478524
+    },
+    "whale_s_curve": {
+      "examples": 566,
+      "baseline_si_sdri_db": 10.71065231230992,
+      "fc_bsr_si_sdri_db": 10.459203855308964,
+      "paired_gain_db": -0.2514484570009548
+    },
+    "whale_upsweep": {
+      "examples": 611,
+      "baseline_si_sdri_db": 11.69201986586794,
+      "fc_bsr_si_sdri_db": 11.412199953281352,
+      "paired_gain_db": -0.2798199125865868
+    }
+  }
+}

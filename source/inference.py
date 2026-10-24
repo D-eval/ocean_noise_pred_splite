@@ -32,7 +32,7 @@ class SeparationEngine:
         self.scale = np.asarray(self.config["normaliser_scale"], dtype=np.float32)
         self.columns = list(self.config["spectrum_columns"])
         self.sample_rate = int(self.config["sample_rate"])
-        self.context_hours = int(self.config["context_hours"])
+        self.history_steps = int(self.config.get("history_steps", self.config.get("context_hours", 24)))
         self.chunk_samples = round(float(self.config["seconds"]) * self.sample_rate)
         self.model = ForecastConditionedSeparator(
             spectrum_dim=len(self.columns),
@@ -57,10 +57,10 @@ class SeparationEngine:
             {key.strip(): value for key, value in row.items() if key is not None}
             for row in raw_rows
         ]
-        if len(rows) < self.context_hours:
-            raise ValueError(f"history needs at least {self.context_hours} hourly rows")
+        if len(rows) < self.history_steps:
+            raise ValueError(f"history needs at least {self.history_steps} feature rows")
         values = []
-        for row in rows[-self.context_hours :]:
+        for row in rows[-self.history_steps :]:
             try:
                 values.append([float(row[column.strip()]) for column in self.columns])
             except KeyError as error:
@@ -71,6 +71,25 @@ class SeparationEngine:
         if not np.isfinite(array).all():
             raise ValueError("history contains missing or infinite values")
         return (array - self.mean) / self.scale
+
+    def history_from_audio(self, audio: np.ndarray) -> np.ndarray:
+        """Extract the model's event-free 5-s band features from prior audio."""
+        required = self.chunk_samples * self.history_steps
+        if len(audio) < required:
+            raise ValueError(
+                f"history audio must contain at least {self.history_steps * self.config['seconds']:g} seconds"
+            )
+        blocks = audio[-required:].reshape(self.history_steps, self.chunk_samples)
+        window = np.hanning(self.chunk_samples).astype(np.float32)
+        spectrum = np.fft.rfft(blocks * window, axis=-1)
+        power = np.square(np.abs(spectrum), dtype=np.float64)
+        frequencies = np.fft.rfftfreq(self.chunk_samples, 1.0 / self.sample_rate)
+        edges = np.geomspace(20.0, self.sample_rate / 2.0 - 50.0, len(self.columns) + 1)
+        features = np.empty((self.history_steps, len(self.columns)), dtype=np.float32)
+        for band, (low, high) in enumerate(zip(edges[:-1], edges[1:], strict=True)):
+            member = (frequencies >= low) & (frequencies < high)
+            features[:, band] = 10.0 * np.log10(power[:, member].mean(axis=1) + 1e-12)
+        return (features - self.mean) / self.scale
 
     def read_audio(self, payload: bytes) -> np.ndarray:
         audio, source_rate = sf.read(io.BytesIO(payload), dtype="float32", always_2d=True)
@@ -103,7 +122,7 @@ class SeparationEngine:
         window[:fade] = ramp
         window[-fade:] = ramp[::-1]
         if history is None:
-            history = np.zeros((self.context_hours, len(self.columns)), dtype=np.float32)
+            history = np.zeros((self.history_steps, len(self.columns)), dtype=np.float32)
         history_tensor = torch.from_numpy(history[None]).to(self.device)
         prediction = None
         began = time.perf_counter()

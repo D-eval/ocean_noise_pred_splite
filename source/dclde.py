@@ -24,6 +24,9 @@ AUDIO_ROOT = DCLDE_ROOT / "source-audio"
 ANNOTATIONS = DCLDE_ROOT / "detections/NEFSC_SBNMS_200903_NOPP6_CH10_upcall-detection-log.csv"
 MANIFEST = Path("data/dclde2013/clips_5s.csv")
 FEATURE_CACHE = Path("data/dclde2013/causal_features_12x5s_30band.npz")
+CLEAN_BACKGROUND_MANIFEST = Path("data/dclde2013/clean_background_5s.csv")
+EVENT_MASKED_FEATURE_CACHE = Path("data/dclde2013/event_masked_12x5s_features_30band.npz")
+CLEAN_OCEAN_FEATURE_CACHE = Path("data/dclde2013/clean_ocean_12x5s_features_30band.npz")
 SAMPLE_RATE = 2000
 _EST = timezone(timedelta(hours=-5))
 _STAMP = re.compile(r"_(\d{8})_(\d{6})_CH\d+\.wav$", re.IGNORECASE)
@@ -81,6 +84,7 @@ def build_clip_manifest(
     days = sorted({stamp.tz_convert(_EST).strftime("%Y-%m-%d") for stamp in starts})
     split_by_day = _default_day_splits(days)
     rows: list[dict] = []
+    clean_rows: list[dict] = []
     for path, file_start in zip(files, starts, strict=True):
         info = sf.info(path)
         if info.samplerate != SAMPLE_RATE or info.channels != 1:
@@ -115,7 +119,7 @@ def build_clip_manifest(
                 intervals = []
             else:
                 continue
-            rows.append({
+            row = {
                 "path": str(relative),
                 "start_seconds": bin_index * clip_seconds,
                 "duration_seconds": clip_seconds,
@@ -123,8 +127,14 @@ def build_clip_manifest(
                 "event_intervals": json.dumps(intervals, separators=(",", ":")),
                 "day": day,
                 "split": split_by_day[day],
-            })
+            }
+            rows.append(row)
+            if label == 0:
+                clean_rows.append(row)
     frame = pd.DataFrame(rows)
+    clean_frame = pd.DataFrame(clean_rows)
+    CLEAN_BACKGROUND_MANIFEST.parent.mkdir(parents=True, exist_ok=True)
+    clean_frame.to_csv(CLEAN_BACKGROUND_MANIFEST, index=False)
     rng = np.random.default_rng(seed)
     selected = []
     for split, group in frame.groupby("split", sort=False):
@@ -143,6 +153,13 @@ def build_clip_manifest(
         "exclusion_buffer_seconds": exclusion_buffer_seconds,
         "day_splits": split_by_day,
         "rows": len(frame),
+        "clean_background_manifest": str(CLEAN_BACKGROUND_MANIFEST),
+        "clean_background_windows": len(clean_frame),
+        "clean_background_hours": len(clean_frame) * clip_seconds / 3600.0,
+        "clean_background_hours_by_split": {
+            split: len(group) * clip_seconds / 3600.0
+            for split, group in clean_frame.groupby("split")
+        },
         "by_split_and_label": {
             f"{split}:{label}": int(count)
             for (split, label), count in frame.groupby(["split", "label"]).size().items()
@@ -150,6 +167,91 @@ def build_clip_manifest(
     }
     output.with_suffix(".json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     return frame, summary
+
+
+def build_event_masked_feature_cache(
+    manifest: Path = MANIFEST,
+    output: Path = EVENT_MASKED_FEATURE_CACHE,
+    annotations_path: Path = ANNOTATIONS,
+    history_steps: int = 12,
+    bands: int = 30,
+) -> dict:
+    """Build 5-s targets with 12 preceding, event-masked 5-s background features.
+
+    A history is eligible only when all 12 immediately preceding windows are
+    free of annotated calls and their 2-s guards.  Histories never cross a WAV
+    boundary, and the current target is excluded from its own history.
+    """
+    frame = pd.read_csv(manifest)
+    events = load_annotations(annotations_path)
+    files = sorted(Path(AUDIO_ROOT).rglob("*.wav"), key=recording_start)
+    starts = {str(path.resolve()): recording_start(path) for path in files}
+    clip_seconds = float(frame["duration_seconds"].iloc[0])
+    feature_cache: dict[str, np.ndarray] = {}
+    valid_cache: dict[str, np.ndarray] = {}
+
+    for path in files:
+        key = str(path.resolve())
+        file_start = recording_start(path)
+        waveform, sample_rate = sf.read(path, dtype="float32", always_2d=True)
+        if sample_rate != SAMPLE_RATE or waveform.shape[1] != 1:
+            raise ValueError(f"expected 2 kHz mono DCLDE audio: {path}")
+        waveform = waveform[:, 0]
+        clip_samples = round(clip_seconds * SAMPLE_RATE)
+        blocks = waveform[: len(waveform) // clip_samples * clip_samples].reshape(-1, clip_samples)
+        features = _log_band_features(blocks, bands)
+        valid = np.ones(len(blocks), dtype=bool)
+        file_end = file_start + pd.Timedelta(seconds=len(waveform) / SAMPLE_RATE)
+        local = events[(events["end"] > file_start) & (events["start"] < file_end)]
+        for event in local.itertuples():
+            left = max(0.0, (event.start - file_start).total_seconds() - 2.0)
+            right = min(len(waveform) / SAMPLE_RATE, (event.end - file_start).total_seconds() + 2.0)
+            first = max(0, int(np.floor(left / clip_seconds)))
+            last = min(len(blocks) - 1, int(np.ceil(right / clip_seconds)) - 1)
+            if last >= first:
+                valid[first : last + 1] = False
+        feature_cache[key] = features
+        valid_cache[key] = valid
+    histories = np.full((len(frame), history_steps, bands), np.nan, dtype=np.float32)
+    targets = np.full((len(frame), bands), np.nan, dtype=np.float32)
+    eligible = np.zeros(len(frame), dtype=bool)
+    for row_index, row in frame.iterrows():
+        audio_path = Path(row.path).resolve()
+        key = str(audio_path)
+        if key not in feature_cache:
+            raise FileNotFoundError(f"manifest audio not found: {row.path}")
+        file_start = starts[key]
+        block = int(round(float(row.start_seconds) / clip_seconds))
+        if block >= len(valid_cache[key]):
+            continue
+        targets[row_index] = feature_cache[key][block]
+        if block < history_steps:
+            continue
+        history_blocks = np.arange(block - history_steps, block)
+        if not valid_cache[key][history_blocks].all():
+            continue
+        histories[row_index] = feature_cache[key][history_blocks]
+        eligible[row_index] = True
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(
+        output, history=histories, target=targets, eligible=eligible,
+        history_steps=np.int64(history_steps), bands=np.int64(bands),
+    )
+    summary = {
+        "output": str(output), "manifest": str(manifest), "rows": len(frame),
+        "eligible_rows": int(eligible.sum()), "history_steps": history_steps,
+        "window_seconds": clip_seconds, "bands": bands,
+        "event_mask": "exclude annotated intervals plus 2-s guard on both sides",
+        "clean_current_windows_hours": float(frame["duration_seconds"].sum() / 3600.0)
+        if "label" not in frame else float(frame.loc[frame["label"].eq(0), "duration_seconds"].sum() / 3600.0),
+        "eligible_clean_current_hours": float(frame.loc[eligible & frame["label"].eq(0), "duration_seconds"].sum() / 3600.0)
+        if "label" in frame else None,
+        "history_duration_seconds": history_steps * clip_seconds,
+        "causal_rule": f"{history_steps} consecutive event-free {clip_seconds:g}-s features immediately before the target; no WAV-boundary padding",
+    }
+    output.with_suffix(".json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    return summary
 
 
 class DCLDEClipDataset(Dataset):

@@ -38,9 +38,11 @@ def make_handler(engine: SeparationEngine):
                     "ready": True,
                     "variant": engine.config["variant"],
                     "sample_rate": engine.sample_rate,
-                    "context_hours": engine.context_hours,
+                    "history_steps": engine.history_steps,
                     "requires_history": engine.requires_history,
-                    "validation_scope": engine.config.get("background_waveform", "surrogate background"),
+                    "validation_scope": engine.config.get(
+                        "current_background_definition", engine.config.get("background_waveform", "surrogate background")
+                    ),
                     "device": str(engine.device),
                     "checkpoint": engine.checkpoint_path.name,
                 })
@@ -65,9 +67,14 @@ def make_handler(engine: SeparationEngine):
                 request = json.loads(self.rfile.read(length))
                 audio = engine.read_audio(base64.b64decode(request["audio_base64"], validate=True))
                 history_text = request.get("history_csv", "")
-                history = engine.parse_history_csv(history_text) if history_text else None
+                history_audio = request.get("history_audio_base64", "")
+                if history_audio:
+                    raw_history = engine.read_audio(base64.b64decode(history_audio, validate=True))
+                    history = engine.history_from_audio(raw_history)
+                else:
+                    history = engine.parse_history_csv(history_text) if history_text else None
                 if engine.requires_history and history is None:
-                    raise ValueError("this forecast-conditioned checkpoint requires historical TOL CSV")
+                    raise ValueError("this forecast-conditioned checkpoint requires clean historical audio or event-masked TOL CSV")
                 result = engine.separate(audio, history)
                 self._json(200, {
                     "source_wav": base64.b64encode(wav_bytes(result.pop("source"), engine.sample_rate)).decode("ascii"),
@@ -86,7 +93,7 @@ def make_handler(engine: SeparationEngine):
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", type=Path, default=Path("models/practical_real.pt"))
+    parser.add_argument("--checkpoint", type=Path, default=Path("models/practical_film.pt"))
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--device")

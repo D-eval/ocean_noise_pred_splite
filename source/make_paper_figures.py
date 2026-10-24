@@ -21,6 +21,8 @@ from .data import DEFAULT_DATA_ROOT, SpectrumNormaliser, TOLMixtureDataset, load
 from .diversity_eval import load_checkpoint
 from .metrics import si_sdr
 from .real_audio_data import RealAudioMixtureDataset, load_manifest
+from .dclde import CLEAN_BACKGROUND_MANIFEST, CLEAN_OCEAN_FEATURE_CACHE, SAMPLE_RATE as DCLDE_SAMPLE_RATE
+from .dclde_separation_experiment import CausalFeatureStore, InjectedUpcallDataset, _make_model
 
 
 COLORS = {
@@ -43,9 +45,9 @@ def save_figure(figure: plt.Figure, path: Path) -> None:
 
 
 def architecture_figure(path: Path) -> None:
-    figure, axis = plt.subplots(figsize=(12.4, 4.4))
-    axis.set_xlim(0, 12.4)
-    axis.set_ylim(0, 4.4)
+    figure, axis = plt.subplots(figsize=(13.0, 5.1))
+    axis.set_xlim(0, 13.0)
+    axis.set_ylim(0, 5.1)
     axis.axis("off")
 
     def box(x, y, width, height, label, color, subtitle=""):
@@ -67,28 +69,36 @@ def architecture_figure(path: Path) -> None:
             axis.text((start[0] + end[0]) / 2, (start[1] + end[1]) / 2 + 0.13,
                       label, ha="center", fontsize=8, color=color)
 
-    axis.text(0.15, 4.12, "CAUSAL FORECAST PATH", fontsize=9, fontweight="bold", color=COLORS["cyan"])
-    box(0.15, 2.75, 1.75, 0.92, "Past 24 h TOL", COLORS["cyan"], "history ending at t-1")
-    box(2.35, 2.75, 1.6, 0.92, "GRU encoder", COLORS["cyan"], "causal latent zₜ")
-    box(4.4, 2.75, 1.75, 0.92, "Spectrum decoder", COLORS["cyan"], "predicted background Ŝₜ")
-    box(7.15, 2.64, 4.6, 1.08, "Joint objective", COLORS["coral"],
-        "waveform + multi-resolution STFT + 0.2 × forecast MAE")
-    arrow((1.9, 3.21), (2.35, 3.21), COLORS["cyan"])
-    arrow((3.95, 3.21), (4.4, 3.21), COLORS["cyan"])
+    axis.text(0.15, 4.77, "MAIN SETTING · 5-s WINDOWS · GRU + FiLM + BS-RoFormer", fontsize=10,
+              fontweight="bold", color=COLORS["ink"])
+    axis.text(0.15, 4.35, "SUPERVISED SAMPLE  (Hₜ, Nₜ, sₜ, xₜ = Nₜ + sₜ)", fontsize=8.8,
+              fontweight="bold", color=COLORS["muted"])
 
-    axis.text(0.15, 1.93, "AUDIO SEPARATION PATH", fontsize=9, fontweight="bold", color=COLORS["blue"])
-    box(0.15, 0.55, 1.75, 0.92, "Current mixture xₜ", COLORS["blue"], "ocean + unknown source")
-    box(2.35, 0.55, 1.6, 0.92, "STFT + band split", COLORS["blue"], "frequency-band tokens")
-    box(4.4, 0.55, 1.75, 0.92, "Condition injection", COLORS["gold"], "concat / FiLM / cross-attn")
-    box(6.65, 0.55, 1.7, 0.92, "Axial Transformer", COLORS["blue"], "time × frequency attention")
-    box(8.85, 0.55, 1.55, 0.92, "Complex mask", COLORS["blue"], "iSTFT reconstruction")
-    box(10.85, 0.55, 1.4, 0.92, "Target ŝₜ", COLORS["coral"], "residual = ocean")
-    for x1, x2 in ((1.9, 2.35), (3.95, 4.4), (6.15, 6.65), (8.35, 8.85), (10.4, 10.85)):
-        arrow((x1, 1.01), (x2, 1.01), COLORS["blue"])
-    arrow((5.28, 2.75), (5.28, 1.47), COLORS["gold"], "forecast prior")
-    arrow((11.55, 1.48), (10.35, 2.64), COLORS["coral"], "separation loss")
-    arrow((7.15, 3.18), (6.15, 3.18), COLORS["coral"])
-    save_figure(figure, path)
+    box(0.18, 2.95, 2.15, 0.95, "Hₜ · 12 × 5-s history", COLORS["cyan"], "preceding event-free features")
+    box(2.9, 2.95, 1.75, 0.95, "Causal GRU", COLORS["cyan"], "predict next Ŝₜ")
+    box(5.25, 2.95, 2.0, 0.95, "FiLM conditioner", COLORS["gold"], "scale + bias per band")
+    box(8.0, 2.95, 2.05, 0.95, "BS-RoFormer", COLORS["blue"], "5-s mixture separator")
+    box(10.9, 2.95, 1.9, 0.95, "ŝₜ and N̂ₜ", COLORS["coral"], "event + residual ocean")
+    arrow((2.33, 3.42), (2.9, 3.42), COLORS["cyan"])
+    arrow((4.65, 3.42), (5.25, 3.42), COLORS["cyan"])
+    arrow((7.25, 3.42), (8.0, 3.42), COLORS["gold"], "prior")
+    arrow((10.05, 3.42), (10.9, 3.42), COLORS["blue"])
+
+    box(0.65, 1.1, 2.15, 0.95, "Nₜ · real clean 5-s", COLORS["mint"], "annotated no-call segment")
+    box(3.35, 1.1, 2.15, 0.95, "sₜ · synthetic event", COLORS["gold"], "whale sweep or vessel proxy")
+    box(6.05, 1.1, 2.0, 0.95, "xₜ = Nₜ + sₜ", COLORS["blue"], "mixture sent to separator")
+    box(9.05, 1.1, 3.0, 0.95, "Source-reference losses", COLORS["coral"], "sₜ target; N̂ₜ = xₜ − ŝₜ")
+    arrow((2.8, 1.58), (6.05, 1.58), COLORS["muted"], "+")
+    arrow((5.5, 1.58), (6.05, 1.58), COLORS["muted"])
+    arrow((7.05, 2.05), (8.9, 2.95), COLORS["blue"], "audio xₜ")
+    arrow((11.85, 2.95), (11.85, 2.05), COLORS["coral"], "event estimate")
+    axis.text(0.18, 0.42, "Real-event branch: annotated calls are evaluated with a frozen event classifier; no separated real-call ground truth is assumed.",
+              fontsize=8.1, color=COLORS["muted"])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(path, bbox_inches="tight", facecolor="white")
+    if path.suffix.lower() == ".pdf":
+        figure.savefig(path.with_suffix(".png"), dpi=240, bbox_inches="tight", facecolor="white")
+    plt.close(figure)
 
 
 def _db_spectrogram(audio: np.ndarray, sample_rate: int):
@@ -312,6 +322,127 @@ def real_signal_figure(
     save_figure(figure, path)
 
 
+def clean_main_signal_figure(
+    path: Path,
+    checkpoint_path: Path,
+    baseline_checkpoint_path: Path,
+    device_name: str,
+) -> None:
+    """Show a typical labelled-clean DCLDE background with a synthetic event."""
+    device = torch.device(device_name)
+    model, config = load_checkpoint(checkpoint_path, device)
+    if int(config["sample_rate"]) != DCLDE_SAMPLE_RATE or float(config["seconds"]) != 5.0:
+        raise ValueError("the main-setting illustration requires the 5-s DCLDE checkpoint")
+    baseline = _make_model("none_film", len(config["spectrum_columns"]), int(config["seed"]), device)
+    baseline_checkpoint = torch.load(baseline_checkpoint_path, map_location=device, weights_only=False)
+    baseline.load_state_dict(baseline_checkpoint["model"])
+    baseline.eval()
+    store = CausalFeatureStore(CLEAN_BACKGROUND_MANIFEST, CLEAN_OCEAN_FEATURE_CACHE)
+    if not np.allclose(store.mean, config["normaliser_mean"], atol=1e-5):
+        raise ValueError("figure feature normalisation differs from the trained clean-background model")
+    dataset = InjectedUpcallDataset(
+        store, "test", examples=96, seed=20261024,
+        source_family="whale_pulse_packet", snr_range=(-12.0, -12.0),
+    )
+    candidate_indices = np.linspace(0, len(store.indices("test", 0)) - 1, 96, dtype=int)
+    candidate_rows = []
+    for index in candidate_indices:
+        item = dataset[int(index)]
+        with torch.inference_mode():
+            mixture = item["mixture"][None].to(device)
+            history = item["history"][None].to(device)
+            estimate = model(mixture, history)["estimate"][0]
+            base_estimate = baseline(mixture, history)["estimate"][0]
+        length = min(mixture.shape[-1], estimate.shape[-1], base_estimate.shape[-1], item["event"].shape[-1])
+        target = item["event"].to(device)[:length]
+        mixture_score = float(si_sdr(mixture[0, :length], target))
+        estimate, base_estimate = estimate[:length], base_estimate[:length]
+        fc_gain = float(si_sdr(estimate, target)) - mixture_score
+        base_gain = float(si_sdr(base_estimate, target)) - mixture_score
+        candidate_rows.append((int(index), fc_gain, fc_gain - base_gain))
+    medians = np.median(np.asarray([row[1:] for row in candidate_rows]), axis=0)
+    index = min(candidate_rows, key=lambda row: np.linalg.norm(np.asarray(row[1:]) - medians))[0]
+    item = dataset[index]
+    with torch.inference_mode():
+        output = model(item["mixture"][None].to(device), item["history"][None].to(device))
+        base_output = baseline(item["mixture"][None].to(device), item["history"][None].to(device))
+    arrays = [
+        item["background"].numpy(), item["mixture"].numpy(), item["event"].numpy(),
+        base_output["estimate"][0].cpu().numpy(), output["estimate"][0].cpu().numpy(),
+    ]
+    shared_length = min(map(len, arrays))
+    arrays = [audio[:shared_length] for audio in arrays]
+    names = [
+        "N_t: clean real ocean", "x_t = N_t + s_t", "s_t: synthetic-event GT",
+        "BS-RoFormer estimate", "FC-BSR estimate",
+    ]
+    maps = []
+    freq_ref = time_ref = None
+    for audio in arrays:
+        frequencies, times, values = spectrogram(
+            audio, fs=DCLDE_SAMPLE_RATE, window="hann", nperseg=512,
+            noverlap=480, mode="magnitude",
+        )
+        db = 20.0 * np.log10(np.maximum(values, 1e-8))
+        keep = (frequencies >= 50.0) & (frequencies <= 450.0)
+        maps.append(db[keep])
+        freq_ref, time_ref = frequencies[keep], times
+    # A shared physical scale, referenced to the mixture peak, prevents any
+    # one panel from being independently normalized and overstating the stem.
+    vmax = float(np.max(maps[1]))
+    # Keep one absolute scale across every bottom panel, but expose the weak
+    # injected stem at -12 dB instead of clipping it into near-black.
+    vmin = vmax - 80.0
+
+    figure = plt.figure(figsize=(13.0, 6.5), constrained_layout=True)
+    grid = figure.add_gridspec(2, 6, height_ratios=(0.86, 1.5))
+    history_axis = figure.add_subplot(grid[0, :4])
+    history_db = item["history"].numpy() * store.scale + store.mean
+    history_image = history_axis.imshow(
+        history_db.T, origin="lower", aspect="auto", cmap="viridis",
+        extent=(12, 0, 0.5, store.bands + 0.5),
+    )
+    history_axis.set_title("H_t: 12 preceding event-masked 5-s windows", loc="left", fontweight="bold")
+    history_axis.set_xlabel("5-s steps before target (60 s total)")
+    history_axis.set_ylabel("Log-frequency band")
+    figure.colorbar(history_image, ax=history_axis, label="Log band power (a.u.)", pad=0.01)
+    forecast_axis = figure.add_subplot(grid[0, 4:])
+    predicted = output["prediction"][0].cpu().numpy() * store.scale + store.mean
+    actual = store.target[int(store.indices("test", 0)[index])]
+    bands = np.arange(store.bands)
+    forecast_axis.plot(actual, bands, color=COLORS["navy"], label="current N_t")
+    forecast_axis.plot(predicted, bands, color=COLORS["gold"], label="GRU forecast S_hat_t")
+    forecast_axis.set_title("Next background state", loc="left", fontweight="bold")
+    forecast_axis.set_xlabel("Log band power")
+    forecast_axis.set_yticks([])
+    forecast_axis.legend(frameon=False, fontsize=8)
+
+    axes = []
+    for column, (name, values) in enumerate(zip(names, maps, strict=True)):
+        axis = figure.add_subplot(grid[1, column : column + 1])
+        mesh = axis.pcolormesh(
+            time_ref, freq_ref, values, shading="auto", cmap="magma",
+            vmin=vmin, vmax=vmax,
+        )
+        axis.set_title(name, fontsize=9.1, fontweight="bold")
+        axis.set_xlabel("Time (s)")
+        axis.set_ylim(50, 450)
+        if column == 0:
+            axis.set_ylabel("Frequency (Hz)")
+        axes.append(axis)
+    figure.colorbar(mesh, ax=axes, label="Magnitude (dB re mixture peak)", pad=0.012, shrink=0.9)
+    mixture_score = float(si_sdr(torch.from_numpy(arrays[1]), torch.from_numpy(arrays[2])))
+    base_gain = float(si_sdr(torch.from_numpy(arrays[3]), torch.from_numpy(arrays[2]))) - mixture_score
+    fc_gain = float(si_sdr(torch.from_numpy(arrays[4]), torch.from_numpy(arrays[2]))) - mixture_score
+    figure.suptitle(
+        f"Main model · 5-s clean background + synthetic whale pulse packet · {item['snr_db']:+.0f} dB · "
+        f"SI-SDRi: BSR {base_gain:+.2f} dB, FC-BSR {fc_gain:+.2f} dB",
+        fontsize=12, fontweight="bold",
+    )
+    figure.savefig(path.with_suffix(".pdf"), bbox_inches="tight", facecolor="white")
+    save_figure(figure, path)
+
+
 def strength_sweep_figure(path: Path, results_path: Path) -> None:
     """Plot all real-background model settings across fixed input SNR."""
     results = json.loads(results_path.read_text(encoding="utf-8"))
@@ -334,6 +465,41 @@ def strength_sweep_figure(path: Path, results_path: Path) -> None:
     axis.grid(alpha=0.18)
     axis.spines[["top", "right"]].set_visible(False)
     axis.legend(frameon=False, ncol=2, fontsize=8)
+    save_figure(figure, path)
+
+
+def clean_strength_figure(path: Path, results_path: Path) -> None:
+    """Main DCLDE test: paired full-reference SI-SDRi by injected event SNR."""
+    with results_path.open(encoding="utf-8", newline="") as stream:
+        rows = list(csv.DictReader(stream))
+    edges = np.arange(-18.0, 15.0, 3.0)
+    centers = edges[:-1] + 1.5
+    figure, axis = plt.subplots(figsize=(7.2, 4.3), constrained_layout=True)
+    rng = np.random.default_rng(20261024)
+    for metric, label, color, marker in (
+        ("baseline_si_sdri_db", "BS-RoFormer", COLORS["navy"], "o"),
+        ("fc_bsr_si_sdri_db", "FC-BSR (GRU + FiLM)", COLORS["coral"], "D"),
+    ):
+        means, lows, highs = [], [], []
+        for low, high in zip(edges[:-1], edges[1:], strict=True):
+            subset = [row for row in rows if low <= float(row["snr_db"]) < high]
+            by_day = np.asarray([
+                np.mean([float(row[metric]) for row in subset if row["day"] == day])
+                for day in sorted({row["day"] for row in subset})
+            ])
+            means.append(float(by_day.mean()))
+            draws = rng.choice(by_day, size=(5000, len(by_day)), replace=True).mean(axis=1)
+            lows.append(float(np.quantile(draws, 0.025)))
+            highs.append(float(np.quantile(draws, 0.975)))
+        axis.plot(centers, means, color=color, marker=marker, lw=2.1, label=label)
+        axis.fill_between(centers, lows, highs, color=color, alpha=0.14, linewidth=0)
+    axis.axhline(0.0, color=COLORS["ink"], lw=0.8, alpha=0.5)
+    axis.set_xticks(centers, [f"{value:g}" for value in centers])
+    axis.set_xlabel("Synthetic-event input SNR (dB; 3-dB bins)")
+    axis.set_ylabel("Target SI-SDR improvement (dB)")
+    axis.set_title("Annotation-clean DCLDE test: main 5-s setting", loc="left", fontweight="bold")
+    axis.grid(alpha=0.2)
+    axis.legend(frameon=False)
     save_figure(figure, path)
 
 
@@ -516,12 +682,14 @@ def reference_free_figure(path: Path, results_path: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", type=Path, default=Path("paper/figures"))
-    parser.add_argument("--conditioned-checkpoint", type=Path, default=Path("models/practical_film.pt"))
+    parser.add_argument("--conditioned-checkpoint", type=Path, default=Path("experiments/broad_film/best.pt"))
     parser.add_argument("--diversity-results", type=Path, default=Path("results/diversity_results.json"))
     parser.add_argument("--ablation-results", type=Path, default=Path("results/conditioning_ablation.json"))
     parser.add_argument("--real-results", type=Path, default=Path("results/real_audio_ablation.json"))
     parser.add_argument("--real-checkpoint", type=Path, default=Path("experiments/real_film/best.pt"))
     parser.add_argument("--real-baseline-checkpoint", type=Path, default=Path("experiments/real_none_film/best.pt"))
+    parser.add_argument("--main-checkpoint", type=Path, default=Path("models/practical_film.pt"))
+    parser.add_argument("--clean-baseline-checkpoint", type=Path, default=Path("experiments/dclde_bsr/best.pt"))
     parser.add_argument(
         "--window-results", type=Path, default=Path("results/window_resolution_results.json")
     )
@@ -531,7 +699,7 @@ def main() -> None:
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = parser.parse_args()
-    architecture_figure(args.output_dir / "architecture.png")
+    architecture_figure(args.output_dir / "architecture.pdf")
     conditioning_ablation_figure(
         args.output_dir / "conditioning_ablation.png", args.ablation_results
     )
@@ -540,6 +708,9 @@ def main() -> None:
         window_resolution_figure(args.output_dir / "window_resolution.pdf", args.window_results)
     if args.dclde_results.exists():
         reference_free_figure(args.output_dir / "dclde_reference_free.pdf", args.dclde_results)
+    clean_test_csv = Path("results/dclde_clean_synthetic_test.csv")
+    if clean_test_csv.exists():
+        clean_strength_figure(args.output_dir / "clean_background_strength.pdf", clean_test_csv)
     signal_figure(
         args.output_dir / "signal_visualization.png",
         args.conditioned_checkpoint,
@@ -550,9 +721,10 @@ def main() -> None:
     if args.real_results.exists() and args.real_checkpoint.exists():
         real_ablation_figure(args.output_dir / "real_audio_ablation.png", args.real_results)
         strength_sweep_figure(args.output_dir / "real_strength_sweep.pdf", args.real_results)
-        real_signal_figure(
-            args.output_dir / "real_audio_visualization.png", args.real_checkpoint,
-            args.real_baseline_checkpoint, args.data_root, args.device,
+    if args.main_checkpoint.exists() and args.clean_baseline_checkpoint.exists() and CLEAN_OCEAN_FEATURE_CACHE.exists():
+        clean_main_signal_figure(
+            args.output_dir / "real_audio_visualization.png", args.main_checkpoint,
+            args.clean_baseline_checkpoint, args.device,
         )
     print(f"wrote figures to {args.output_dir}")
 

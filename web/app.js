@@ -9,11 +9,12 @@ async function connect() {
     $('status').querySelector('span').textContent = `${data.checkpoint} · ${data.sample_rate} Hz`;
     $('variant').textContent = data.variant;
     $('device').textContent = data.device.toUpperCase();
+    $('subtitle').textContent = `${data.validation_scope} · 5 秒窗口 · 本机推理`;
     state.requiresHistory = data.requires_history;
     if (!state.requiresHistory) {
-      $('historyHelp').textContent = '当前最佳真实录音模型不需要历史 TOL；此项可留空。';
+      $('historyHelp').textContent = '当前无条件模型不需要历史背景；此项可留空。';
       $('historyMeta').textContent = '可选 · 仅供切换预测条件模型时使用';
-      $('subtitle').textContent = '真实连续海洋录音验证的 BS-RoFormer，本机完成分离。';
+      $('subtitle').textContent = '本机运行的海洋声分离模型。';
       $('forecastCard').classList.add('hidden');
     }
     ready();
@@ -26,11 +27,16 @@ function ready() { $('runButton').disabled = !(state.audio && (!state.requiresHi
 
 $('historyFile').addEventListener('change', async (event) => {
   const file = event.target.files[0];
-  if (!file) return;
-  state.history = await file.text();
-  const rows = state.history.trim().split(/\r?\n/).length - 1;
+  if (!file) { state.history = null; ready(); return; }
+  if (file.name.toLowerCase().endsWith('.csv')) {
+    state.history = { kind: 'csv', value: await file.text() };
+    const rows = state.history.value.trim().split(/\r?\n/).length - 1;
+    $('historyMeta').textContent = `${rows} 行 5 秒特征 · ${(file.size / 1024).toFixed(1)} KB`;
+  } else {
+    state.history = { kind: 'audio', value: await fileBase64(file) };
+    $('historyMeta').textContent = `历史 WAV · 自动使用末尾 60 秒 · ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+  }
   $('historyName').textContent = file.name;
-  $('historyMeta').textContent = `${rows} 行历史记录 · ${(file.size / 1024).toFixed(1)} KB`;
   ready();
 });
 
@@ -84,7 +90,10 @@ $('runButton').addEventListener('click', async () => {
   $('runButton').disabled = true;
   try {
     const audio_base64 = await fileBase64(state.audio);
-    const response = await fetch('/api/separate', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({audio_base64, history_csv: state.history}) });
+    const requestBody = { audio_base64 };
+    if (state.history?.kind === 'audio') requestBody.history_audio_base64 = state.history.value;
+    if (state.history?.kind === 'csv') requestBody.history_csv = state.history.value;
+    const response = await fetch('/api/separate', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(requestBody) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || '分离失败');
     state.urls.forEach(URL.revokeObjectURL); state.urls = [];

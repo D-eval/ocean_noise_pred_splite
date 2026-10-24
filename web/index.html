@@ -24,13 +24,13 @@
           <div class="step">01</div>
           <div id="historyCopy">
             <h2>历史声景</h2>
-            <p id="historyHelp">若模型需要背景预测，请上传至少 24 行 TOL 历史。</p>
+            <p id="historyHelp">上传当前时刻之前 60 秒、无标注事件或已清理的海洋录音 WAV，或上传已屏蔽事件的 12 行历史特征 CSV。</p>
           </div>
           <label class="dropzone" for="historyFile">
-            <input id="historyFile" type="file" accept=".csv,text/csv">
+            <input id="historyFile" type="file" accept="audio/wav,.wav,.csv,text/csv">
             <span class="drop-icon">CSV</span>
-            <strong id="historyName">选择历史 TOL</strong>
-            <small id="historyMeta">SanctSound 原始格式可直接使用</small>
+            <strong id="historyName">选择历史 WAV 或特征 CSV</strong>
+            <small id="historyMeta">历史 WAV 自动提取 30 个频带；CSV 需有 12 行</small>
           </label>
         </article>
 

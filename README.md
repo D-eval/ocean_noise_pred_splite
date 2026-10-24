@@ -46,7 +46,7 @@ python -m source.run_ablation --steps 1000 --batch-size 8 `
 python -m source.web
 ```
 
-打开 `http://127.0.0.1:8000`，上传至少 24 行历史 TOL CSV 和当前 WAV，即可试听、下载目标信号与海洋背景。浏览器数据只发送到本机后端。10 秒音频在 RTX 3060 上的端到端 RTF 为 0.043。
+打开 `http://127.0.0.1:8000`，上传当前 WAV，并提供 60 秒（12 个连续 5-s 窗）的干净历史背景 WAV，或至少 12 行 event-masked 历史特征 CSV（每行一个 5-s 窗），即可试听、下载目标信号与海洋背景。浏览器数据只发送到本机后端。端到端 RTF 取决于当前训练模型与硬件。
 
 输出保存在 `experiments/ablation/<variant>/`。模型权重被 `.gitignore` 排除；小型 JSON/CSV 指标可选择性纳入版本控制。总表 `ablation_summary.json` 给出两种条件相对无条件基线的配对 SI-SDRi 增益、bootstrap 95% 区间和逐样本胜率。
 
@@ -121,7 +121,7 @@ python -m source.window_resolution_experiment --window 600
 
 完整数字见 [results/window_resolution_results.json](results/window_resolution_results.json)，可缩放的矢量汇总图见 [paper/figures/window_resolution.pdf](paper/figures/window_resolution.pdf)，中英文论文已同步更新。
 
-## 真实标注事件与无参考评估
+## 早期事件数据实验（已被下方主设置与训练命令替代）
 
 DCLDE 2013 连续录音保存在 `data/dclde2013/`（约 2.3 GiB，已由 `.gitignore` 排除）。实验按录音日划分数据，用确定的露脊鲸上扫声作正样本；“干净背景”会排除确定及不确定事件前后 2 秒。训练阶段只把合成上扫声加入干净真实海洋片段，真实事件只用于最终无参考评估。
 
@@ -133,5 +133,31 @@ python -m source.dclde_separation_experiment --steps 2500 `
 ```
 
 冻结分类器在按日留出的测试集上达到 AUROC `0.9704`、AP `0.9738`、F1 `0.9196`。严格因果条件由当前片段之前的八个 8 秒窗构成；预测器的验证 MAE 为 `1.921 dB`，优于一步持续性基线的 `2.081 dB`（改善 `7.67%`）。无条件 BS-RoFormer 与 FC-BSR 使用相同真实干净背景、合成上扫声、随机种子、分离器初值、训练步数和验证选模规则，验证 SI-SDRi 分别为 `13.871` 和 `13.925 dB`。
+
+## 当前主实验：事件掩蔽历史与标注干净背景
+
+主设置固定为 **5 s + 12 个事件掩蔽历史 5-s 特征 + GRU + FiLM + BS-RoFormer**。每个样本是 `(H_t, N_t, s_t, x_t)`：`H_t` 是当前窗前连续 60 s 的 5-s 特征序列，历史中排除已标注事件及两侧 2 s；`N_t` 是真实、标注无事件的当前 5 s 片段；`s_t` 是海洋感知合成事件；`x_t=N_t+s_t`。分离器只接收 `x_t,H_t`，以 `s_t` 为监督目标，背景输出由混合一致性残差得到。按录音日隔离后，146.4 h 原始干净当前窗经过连续历史筛选，94.5 h 可用于主实验，其中训练/验证/测试为 37.3/9.7/47.6 h。
+
+重建事件掩蔽历史特征并训练预测器、无条件基线和主 FC-BSR：
+
+```powershell
+python -m source.dclde_separation_experiment --forecast-steps 5000 --separation-steps 10000 --batch-size 4 --device cuda
+```
+
+分离模型每个条件最多训练 10,000 次更新、至少 5,000 次，并依据固定验证集早停及选取 checkpoint；预测器最多 5,000 次更新、至少 2,500 次。正式比较使用相同留出日、相同 `(N_t,s_t)` 测试样本。其它 FiLM/拼接/交叉注意力、时间尺度、SanctSound TOL 和未标注 WAV 强度实验均为消融，不是主证据。
+
+训练完成后生成论文图和强度结果曲线：
+
+```powershell
+python -m source.make_paper_figures
+```
+
+随后从仓库根目录运行本地实用前端（默认加载主模型）：
+
+```powershell
+python -m source.web
+```
+
+浏览器打开 `http://127.0.0.1:8000`。前端接受当前混合 WAV，以及此前 60 秒干净历史 WAV（自动提取特征）或至少 12 行事件掩蔽特征 CSV；模型文件为 `models/practical_film.pt`。历史 WAV 应由用户确保无事件或预先清理，不能把含鲸声的历史当作训练定义中的干净先验。
 
 在两种模型共同可用的 1225 个按日留出的真实事件片段上，输入事件概率均为 `0.855`。BS-RoFormer/FC-BSR 的背景声轨事件概率为 `0.523/0.507`，事件声轨概率为 `0.901/0.901`，恢复单调率为 `98.61%/98.50%`，区间外相对改动为 `9.56%/10.22%`。按三个独立录音日做配对 bootstrap 后，FC-BSR 相对基线的背景事件概率差为 `−0.0160`（95% CI `−0.0210` 至 `−0.0132`），而区间外改动增加 `0.0066`（`0.0033` 至 `0.0078`）。因此预测条件确实加强了真实鲸声的语义移除、没有削弱事件声轨证据，但伴随小而一致的背景保真代价，不能表述为无条件胜出。恒等输出和“全部归入事件”两个退化对照也同时报告。训练摘要见 [results/dclde_training_results.json](results/dclde_training_results.json)，完整评估见 [results/dclde_real_event_results.json](results/dclde_real_event_results.json)，逐样本数据见 [results/dclde_real_event_results.csv](results/dclde_real_event_results.csv)，矢量图见 [paper/figures/dclde_reference_free.pdf](paper/figures/dclde_reference_free.pdf)。引用文献 PDF 与目录说明位于 [ref](ref)。
