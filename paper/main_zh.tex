@@ -18,10 +18,13 @@
 本文固定一个主模型设置：GRU 预测器、FiLM 条件注入、BS-RoFormer 分离器和 5 秒窗口。
 每个完全监督样本为 $(H_t,N_t,s_t,x_t)$：屏蔽已标注鲸声的连续 12 个先前 5 秒特征、标注干净的真实当前
 5 秒海洋录音、合成海洋事件及其精确混合。现有录音提供 146.4 小时的干净当前背景，其中训练集
-有 37.3 小时可用于训练。预测器在 5 秒分辨率上训练，验证 MAE 从 persistence 的 2.111 降至 1.926 dB（8.8\%）。在 4,096 个标注干净背景测试混合上，FC-BSR 的 SI-SDRi 比无条件模型低 0.134 dB，95\% 区间跨零。
-其他条件注入方法只作为消融。
-在无法获得隔离声轨的真实事件上，冻结的事件分类器未显示 FC-BSR 相比匹配的无条件模型有明确
-语义优势。因此，本文支持在标注干净背景上的完全监督分离，但对预测先验能否改善未知真实事件保持谨慎。
+有 37.3 小时可用于训练。预测器在 5 秒分辨率上训练，验证 MAE 从 persistence 的 2.111 降至 1.926 dB（8.8\%）。
+在 4,096 个留出混合上的六路匹配实验中，真正的 BS-RoFormer 与 Zero-FiLM 均为 9.631 dB SI-SDRi，
+GRU-Forecast FiLM 为 9.497 dB，使用实际当前 $E(N_t)$ 的 Oracle-FiLM 为 9.535 dB。
+Oracle 相对 BS-RoFormer 为 $-0.096$ dB，按日期分块的 95\% 区间 $[-0.238,0.034]$；
+因此当前 30 维条件没有显示明确平均收益。其他注入方式仅作为消融。
+在没有隔离声轨的真实事件上，冻结分类器也未显示 FC-BSR 相比零条件 FiLM 有明确语义优势。
+本文支持标注干净背景上的完全监督分离，但现有 30 维预测条件与 FiLM 接口的分离增益尚未确立。
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -49,7 +52,7 @@ FiLM、交叉注意力与跨模态分离\cite{perez2018film,vaswani2017attention
 本文贡献为：（1）FC-BSR 的唯一主设置为 GRU+FiLM+BS-RoFormer、5 秒窗口；
 \footnote{代码与复现实验说明：\url{https://github.com/D-eval/ocean_noise_pred_splite}。}
 （2）构造事件掩蔽历史和标注干净当前背景上的完全监督样本；（3）提出覆盖鲸声扫频与船噪过程的
-13 类海洋感知信号生成器；（4）在未修改真实鲸声事件上直接比较 FC-BSR 与 BS-RoFormer。
+13 类广分布信号生成器，主 DCLDE 实验使用其中 5 类鲸声和 2 类船噪；（4）在未修改真实鲸声事件上直接比较 FC-BSR 与零条件 FiLM。
 TOL、条件机制、时间尺度和未标注背景强度实验均作为消融，不混同于主结果。
 
 \section{方法}
@@ -73,6 +76,13 @@ BS-RoFormer 将混合 STFT 映射为子带 token $X_k$。在轴向 Transformer �
 所有残差条件分支均从恒等映射开始。损失结合波形 $L_1$ 与多分辨率复数 STFT；仅 TOL 代理实验
 加入 $0.2\|\widehat S_t-S_t\|_1$。真实波形实验在训练分离器前冻结预测器。
 
+主数据域的信息审计固定骨干、混合样本、初始化和训练规则。真正无条件的 BS-RoFormer 绕过条件注入；
+Zero-FiLM 保留 FiLM 分支与同一冻结 GRU，但用 $c=0$ 替换其输出。Shuffled-FiLM 将同一划分内的干净时窗索引错开半个周期，
+取得另一时窗的 $E(N_j)$；留出测试中该窗来自另一录音日。
+Persistence-FiLM 使用最后一个历史频谱 $S_{t-1}$，Forecast-FiLM 使用冻结 GRU 的预测。
+Oracle-FiLM 使用 $S_t^{\mathrm{oracle}}=E(N_t)$，其中 $N_t$ 是当前样本实际采用的干净背景波形，
+包含极少数混合峰值归一化后的幅度。Oracle 只作为受控实验中的信息上限诊断。
+
 \begin{figure*}[t]
 \centering
 \includegraphics[width=.94\textwidth]{figures/architecture.pdf}
@@ -82,7 +92,7 @@ BS-RoFormer 骨干；事件声轨使用合成真值监督，背景估计为混�
 \end{figure*}
 
 \subsection{海洋感知合成信号分布}
-生成器包含 13 类：谐波、线性啁啾、非谐波、脉冲列、调频音、带限噪声、鲸声上扫、下扫、拱形、
+广分布生成器包含 13 类：谐波、线性啁啾、非谐波、脉冲列、调频音、带限噪声、鲸声上扫、下扫、拱形、
 S 形、脉冲包、船舶音调和船舶空化。鲸声代理由 1--3 个局部事件组成，随机改变时长、曲率、
 分音、渐入渐出与抖动。船舶音调和窄带空化分量以 0.8 概率采用 5--20 Hz 低频振荡器（LFO）
 音量包络；宽带分量不做该调制。训练 SNR 在 $[-18,12]$ dB 均匀抽样。这些代理用于覆盖轮廓和
@@ -90,6 +100,7 @@ S 形、脉冲包、船舶音调和船舶空化。鲸声代理由 1--3 个局部
 
 频谱位移同时用方向性 $D_{\rm KL}(p\|q)$ 和有限对称 JS 散度\cite{lin1991divergence}衡量，
 另报告频谱熵与信号--海洋频谱重叠。更大的 KL/JS 只代表覆盖范围更广，不等价于语义多样性。
+主 DCLDE 实验仅从其中 5 类鲸声和 2 类船噪抽样，六组模型使用同一目标分布。
 
 \subsection{主数据构造与消融协议}
 主数据由按日期隔离的 2-kHz DCLDE 2013 录音及鲸声标注组成\cite{gillespie2019dclde,shiu2020marine}。
@@ -97,7 +108,7 @@ S 形、脉冲包、船舶音调和船舶空化。鲸声代理由 1--3 个局部
 每个当前窗使用同一 WAV 中紧邻其前的 12 个 5 秒块作为历史；只有 12 块均在事件与保护区之外时，
 该当前窗才纳入样本。这样不做小时平均，也不跨 WAV 文件边界构造历史。筛选后共 94.5 小时符合条件，
 训练/验证/测试分别为 37.3/9.7/47.6 小时。
-每个当前背景 $N_t$ 与 13 类合成事件 $s_t$ 相加得到 $x_t=N_t+s_t$。模型输入只有 $x_t,H_t$，
+每个当前背景 $N_t$ 与上述 7 类海洋合成事件 $s_t$ 相加得到 $x_t=N_t+s_t$。模型输入只有 $x_t,H_t$，
 而 $N_t,s_t$ 是监督真值。主设置固定为 GRU+FiLM+BS-RoFormer、5 秒和 12 个先前 5 秒历史窗。
 
 次级消融采用 NOAA--Navy SanctSound 小时级 TOL 产品\cite{noaa2020sanctsound}。MB03 部署
@@ -137,33 +148,44 @@ FiLM 在五类鲸声代理上的增益依次为 0.869、0.835、0.919、0.906 �
 
 \subsection{主结果：标注干净真实背景上的合成事件}
 主 FC-BSR 固定为 FiLM+5 秒+GRU+BS-RoFormer，并使用上述事件掩蔽历史及标注干净的真实当前背景；训练集有 37.3 小时可用干净背景。
-表\ref{tab:cleanmain}在按日期留出的测试集上比较它与无条件 BS-RoFormer。两者共享相同的干净背景、
-合成事件分布、训练初始化、优化预算和验证选点；仅 FC-BSR 接收 GRU 预测条件。测试事件由生成器
-独立抽样，因而目标声轨和背景声轨均有精确真值。图\ref{fig:cleanstrength}按注入 SNR 分层展示
-配对 SI-SDRi，所有点均来自相同的留出干净背景与主设置。4,096 个配对样本上，FC-BSR 的 SI-SDRi 为 9.497 dB，
-略低于无条件 BS-RoFormer 的 9.631 dB；配对差为 $-0.134$ dB，按留出日期分块的 95\% 区间为 $[-0.320,0.125]$，
-因此全局平均差异不能与零区分。
+旧两路结果把零条件 FiLM 检查点误称为无条件 BS-RoFormer；本实验将它按实际结构重新标注，
+在附上同一冻结 GRU 后确认波形输出完全一致，另行训练真正跳过条件注入的 BS-RoFormer。
+表\ref{tab:cleanmain}中的六路共用相同混合样本、骨干迁移初始化、优化预算、验证选点，
+并在三个留出录音日的 4,096 个样本上逐例核对 ID、SNR 与混合基准分数。
+图\ref{fig:cleanstrength}展示这些样本按注入 SNR 分组后的曲线。
 
-\begin{table}[t]
-\caption{主实验：留出日期的干净真实背景与合成事件全参考测试（dB）。}
+结构效应 Zero−BS-RoFormer 为 $-0.0002$ dB（95\% 区间 $[-0.0068,0.0088]$）。
+Forecast−BS-RoFormer 为 $-0.134$ dB（$[-0.327,0.125]$），
+Oracle−BS-RoFormer 为 $-0.096$ dB（$[-0.238,0.034]$）；
+Oracle−Forecast 仅为 $+0.039$ dB（$[-0.090,0.155]$）。
+错时与 persistence 条件相对 Zero 也没有显示正的平均收益。
+Oracle 的验证 SI-SDRi 比 BS-RoFormer 高（11.372 对 10.946 dB），但没有形成明确的留出优势。
+三个测试录音日使小效应仍未确定；Oracle 拥有更丰富的真实信息，然而独立优化的 FiLM 模型
+不必按信息量形成性能排序。
+
+\begin{table*}[t]
+\caption{主域 DCLDE：4,096 个匹配的标注干净 5 秒背景与合成事件。数值为目标 SI-SDRi（dB）；
+方括号是按留出录音日配对 bootstrap 的 95\% 区间。只有 Oracle 使用 $E(N_t)$。}
 \label{tab:cleanmain}\centering\footnotesize
-\resizebox{\columnwidth}{!}{%
-\begin{tabular}{lrrr}
+\begin{tabular}{lrrrr}
 \toprule
-模型 & SI-SDRi & 目标 SI-SDR & 背景 SI-SDR\\
+模型 & 验证 & 测试 & 相对 BSR $\Delta$ [95\% 区间] & 相对 Zero $\Delta$ [95\% 区间]\\
 \midrule
-BS-RoFormer & 9.631 & 6.479 & 10.061\\
-FC-BSR（GRU+FiLM） & 9.497 & 6.345 & 10.155\\
+BS-RoFormer &10.946&9.631&0&$+0.0002\;[-0.009,0.007]$\\
+Zero-condition FiLM &10.967&9.631&$-0.0002\;[-0.007,0.009]$&0\\
+Shuffled-condition FiLM &10.609&9.526&$-0.105\;[-0.247,0.020]$&$-0.105\;[-0.256,0.026]$\\
+Persistence-condition FiLM &11.205&9.524&$-0.107\;[-0.239,0.083]$&$-0.107\;[-0.232,0.084]$\\
+GRU-Forecast FiLM (FC-BSR) &11.213&9.497&$-0.134\;[-0.327,0.125]$&$-0.134\;[-0.320,0.125]$\\
+Oracle-FiLM, $E(N_t)$ &11.372&9.535&$-0.096\;[-0.238,0.034]$&$-0.095\;[-0.231,0.035]$\\
 \bottomrule
 \end{tabular}
-}%
-\end{table}
+\end{table*}
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{figures/clean_background_strength.pdf}
-\caption{标注干净 DCLDE 背景上的主全参考实验。横轴为合成事件强度，纵轴为目标 SI-SDRi；
-比较匹配的 BS-RoFormer 与 FC-BSR 主设置，区间按录音日期分块。}
+\caption{标注干净 DCLDE 背景上的主全参考实验：六路匹配模型按 3-dB 输入 SNR 分组的
+目标 SI-SDRi 均值。总体平均的日期分块区间见表\ref{tab:cleanmain}。}
 \label{fig:cleanstrength}
 \end{figure}
 
@@ -188,8 +210,9 @@ FC-BSR（GRU+FiLM） & 9.497 & 6.345 & 10.155\\
 \end{tabular}
 \end{table}
 
-另一个未标注 WAV 消融在 1152 个配对测试混合上比较 BS-RoFormer、当前真值频谱 oracle、因果
-预测和错时条件。跨训练 SNR 平均后，基线为 23.470 dB，Forecast-FC-BSR 为 22.871 dB
+另一个未标注 SanctSound WAV 消融在 1152 个配对测试混合上比较零条件 FiLM、当前真值频谱 oracle、因果
+预测和错时条件。这里的 oracle 属于次级数据域；表\ref{tab:cleanmain} 中的主域 Oracle 使用标注干净 DCLDE 的实际 $N_t$。
+跨训练 SNR 平均后，零条件 FiLM 为 23.470 dB，Forecast-FC-BSR 为 22.871 dB
 （$\Delta=-0.599$，区间 $[-0.851,-0.346]$），oracle 平均值也更低。这暴露了简单分辨率诊断
 没有显示的条件化/容量影响。图\ref{fig:strength}进一步表明：在 $-18,-15,-12,-9,-6$ dB，
 预测条件分别提高 0.728、0.643、0.525、0.366、0.157 dB；从 $-3$ dB 开始转为落后。错时条件
@@ -206,8 +229,9 @@ FC-BSR（GRU+FiLM） & 9.497 & 6.345 & 10.155\\
 \begin{figure*}[t]
 \centering
 \includegraphics[width=.98\textwidth]{figures/real_audio_visualization.pdf}
-\caption{标注干净 DCLDE 背景中按组内中位数选择的鲸声脉冲包示例（$-12$ dB，5 秒）。所有频谱共用以混合峰值为参照的色标；
-总体强度结果见图\ref{fig:cleanstrength}。}
+\caption{标注干净 DCLDE 背景中按组内中位数选择的鲸声脉冲包示例（$-12$ dB，5 秒）。
+海洋背景和混合声音共用绝对幅度色标；下排三张事件声轨图共用相对真实背景幅度的 dB 色标。
+两种估计均未彻底去除背景纹理；总体强度结果见图\ref{fig:cleanstrength}。}
 \label{fig:example}
 \end{figure*}
 
@@ -233,7 +257,7 @@ all-to-event 排除平凡解，标注区间外变化审计背景保留。
 \toprule
 方法 &$p(x)$&$p(\hat N)\downarrow$&$p(\hat s)\uparrow$&单调率$\uparrow$&区间外$\downarrow$\\
 \midrule
-BS-RoFormer&.909&.786&.900&.937&.230\\
+零条件 FiLM&.909&.786&.900&.937&.230\\
 FC-BSR&.909&.713&.902&.955&.206\\
 \bottomrule
 \end{tabular}
@@ -243,23 +267,25 @@ FC-BSR&.909&.713&.902&.955&.206\\
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{figures/dclde_reference_free.pdf}
-\caption{无参考恢复曲线与背景保留审计。两种模型都进行了非平凡语义分离，但 FC-BSR 在真实事件上
+\caption{零条件 FiLM 与 FC-BSR 的无参考恢复曲线及背景保留审计。两种模型都进行了非平凡语义分离，但 FC-BSR 在真实事件上
 没有全面胜出。}
 \label{fig:real}
 \end{figure}
 
 \section{讨论与结论}
-证据支持的结论比初始假设更窄：在标注干净主测试中，FC-BSR 没有提高平均 SI-SDRi，且 95\% 区间跨零。
-FiLM 是受控真值下最佳的条件接口；未标注 WAV 的次级强度消融中，
-先验对弱目标有帮助，但该观察不能替代标注干净主实验。其收益也并不普遍：信号增强后增益反转，
-oracle 也未改善该消融的平均值，且未修改鲸声上没有显示
-预测条件优势尚不确定。四种预测分辨率中还有三种由 persistence 获胜。这些负对照很关键：它们区分了
-“背景信息存在价值”与“当前架构总能利用该信息”。
+主域 Oracle 是决定性的诊断：FiLM 即使得到当前实际干净波形的 $E(N_t)$，
+留出平均值仍未超过无条件 BS-RoFormer，且配对区间跨零。
+Zero-FiLM 与无条件骨干几乎重合，Forecast 也没有超过 Zero 或 Shuffled 的明确证据。
+因此不能把预测误差单独认定为瓶颈；5 秒静态 30 维频带摘要与 FiLM 接口
+可能不足以对齐分离器的时频 token。FiLM 在频谱代理消融中仍是最好的接口，
+未标注 WAV 强度消融也显示弱目标收益，但两者都不能证明主域增益。
+未修改鲸声上的预测优势也不明确；主测试只有三个留出录音日，小效应或站点差异仍可能存在。
 
-本地前端可用于实验检查：在已准备历史特征的 CPU 冒烟测试中，单个 5 秒块 RTF 为 0.014；界面可显示预测并试听、下载两条估计声轨，但这不等于野外部署。后续应根据预测不确定性选择性启用条件，覆盖多站点、多季节，并为真实
-事件获取隔离声轨或更强局部参考。分类器恢复曲线是语义迁移证据，不能替代波形保真真值。
+本地前端可用于实验检查：在已准备历史特征的 CPU 冒烟测试中，单个 5 秒块 RTF 为 0.014；界面可显示预测并试听、下载两条估计声轨，但这不等于野外部署。
+下一步值得检验的是当前混合声音相对预测背景的时频创新图，而非仅使用静态频带均值；
+还应覆盖更多站点和季节，为真实事件获取隔离声轨或更强局部参考。
+分类器恢复曲线是语义迁移证据，不能替代波形保真真值。
 
-\clearpage
 \balance
 \bibliographystyle{IEEEtran}
 \bibliography{reference}

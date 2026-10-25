@@ -2,7 +2,8 @@
   "protocol": {
     "test_examples": 103,
     "split": "three held-out recording days",
-    "comparison": "paired BS-RoFormer versus FC-BSR on identical eligible real events",
+    "comparison": "paired Zero-condition FiLM versus GRU-Forecast FiLM on identical eligible real events",
+    "legacy_bs_roformer_key": "the bs_roformer key is a none_film checkpoint, not a true no-FiLM BSR",
     "history": "12 strictly preceding 5-s 30-band features; annotated call intervals and 2-s guards are excluded",
     "separator_training": "real annotation-clean 5-s ocean + identical whale-sweep and vessel proxies",
     "real_event_source_gt": false,

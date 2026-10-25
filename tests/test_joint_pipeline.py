@@ -10,7 +10,7 @@ import unittest
 
 from source.data import SpectrumNormaliser, eligible_origins
 from source.dclde import _log_band_features, recording_start
-from source.dclde_separation_experiment import render_marine_training_target, render_upcalls
+from source.dclde_separation_experiment import InjectedUpcallDataset, render_marine_training_target, render_upcalls
 from source.inference import SeparationEngine
 from source.metrics import (
     jensen_shannon_bits,
@@ -100,6 +100,67 @@ class JointPipelineTests(unittest.TestCase):
         quiet = _log_band_features(waveform)
         loud = _log_band_features(2.0 * waveform)
         np.testing.assert_allclose(loud - quiet, 20.0 * np.log10(2.0), atol=1e-4)
+
+    def test_oracle_is_extracted_from_current_clean_stem(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "ocean.wav"
+            audio = np.random.default_rng(9).normal(0.0, 0.01, 20000).astype(np.float32)
+            sf.write(path, audio, 2000, subtype="FLOAT")
+            frame = pd.DataFrame([
+                {"path": str(path), "split": "train", "label": 0, "day": "day-1",
+                 "start_seconds": start, "duration_seconds": 5.0, "event_intervals": "[]"}
+                for start in (0.0, 5.0)
+            ])
+
+            class Store:
+                mean = np.zeros(30, dtype=np.float32)
+                scale = np.ones(30, dtype=np.float32)
+                bands = 30
+
+                def __init__(self):
+                    self.frame = frame
+
+                def indices(self, split, label):
+                    return np.array([0, 1])
+
+                def normalized_history(self, index):
+                    return np.zeros((12, 30), dtype=np.float32)
+
+                def normalized_target(self, index):
+                    return _log_band_features(audio[index * 10000:(index + 1) * 10000])[0]
+
+            dataset = InjectedUpcallDataset(Store(), "train", 2, seed=23,
+                                            snr_range=(-12.0, -12.0))
+            item = dataset[0]
+            np.testing.assert_allclose(
+                item["target_spectrum"].numpy(),
+                _log_band_features(item["ocean"].numpy())[0], atol=1e-5,
+            )
+            np.testing.assert_allclose(
+                item["mixture"].numpy(),
+                item["ocean"].numpy() + item["source"].numpy(), atol=1e-6,
+            )
+            self.assertGreater(float((item["target_spectrum"] - item["shuffled_spectrum"]).abs().mean()), 0.01)
+
+    def test_true_bsr_and_zero_film_start_from_the_same_waveform_mapping(self):
+        kwargs = dict(spectrum_dim=30, latent_dim=16, initialization_seed=19,
+                      model_dim=32, depth=2, heads=4, dim_head=8,
+                      n_fft=256, hop_length=64, bands=20)
+        plain = ForecastConditionedSeparator(variant="bsr", **kwargs).eval()
+        zero = ForecastConditionedSeparator(variant="none_film", **kwargs).eval()
+        exact_zero = ForecastConditionedSeparator(variant="zero_film", **kwargs).eval()
+        self.assertIsNotNone(exact_zero.forecaster)
+        audio = torch.from_numpy(np.random.default_rng(3).normal(0, .01, 10000).astype(np.float32))[None]
+        history = torch.zeros(1, 12, 30)
+        with torch.inference_mode():
+            np.testing.assert_allclose(
+                plain(audio, history)["estimate"].numpy(),
+                zero(audio, history)["estimate"].numpy(), atol=1e-6,
+            )
+            np.testing.assert_allclose(
+                zero(audio, history)["estimate"].numpy(),
+                exact_zero(audio, history)["estimate"].numpy(), atol=1e-6,
+            )
 
     def test_subhour_band_power_finds_tone_and_aggregates_windows(self):
         rate = 8000
@@ -320,7 +381,7 @@ class JointPipelineTests(unittest.TestCase):
 
     def test_frontend_accepts_native_tol_header_spacing(self):
         engine = SeparationEngine.__new__(SeparationEngine)
-        engine.context_hours = 2
+        engine.history_steps = 2
         engine.columns = ["TOL_25", "TOL_31.5"]
         engine.mean = np.array([100.0, 90.0], dtype=np.float32)
         engine.scale = np.array([10.0, 5.0], dtype=np.float32)

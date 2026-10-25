@@ -286,7 +286,7 @@ def real_signal_figure(
         (ocean, "Real current ocean WAV"),
         (mixture, f"Mixture (target at {item['snr_db']:+.0f} dB)"),
         (source, "Synthetic target GT"),
-        (baseline_estimate, "BS-RoFormer target"),
+        (baseline_estimate, "Zero-condition FiLM target"),
         (estimate, "FC-BSR target"),
     )):
         axis = figure.add_subplot(grid[1, column])
@@ -303,7 +303,7 @@ def real_signal_figure(
     frequencies = np.fft.rfftfreq(length, 1 / int(config["sample_rate"]))
     for audio, label, color in (
         (source, "synthetic target GT", COLORS["gold"]),
-        (baseline_estimate, "BS-RoFormer", COLORS["navy"]),
+        (baseline_estimate, "Zero-condition FiLM", COLORS["navy"]),
         (estimate, "FC-BSR", COLORS["coral"]),
     ):
         power = 20 * np.log10(np.maximum(np.abs(np.fft.rfft(audio * np.hanning(length))), 1e-6))
@@ -312,7 +312,7 @@ def real_signal_figure(
     improvement = float(si_sdr(torch.from_numpy(estimate), torch.from_numpy(source))) - mixture_score
     baseline_improvement = float(si_sdr(torch.from_numpy(baseline_estimate), torch.from_numpy(source))) - mixture_score
     spectrum_axis.set_title(
-        f"Spectra · 5-s input at {item['snr_db']:+.1f} dB · SI-SDRi: BS-RoFormer {baseline_improvement:+.2f}, FC-BSR {improvement:+.2f} dB",
+        f"Spectra · 5-s input at {item['snr_db']:+.1f} dB · SI-SDRi: Zero FiLM {baseline_improvement:+.2f}, FC-BSR {improvement:+.2f} dB",
         loc="left", fontweight="bold",
     )
     spectrum_axis.set_xlabel("Frequency (kHz)")
@@ -333,7 +333,7 @@ def clean_main_signal_figure(
     model, config = load_checkpoint(checkpoint_path, device)
     if int(config["sample_rate"]) != DCLDE_SAMPLE_RATE or float(config["seconds"]) != 5.0:
         raise ValueError("the main-setting illustration requires the 5-s DCLDE checkpoint")
-    baseline = _make_model("none_film", len(config["spectrum_columns"]), int(config["seed"]), device)
+    baseline = _make_model("bsr", len(config["spectrum_columns"]), int(config["seed"]), device)
     baseline_checkpoint = torch.load(baseline_checkpoint_path, map_location=device, weights_only=False)
     baseline.load_state_dict(baseline_checkpoint["model"])
     baseline.eval()
@@ -372,10 +372,6 @@ def clean_main_signal_figure(
     ]
     shared_length = min(map(len, arrays))
     arrays = [audio[:shared_length] for audio in arrays]
-    names = [
-        "N_t: clean real ocean", "x_t = N_t + s_t", "s_t: synthetic-event GT",
-        "BS-RoFormer estimate", "FC-BSR estimate",
-    ]
     maps = []
     freq_ref = time_ref = None
     for audio in arrays:
@@ -387,15 +383,19 @@ def clean_main_signal_figure(
         keep = (frequencies >= 50.0) & (frequencies <= 450.0)
         maps.append(db[keep])
         freq_ref, time_ref = frequencies[keep], times
-    # A shared physical scale, referenced to the mixture peak, prevents any
-    # one panel from being independently normalized and overstating the stem.
-    vmax = float(np.max(maps[1]))
-    # Keep one absolute scale across every bottom panel, but expose the weak
-    # injected stem at -12 dB instead of clipping it into near-black.
-    vmin = vmax - 80.0
+    # The absolute ocean/mixture pair uses one physical scale.  The lower row
+    # uses event-to-ocean contrast, again with one common scale: at -12 dB
+    # input SNR the stems are invisible on the ocean's absolute dB scale.
+    ocean_magnitude = np.power(10.0, maps[0] / 20.0)
+    contrast_maps = [
+        20.0 * np.log10((np.power(10.0, values / 20.0) + 1e-8) / (ocean_magnitude + 1e-8))
+        for values in maps[2:]
+    ]
+    absolute_vmin, absolute_vmax = np.percentile(maps[1], [2.0, 99.5])
+    contrast_vmin, contrast_vmax = -30.0, 15.0
 
-    figure = plt.figure(figsize=(13.0, 6.5), constrained_layout=True)
-    grid = figure.add_gridspec(2, 6, height_ratios=(0.86, 1.5))
+    figure = plt.figure(figsize=(12.6, 7.9), constrained_layout=True)
+    grid = figure.add_gridspec(3, 6, height_ratios=(0.75, 1.0, 1.0))
     history_axis = figure.add_subplot(grid[0, :4])
     history_db = item["history"].numpy() * store.scale + store.mean
     history_image = history_axis.imshow(
@@ -417,20 +417,39 @@ def clean_main_signal_figure(
     forecast_axis.set_yticks([])
     forecast_axis.legend(frameon=False, fontsize=8)
 
-    axes = []
-    for column, (name, values) in enumerate(zip(names, maps, strict=True)):
-        axis = figure.add_subplot(grid[1, column : column + 1])
-        mesh = axis.pcolormesh(
+    absolute_axes = []
+    for column, (name, values) in enumerate((
+        ("Actual current ocean $N_t$", maps[0]),
+        ("Mixture $x_t=N_t+s_t$", maps[1]),
+    )):
+        axis = figure.add_subplot(grid[1, 3 * column : 3 * (column + 1)])
+        absolute_mesh = axis.pcolormesh(
             time_ref, freq_ref, values, shading="auto", cmap="magma",
-            vmin=vmin, vmax=vmax,
+            vmin=absolute_vmin, vmax=absolute_vmax,
         )
-        axis.set_title(name, fontsize=9.1, fontweight="bold")
+        axis.set_title(name, fontsize=10, fontweight="bold")
         axis.set_xlabel("Time (s)")
+        axis.set_ylabel("Frequency (Hz)" if column == 0 else "")
         axis.set_ylim(50, 450)
-        if column == 0:
-            axis.set_ylabel("Frequency (Hz)")
-        axes.append(axis)
-    figure.colorbar(mesh, ax=axes, label="Magnitude (dB re mixture peak)", pad=0.012, shrink=0.9)
+        absolute_axes.append(axis)
+    figure.colorbar(absolute_mesh, ax=absolute_axes, label="Magnitude (dB)", pad=0.012, shrink=0.86)
+    contrast_axes = []
+    for column, (name, values) in enumerate(zip(
+        ("Synthetic event GT", "BS-RoFormer event", "FC-BSR event"),
+        contrast_maps, strict=True,
+    )):
+        axis = figure.add_subplot(grid[2, 2 * column : 2 * (column + 1)])
+        contrast_mesh = axis.pcolormesh(
+            time_ref, freq_ref, values, shading="auto", cmap="coolwarm",
+            vmin=contrast_vmin, vmax=contrast_vmax,
+        )
+        axis.set_title(name, fontsize=10, fontweight="bold")
+        axis.set_xlabel("Time (s)")
+        axis.set_ylabel("Frequency (Hz)" if column == 0 else "")
+        axis.set_ylim(50, 450)
+        contrast_axes.append(axis)
+    figure.colorbar(contrast_mesh, ax=contrast_axes,
+                    label="Event magnitude / true ocean (dB)", pad=0.012, shrink=0.86)
     mixture_score = float(si_sdr(torch.from_numpy(arrays[1]), torch.from_numpy(arrays[2])))
     base_gain = float(si_sdr(torch.from_numpy(arrays[3]), torch.from_numpy(arrays[2]))) - mixture_score
     fc_gain = float(si_sdr(torch.from_numpy(arrays[4]), torch.from_numpy(arrays[2]))) - mixture_score
@@ -447,7 +466,7 @@ def strength_sweep_figure(path: Path, results_path: Path) -> None:
     """Plot all real-background model settings across fixed input SNR."""
     results = json.loads(results_path.read_text(encoding="utf-8"))
     variants = ("none_film", "oracle_film", "film", "shuffled_film")
-    labels = ("BS-RoFormer", "Oracle-FC-BSR", "Forecast-FC-BSR", "Shuffled-FC-BSR")
+    labels = ("Zero-condition FiLM", "Oracle-FC-BSR", "Forecast-FC-BSR", "Shuffled-FC-BSR")
     colors = (COLORS["navy"], COLORS["mint"], COLORS["coral"], COLORS["gold"])
     markers = ("o", "s", "D", "^")
     figure, axis = plt.subplots(figsize=(7.2, 4.3), constrained_layout=True)
@@ -461,7 +480,7 @@ def strength_sweep_figure(path: Path, results_path: Path) -> None:
         axis.fill_between(snr, interval[:, 0], interval[:, 1], color=color, alpha=0.10)
     axis.set_xlabel("Synthetic-target input SNR (dB)")
     axis.set_ylabel("Target SI-SDR improvement (dB)")
-    axis.set_title("Real ocean background · 5-s separation windows", loc="left", fontweight="bold")
+    axis.set_title("Unlabeled SanctSound ablation · 5-s windows", loc="left", fontweight="bold")
     axis.grid(alpha=0.18)
     axis.spines[["top", "right"]].set_visible(False)
     axis.legend(frameon=False, ncol=2, fontsize=8)
@@ -477,7 +496,7 @@ def clean_strength_figure(path: Path, results_path: Path) -> None:
     figure, axis = plt.subplots(figsize=(7.2, 4.3), constrained_layout=True)
     rng = np.random.default_rng(20261024)
     for metric, label, color, marker in (
-        ("baseline_si_sdri_db", "BS-RoFormer", COLORS["navy"], "o"),
+        ("baseline_si_sdri_db", "Zero-condition FiLM", COLORS["navy"], "o"),
         ("fc_bsr_si_sdri_db", "FC-BSR (GRU + FiLM)", COLORS["coral"], "D"),
     ):
         means, lows, highs = [], [], []
@@ -503,10 +522,48 @@ def clean_strength_figure(path: Path, results_path: Path) -> None:
     save_figure(figure, path)
 
 
+def main_oracle_strength_figure(path: Path, result_path: Path) -> None:
+    """One matched DCLDE SNR sweep with all six main-domain conditions."""
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    with result_path.with_name(result_path.stem + "_samples.csv").open(
+        encoding="utf-8", newline=""
+    ) as stream:
+        rows = list(csv.DictReader(stream))
+    snr = np.asarray([float(row["snr_db"]) for row in rows])
+    styles = {
+        "bsr": (COLORS["ink"], "o", "-"),
+        "zero_film": (COLORS["muted"], "s", "--"),
+        "shuffled_film": (COLORS["gold"], "^", "--"),
+        "persistence_film": (COLORS["blue"], "v", "--"),
+        "film": (COLORS["coral"], "D", "-"),
+        "oracle_film": (COLORS["cyan"], "P", "-"),
+    }
+    edges = np.arange(-18.0, 15.0, 3.0)
+    centers = edges[:-1] + 1.5
+    figure, axis = plt.subplots(figsize=(7.4, 4.5), constrained_layout=True)
+    for method in result["methods"]:
+        variant = method["variant"]
+        score = np.asarray([float(row[variant]) for row in rows])
+        means = [float(score[(snr >= low) & (snr < high)].mean())
+                 for low, high in zip(edges[:-1], edges[1:], strict=True)]
+        color, marker, linestyle = styles[variant]
+        axis.plot(centers, means, color=color, marker=marker, linestyle=linestyle,
+                  lw=2 if variant in {"film", "oracle_film", "bsr"} else 1.4,
+                  markersize=4.5, label=method["method"])
+    axis.set_xticks(centers)
+    axis.set_xlabel("Synthetic-event input SNR (dB; 3-dB bins)")
+    axis.set_ylabel("Target SI-SDR improvement (dB)")
+    axis.set_title("DCLDE annotation-clean test · 5-s · six matched models", loc="left", fontweight="bold")
+    axis.grid(alpha=0.18)
+    axis.spines[["top", "right"]].set_visible(False)
+    axis.legend(frameon=False, ncol=2, fontsize=7.5)
+    save_figure(figure, path)
+
+
 def real_ablation_figure(path: Path, results_path: Path) -> None:
     results = json.loads(results_path.read_text(encoding="utf-8"))
     variants = ["none_film", "oracle_film", "film", "shuffled_film"]
-    labels = ["No condition", "Oracle $S_t$", "Forecast $\\hat S_t$", "Shuffled $S_j$"]
+    labels = ["Zero-FiLM", "Oracle $S_t$", "Forecast $\\hat S_t$", "Shuffled $S_j$"]
     rows = [results["conditions"][name] for name in variants]
     figure, axes = plt.subplots(1, 2, figsize=(10.4, 3.7), constrained_layout=True)
     x = np.arange(len(rows))
@@ -646,7 +703,7 @@ def reference_free_figure(path: Path, results_path: Path) -> None:
     gains = np.asarray(results["protocol"]["restoration_gains_db"])
     conditions = results["conditions"]
     styles = {
-        "bs_roformer": ("BS-RoFormer", COLORS["navy"], "o"),
+        "bs_roformer": ("Zero-condition FiLM", COLORS["navy"], "o"),
         "fc_bsr": ("FC-BSR", COLORS["coral"], "D"),
         "identity": ("Identity (remove nothing)", COLORS["muted"], "s"),
         "all_to_event": ("All-to-event", COLORS["gold"], "^"),
@@ -660,7 +717,7 @@ def reference_free_figure(path: Path, results_path: Path) -> None:
     axes[0].set_title("Interventional restoration curve", loc="left", fontweight="bold")
     axes[0].legend(frameon=False, fontsize=8)
 
-    labels = ["BS-RoFormer", "FC-BSR"]
+    labels = ["Zero-condition FiLM", "FC-BSR"]
     keys = ["bs_roformer", "fc_bsr"]
     leakage = [conditions[key]["leakage_outside_event"] for key in keys]
     off_error = [conditions[key]["off_event_relative_error"] for key in keys]
@@ -689,7 +746,7 @@ def main() -> None:
     parser.add_argument("--real-checkpoint", type=Path, default=Path("experiments/real_film/best.pt"))
     parser.add_argument("--real-baseline-checkpoint", type=Path, default=Path("experiments/real_none_film/best.pt"))
     parser.add_argument("--main-checkpoint", type=Path, default=Path("models/practical_film.pt"))
-    parser.add_argument("--clean-baseline-checkpoint", type=Path, default=Path("experiments/dclde_bsr/best.pt"))
+    parser.add_argument("--clean-baseline-checkpoint", type=Path, default=Path("experiments/dclde_true_bsr/best.pt"))
     parser.add_argument(
         "--window-results", type=Path, default=Path("results/window_resolution_results.json")
     )
@@ -708,8 +765,11 @@ def main() -> None:
         window_resolution_figure(args.output_dir / "window_resolution.pdf", args.window_results)
     if args.dclde_results.exists():
         reference_free_figure(args.output_dir / "dclde_reference_free.pdf", args.dclde_results)
+    main_oracle_results = Path("results/dclde_main_oracle.json")
     clean_test_csv = Path("results/dclde_clean_synthetic_test.csv")
-    if clean_test_csv.exists():
+    if main_oracle_results.exists():
+        main_oracle_strength_figure(args.output_dir / "clean_background_strength.pdf", main_oracle_results)
+    elif clean_test_csv.exists():
         clean_strength_figure(args.output_dir / "clean_background_strength.pdf", clean_test_csv)
     signal_figure(
         args.output_dir / "signal_visualization.png",

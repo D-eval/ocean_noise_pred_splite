@@ -17,14 +17,16 @@ masked, an annotation-clean real 5-s ocean segment, a synthetic marine event,
 and their exact mixture.  The available recordings provide 146.4 h of
 call-free background, with 37.3 h eligible for training.  The 12-step GRU
 reduces held-out forecast MAE from 2.111 to 1.926 dB (8.8\%) against
-persistence.  On 4,096 held-out clean-background mixtures, FC-BSR is 0.134 dB
-below the unconditioned separator (day-block 95\% CI $[-0.320,0.125]$), with no
-detectable average improvement.  A separate 13-family study compares the other
-conditioning modes as ablations.  On untouched real calls,
+persistence.  A six-way, matched-condition audit on 4,096 held-out mixtures
+finds 9.631 dB target SI-SDRi for both the true BS-RoFormer and Zero-FiLM,
+9.497 dB for GRU-Forecast FiLM, and 9.535 dB for Oracle-FiLM using the actual
+current $E(N_t)$.  Oracle minus BS-RoFormer is $-0.096$ dB (day-block 95\% CI
+$[-0.238,0.034]$): this 30-band condition has no demonstrated average benefit.
+A separate 13-family study compares other conditioning modes as ablations.  On untouched real calls,
 where no isolated stem exists, a frozen event classifier finds no clear
-semantic advantage over the matched unconditioned separator.  We therefore
-support fully supervised separation on annotated-clean backgrounds while
-leaving the value of the forecast prior on unknown real events unresolved.
+semantic advantage over a matched zero-condition FiLM control.  We therefore
+support fully supervised separation on annotated-clean backgrounds, but the
+present 30-band forecast/FiLM interface has no established separation gain.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -61,10 +63,12 @@ patch-based models \cite{salinas2020deepar,oreshkin2020nbeats,zeng2023dlinear,ni
 
 Our contributions are: (1) FC-BSR,\footnote{Code and reproduction instructions:
 \url{https://github.com/D-eval/ocean_noise_pred_splite}.} with a single
-pre-registered main setting (GRU+FiLM+BS-RoFormer, 5 s); (2) a reproducible
+fixed main setting (GRU+FiLM+BS-RoFormer, 5 s); (2) a reproducible
 annotation-aware construction of 146.4 h of current call-free ocean background
-and event-masked 5-s histories; (3) a 13-family marine-aware event generator;
-and (4) a frozen-classifier evaluation on untouched real calls.  TOL-domain,
+and event-masked 5-s histories; (3) a 13-family broad event generator with
+seven whale/vessel families in the main DCLDE experiment;
+and (4) a frozen-classifier evaluation on untouched real calls against a
+zero-condition FiLM control.  TOL-domain,
 conditioning-mode, time-scale, and unannotated-background strength studies are
 reported as ablations rather than as the primary evidence.
 
@@ -92,6 +96,18 @@ Training combines waveform $L_1$ and multi-resolution complex-STFT losses.
 Concatenation and cross-attention are alternative conditioning ablations, not
 the deployed FC-BSR configuration.
 
+The main-domain information audit holds the separator backbone, mixtures,
+initialization, and training rule fixed.  A true BS-RoFormer bypasses the
+condition injector; Zero-FiLM retains the FiLM branch and the same frozen GRU,
+but replaces its output by $c=0$.  Shuffled-FiLM uses
+$E(N_j)$ from a deterministic half-cycle offset in the clean-window index of
+the same split ($j\ne t$); on the held-out test, this selects a different day.
+Persistence-FiLM
+uses $S_{t-1}$, and Forecast-FiLM uses the frozen GRU output.  Oracle-FiLM
+receives $S_t^{\mathrm{oracle}}=E(N_t)$ computed from the actual current clean
+background after any shared mixture scaling.  Oracle is a diagnostic condition
+available only in this controlled experiment.
+
 \begin{figure*}[t]
 \centering
 \includegraphics[width=.94\textwidth]{figures/architecture.pdf}
@@ -103,7 +119,7 @@ the event estimate is supervised and the ocean estimate is its mixture-consisten
 \end{figure*}
 
 \subsection{Marine-aware source distribution}
-The generator contains 13 families: harmonic, linear chirp, inharmonic,
+The broad generator contains 13 families: harmonic, linear chirp, inharmonic,
 impulse train, frequency-modulated tone, band noise, whale upsweep, downsweep,
 arch, S-curve, pulse packet, vessel tonal, and vessel cavitation.  Whale proxies
 use one to three localized events with variable duration, curvature, partials,
@@ -116,7 +132,9 @@ patterns, not to claim species identity.
 We quantify spectral displacement with directional $D_{\rm KL}(p\|q)$ and
 finite symmetric Jensen--Shannon (JS) divergence \cite{lin1991divergence};
 spectral entropy and source--ocean overlap are reported separately.  Larger
-KL/JS expands coverage but is not treated as semantic diversity.
+KL/JS expands coverage but is not treated as semantic diversity.  The DCLDE
+main experiment samples only its five whale and two vessel families; all six
+main-domain models see the same target distribution.
 
 \subsection{Main data construction and secondary ablations}
 The main dataset uses day-disjoint 2-kHz DCLDE 2013 recordings and whale-call
@@ -128,7 +146,7 @@ when all history blocks are outside annotated calls and their 2-s guards.  This
 avoids temporal averaging over an hour and forbids histories from crossing WAV
 boundaries.  This leaves 94.5 h eligible overall, split into 37.3/9.7/47.6 h
 for train/validation/test.
-For each current clean $N_t$, a 13-family synthetic event $s_t$ is mixed to
+For each current clean $N_t$, a seven-family whale/vessel synthetic event $s_t$ is mixed to
 form $x_t=N_t+s_t$.  The main split is by recording day, and the GRU receives
 12 event-masked features from the immediately preceding 5-s windows.
 
@@ -179,43 +197,57 @@ divergence broadens support but does not predict usefulness.
 
 \subsection{Primary fully supervised clean-background separation}
 The main FC-BSR receives twelve event-masked preceding 5-s features and a current clean
-5-s DCLDE segment; the 13-family event is added only after the clean background
+5-s DCLDE segment; the seven-family event is added only after the clean background
 is selected.  The model therefore sees $x_t$ and $H_t$, while the exact $N_t$
 and $s_t$ are supervision.  The training split contains 37.3 h of
 eligible clean current audio.  The 12-step GRU forecasts the next 5-s band
 spectrum; validation MAE is 1.926 dB versus 2.111 dB for persistence (8.8\%
 lower).
-Table~\ref{tab:cleanmain} reports the held-out
-full-reference comparison between the fixed main FC-BSR and its unconditioned
-BS-RoFormer control.  The control shares data, initialization, optimizer,
-training duration, and checkpoint selection.  Figure~\ref{fig:cleanstrength}
-stratifies this paired test by injected SNR while retaining the fixed main
-setting and held-out clean backgrounds.  Across 4,096 paired examples, FC-BSR
-scores 9.497 dB SI-SDRi versus 9.631 dB for BS-RoFormer (paired difference
-$-0.134$ dB, day-block 95\% CI $[-0.320,0.125]$); the average difference is
-not distinguishable from zero.
+The older two-row comparison labeled a Zero-FiLM checkpoint as
+``BS-RoFormer.''  We retain its exact trained waveform mapping as the Zero
+control, attach the same frozen GRU in a bypassed branch, and train a true
+injector-bypassed BS-RoFormer.  All six rows in Table~\ref{tab:cleanmain} use
+the same mixtures, transferred backbone initialization, optimizer budget,
+validation selection, and 4,096 test examples from three held-out days.
+Figure~\ref{fig:cleanstrength} stratifies these same samples by input SNR.
 
-\begin{table}[t]
-\caption{Primary held-out clean-background + synthetic-event test.}
+The architecture effect, Zero minus BS-RoFormer, is $-0.0002$ dB (95\% CI
+$[-0.0068,0.0088]$).  Forecast minus BS-RoFormer is $-0.134$ dB
+($[-0.327,0.125]$); Oracle minus BS-RoFormer is $-0.096$ dB
+($[-0.238,0.034]$).  Oracle minus Forecast is only $+0.039$ dB
+($[-0.090,0.155]$).  Shuffling and persistence also fail to show a positive
+average over Zero.  Thus the matched controls do not establish that temporal
+forecast information improves this separator.  Oracle's higher validation
+score (11.372 versus 10.946 dB for BS-RoFormer) does not transfer to a clear
+held-out gain.  With only three test days, the intervals leave small effects
+unresolved; an oracle supplies more information, but separately optimized
+FiLM models do not form a guaranteed performance ordering.
+
+\begin{table*}[t]
+\caption{Main DCLDE test on 4,096 matched annotation-clean 5-s backgrounds plus
+synthetic events.  Values are target SI-SDRi (dB); brackets are paired 95\%
+bootstrap intervals over held-out recording days.  Oracle alone sees $E(N_t)$.}
 \label{tab:cleanmain}\centering\footnotesize
-\resizebox{\columnwidth}{!}{%
-\begin{tabular}{lrrr}
+\begin{tabular}{lrrrr}
 \toprule
-Model & SI-SDRi (dB) & Target SI-SDR (dB) & Background SI-SDR (dB)\\
+Model & Validation & Test & $\Delta$ vs. BSR [95\% CI] & $\Delta$ vs. Zero [95\% CI]\\
 \midrule
-BS-RoFormer & 9.631 & 6.479 & 10.061\\
-FC-BSR (GRU+FiLM) & 9.497 & 6.345 & 10.155\\
+BS-RoFormer &10.946&9.631&0&$+0.0002\;[-0.009,0.007]$\\
+Zero-condition FiLM &10.967&9.631&$-0.0002\;[-0.007,0.009]$&0\\
+Shuffled-condition FiLM &10.609&9.526&$-0.105\;[-0.247,0.020]$&$-0.105\;[-0.256,0.026]$\\
+Persistence-condition FiLM &11.205&9.524&$-0.107\;[-0.239,0.083]$&$-0.107\;[-0.232,0.084]$\\
+GRU-Forecast FiLM (FC-BSR) &11.213&9.497&$-0.134\;[-0.327,0.125]$&$-0.134\;[-0.320,0.125]$\\
+Oracle-FiLM, $E(N_t)$ &11.372&9.535&$-0.096\;[-0.238,0.034]$&$-0.095\;[-0.231,0.035]$\\
 \bottomrule
 \end{tabular}
-}%
-\end{table}
+\end{table*}
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{figures/clean_background_strength.pdf}
-\caption{Primary full-reference test on annotation-clean DCLDE backgrounds.
-Target SI-SDRi is shown against injected event strength for matched BS-RoFormer
-and FC-BSR; uncertainty is blocked by recording day.}
+\caption{Primary full-reference test on annotation-clean DCLDE backgrounds:
+mean target SI-SDRi in 3-dB input-SNR bins for all six matched methods.
+Table~\ref{tab:cleanmain} gives day-block uncertainty for their overall means.}
 \label{fig:cleanstrength}
 \end{figure}
 
@@ -244,8 +276,11 @@ Step & Predictor & Cond. & Base & Gain [95\% CI]\\
 \end{tabular}
 \end{table}
 
-The harder fixed-5-s experiment compares BS-RoFormer, current-spectrum oracle,
-causal forecast, and time-shuffled condition on 1,152 paired test mixtures.
+The harder fixed-5-s experiment on unannotated SanctSound WAV compares
+Zero-condition FiLM, a current-spectrum oracle, causal forecast, and a
+time-shuffled condition on 1,152 paired test mixtures.  This oracle belongs to
+the secondary data domain; Table~\ref{tab:cleanmain} uses the actual
+annotation-clean DCLDE $N_t$.
 Averaged across training SNRs, the baseline scores 23.470 dB and Forecast-FC-BSR
 22.871 dB ($\Delta=-0.599$, CI $[-0.851,-0.346]$); even the oracle is lower.
 This exposes conditioning/capacity effects that the simpler diagnostic misses.
@@ -267,10 +302,11 @@ sweep.  Lines show the four conditions; shaded bands are paired 95\% intervals.}
 \begin{figure*}[t]
 \centering
 \includegraphics[width=.98\textwidth]{figures/real_audio_visualization.pdf}
-\caption{Median-selected $-12$ dB synthetic whale pulse packet in a current
-annotation-clean 5-s DCLDE recording.  All spectrograms share one magnitude
-scale referenced to the mixture peak; the aggregate strength results are in
-Fig.~\ref{fig:cleanstrength}.}
+\caption{Median-selected $-12$ dB synthetic whale pulse packet in an
+annotation-clean 5-s DCLDE recording.  The ocean and mixture share an absolute
+magnitude scale; the lower row shows each event stem relative to the actual
+ocean magnitude on a common dB scale.  Neither estimate fully removes
+background texture; aggregate results are in Fig.~\ref{fig:cleanstrength}.}
 \label{fig:example}
 \end{figure*}
 
@@ -303,7 +339,7 @@ still unavailable.
 \toprule
 Method &$p(x)$&$p(\hat N)\downarrow$&$p(\hat s)\uparrow$&Mono.$\uparrow$&Off-event$\downarrow$\\
 \midrule
-BS-RoFormer&.909&.786&.900&.937&.230\\
+Zero-condition FiLM&.909&.786&.900&.937&.230\\
 FC-BSR&.909&.713&.902&.955&.206\\
 \bottomrule
 \end{tabular}
@@ -313,35 +349,36 @@ FC-BSR&.909&.713&.902&.955&.206\\
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{figures/dclde_reference_free.pdf}
-\caption{Reference-free restoration curves and preservation audit.  Both
-models perform nontrivial semantic separation, but FC-BSR is not uniformly
-better on real calls.}
+\caption{Reference-free restoration curves and preservation audit for
+Zero-condition FiLM and FC-BSR.  Both perform nontrivial semantic separation,
+but FC-BSR is not uniformly better on real calls.}
 \label{fig:real}
 \end{figure}
 
 \section{Discussion and Conclusion}
-The evidence supports a narrower claim than the initial hypothesis.  On the
-primary annotation-clean test, FC-BSR does not improve mean SI-SDRi over the
-matched BS-RoFormer; the 95\% interval spans zero.  FiLM is
-the best conditioning interface on controlled stems.  In the secondary
-unannotated-WAV strength ablation, the prior helps weak targets, but that result
-does not establish a gain on the annotation-clean main setting.  It is not universally beneficial: the gain
-reverses for stronger targets, an oracle condition does not rescue the average,
-and no decisive forecast advantage appears on untouched whale calls.  Persistence also
-wins three of four predictor resolutions.  These negative controls are central:
-they separate the existence of useful background information from a claim that
-the present architecture always exploits it.
+The main-domain Oracle is the decisive diagnostic: even when FiLM receives
+$E(N_t)$ from the exact current clean waveform, its held-out mean does not
+exceed the mixture-only BS-RoFormer, and its paired interval spans zero.
+Zero-FiLM is effectively tied with BS-RoFormer, while Forecast is no better
+than either Zero or Shuffled.  The result does not isolate prediction error
+as the bottleneck; a five-second, 30-band static summary and its FiLM interface
+may be too coarse for the separator's time-frequency tokens.  FiLM remains the
+best interface on controlled spectral surrogates, and the secondary unlabeled
+WAV sweep shows weak-target gains, but neither establishes a main-domain gain.
+No decisive forecast advantage appears on untouched whale calls.  The main
+test has three held-out recording days, so small or site-dependent effects
+remain possible.
 
 The local frontend is usable for inspection: on a CPU smoke test, one 5-s
 chunk ran at RTF 0.014 after history features were prepared; the interface
 displays forecasts and permits playback and download of both estimates.  This
 does not establish field deployment.
-Future work should condition only under calibrated uncertainty, test multiple
-sites and seasons, and obtain isolated or stronger partial references for real
-events.  Classifier-based restoration is evidence of semantic transfer, not a
-replacement for waveform fidelity.
+The next representation to test is a time-frequency innovation map comparing
+the current mixture with predicted background, rather than only a static band
+mean.  Further work should cover more sites and seasons and obtain isolated
+or stronger partial references for real events.  Classifier-based restoration
+is evidence of semantic transfer, not a replacement for waveform fidelity.
 
-\clearpage
 \balance
 \bibliographystyle{IEEEtran}
 \bibliography{reference}

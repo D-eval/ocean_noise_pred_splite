@@ -5,7 +5,7 @@
     "current_background": "annotation-clean real 5-s WAV",
     "target": "marine-aware synthetic event with exact stem references",
     "history": "12 preceding event-masked 5-s background features (60 s total)",
-    "models": "matched BS-RoFormer versus GRU + FiLM + BS-RoFormer",
+    "models": "Zero-condition FiLM versus GRU-Forecast FiLM; true BS-RoFormer is evaluated in dclde_main_oracle.json",
     "independent_day_blocks": 3
   },
   "baseline_mean_si_sdri_db": 9.630817150777148,

@@ -175,7 +175,7 @@ class ConditionalBSRoformer(nn.Module):
         self.separator.band_split = injector
         self.injector = injector
 
-    def forward(self, mixture: torch.Tensor, condition: torch.Tensor) -> torch.Tensor:
+    def forward(self, mixture: torch.Tensor, condition: torch.Tensor | None) -> torch.Tensor:
         self.injector.set_condition(condition)
         try:
             estimate = self.separator(mixture)
@@ -191,7 +191,7 @@ class ForecastConditionedSeparator(nn.Module):
 
     VARIANTS = (
         "none", "latent", "spectrum", "concat", "film", "cross_attention",
-        "none_film", "oracle_film", "shuffled_film",
+        "bsr", "none_film", "zero_film", "oracle_film", "shuffled_film", "persistence_film",
     )
 
     def __init__(
@@ -215,8 +215,11 @@ class ForecastConditionedSeparator(nn.Module):
             "film": "film",
             "cross_attention": "cross_attention",
             "none_film": "film",
+            "zero_film": "film",
             "oracle_film": "film",
             "shuffled_film": "film",
+            "persistence_film": "film",
+            "bsr": "film",
         }.get(variant, "add")
         # Component-local RNG streams make the BS-RoFormer core identical
         # across ablations and the forecaster identical across the two
@@ -228,7 +231,7 @@ class ForecastConditionedSeparator(nn.Module):
                 conditioning_mode=conditioning_mode,
                 **separator_kwargs,
             )
-        if variant in {"none", "none_film", "oracle_film", "shuffled_film"}:
+        if variant in {"none", "bsr", "none_film", "oracle_film", "shuffled_film", "persistence_film"}:
             self.forecaster = None
         else:
             with torch.random.fork_rng(devices=[]):
@@ -243,10 +246,22 @@ class ForecastConditionedSeparator(nn.Module):
         history: torch.Tensor,
         external_condition: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor | None]:
-        if self.variant in {"oracle_film", "shuffled_film"}:
+        if self.variant == "zero_film":
+            # Retain the same frozen GRU module and FiLM separator as `film`;
+            # replace only the information passed to FiLM.
+            condition = torch.zeros(
+                (mixture.shape[0], self.spectrum_dim), dtype=mixture.dtype, device=mixture.device
+            )
+            latent = prediction = None
+        elif self.variant in {"oracle_film", "shuffled_film", "persistence_film"}:
             if external_condition is None:
                 raise ValueError(f"{self.variant} requires an external condition")
             condition = external_condition
+            latent = prediction = None
+        elif self.variant == "bsr":
+            # An exact mixture-only control: the band-split injector returns
+            # its input unchanged, with no condition-derived parameters active.
+            condition = None
             latent = prediction = None
         elif self.forecaster is None:
             condition = torch.zeros(

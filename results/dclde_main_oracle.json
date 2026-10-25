@@ -1,0 +1,191 @@
+{
+  "protocol": {
+    "dataset": "DCLDE annotation-clean current 5-s real ocean WAV plus synthetic marine event",
+    "examples": 4096,
+    "held_out_days": [
+      "2009-04-01",
+      "2009-04-02",
+      "2009-04-03"
+    ],
+    "history": "12 immediately preceding event-free 5-s, 30-band features",
+    "oracle": "30-band E(N_t) from the actual clean background waveform in each tuple",
+    "shuffled": "E(N_j) from a half-cycle-shifted, different clean window within the same split",
+    "persistence": "last historical 5-s spectrum S_(t-1)",
+    "zero": "all-zero 30-band condition with FiLM parameters retained",
+    "baseline": "band-split injector bypassed; no conditioning transformation",
+    "training": "same waveform mixtures, seed, transferred separator initialization, optimizer, 10k-step maximum, 5k-step minimum, 100-step validation, patience 7",
+    "interval": "paired 95% bootstrap over held-out recording day means"
+  },
+  "methods": [
+    {
+      "variant": "bsr",
+      "method": "BS-RoFormer",
+      "checkpoint": "experiments\\dclde_true_bsr\\best.pt",
+      "best_step": 5300,
+      "updates_run": 6000,
+      "best_validation_si_sdri_db": 10.946422559049097,
+      "mean_si_sdri_db": 9.631022460191161,
+      "mean_target_si_sdr_db": 6.478993821655649,
+      "mean_background_si_sdr_db": 10.05474924114776,
+      "delta_vs_bsr_db": 0.0,
+      "delta_vs_bsr_day_ci95_db": [
+        0.0,
+        0.0
+      ],
+      "delta_vs_zero_db": 0.00020530941401375458,
+      "delta_vs_zero_day_ci95_db": [
+        -0.008797615956004158,
+        0.006826528652437357
+      ]
+    },
+    {
+      "variant": "zero_film",
+      "method": "Zero-condition FiLM",
+      "checkpoint": "experiments\\dclde_zero_film\\best.pt",
+      "best_step": 5300,
+      "updates_run": 6000,
+      "best_validation_si_sdri_db": 10.966728626692202,
+      "mean_si_sdri_db": 9.630817150777148,
+      "mean_target_si_sdr_db": 6.478788520061244,
+      "mean_background_si_sdr_db": 10.061133449534005,
+      "delta_vs_bsr_db": -0.00020530941401375458,
+      "delta_vs_bsr_day_ci95_db": [
+        -0.006826528652437357,
+        0.008797615956004158
+      ],
+      "delta_vs_zero_db": 0.0,
+      "delta_vs_zero_day_ci95_db": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "variant": "shuffled_film",
+      "method": "Shuffled-condition FiLM",
+      "checkpoint": "experiments\\dclde_shuffled_film\\best.pt",
+      "best_step": 3300,
+      "updates_run": 5000,
+      "best_validation_si_sdri_db": 10.609403215741622,
+      "mean_si_sdri_db": 9.526092059342773,
+      "mean_target_si_sdr_db": 6.374063418298988,
+      "mean_background_si_sdr_db": 9.968843474723514,
+      "delta_vs_bsr_db": -0.10493040084838867,
+      "delta_vs_bsr_day_ci95_db": [
+        -0.2470040492422466,
+        0.019551495104345656
+      ],
+      "delta_vs_zero_db": -0.10472509143437492,
+      "delta_vs_zero_day_ci95_db": [
+        -0.25580166519825076,
+        0.026378023756783015
+      ]
+    },
+    {
+      "variant": "persistence_film",
+      "method": "Persistence-condition FiLM",
+      "checkpoint": "experiments\\dclde_persistence_film\\best.pt",
+      "best_step": 5300,
+      "updates_run": 6000,
+      "best_validation_si_sdri_db": 11.20537363277981,
+      "mean_si_sdri_db": 9.523924945155159,
+      "mean_target_si_sdr_db": 6.371896311485145,
+      "mean_background_si_sdr_db": 10.124086381049551,
+      "delta_vs_bsr_db": -0.10709751503600273,
+      "delta_vs_bsr_day_ci95_db": [
+        -0.2388296938041777,
+        0.08332925655206658
+      ],
+      "delta_vs_zero_db": -0.10689220562198898,
+      "delta_vs_zero_day_ci95_db": [
+        -0.23200316515174035,
+        0.08377333296081735
+      ]
+    },
+    {
+      "variant": "film",
+      "method": "GRU-Forecast FiLM",
+      "checkpoint": "experiments\\dclde_fc_bsr\\best.pt",
+      "best_step": 5300,
+      "updates_run": 6000,
+      "best_validation_si_sdri_db": 11.21285299007286,
+      "mean_si_sdri_db": 9.49678738861985,
+      "mean_target_si_sdr_db": 6.344758763636946,
+      "mean_background_si_sdr_db": 10.155340917011472,
+      "delta_vs_bsr_db": -0.13423507157131098,
+      "delta_vs_bsr_day_ci95_db": [
+        -0.32658571046230944,
+        0.12454965779680083
+      ],
+      "delta_vs_zero_db": -0.13402976215729723,
+      "delta_vs_zero_day_ci95_db": [
+        -0.31975918180987206,
+        0.12499373420555158
+      ]
+    },
+    {
+      "variant": "oracle_film",
+      "method": "Oracle-FiLM",
+      "checkpoint": "experiments\\dclde_oracle_film\\best.pt",
+      "best_step": 5300,
+      "updates_run": 6000,
+      "best_validation_si_sdri_db": 11.371589279471664,
+      "mean_si_sdri_db": 9.535486317879986,
+      "mean_target_si_sdr_db": 6.383457671368717,
+      "mean_background_si_sdr_db": 10.278315824072479,
+      "delta_vs_bsr_db": -0.09553614231117535,
+      "delta_vs_bsr_day_ci95_db": [
+        -0.2380895697350803,
+        0.03437308535612688
+      ],
+      "delta_vs_zero_db": -0.0953308328971616,
+      "delta_vs_zero_day_ci95_db": [
+        -0.23126304108264295,
+        0.03481716176487765
+      ]
+    }
+  ],
+  "decomposition": {
+    "architecture_zero_minus_bsr": {
+      "mean_delta_db": -0.00020530941401375458,
+      "day_block_ci95_db": [
+        -0.006826528652437357,
+        0.008797615956004158
+      ]
+    },
+    "shuffled_information_minus_zero": {
+      "mean_delta_db": -0.10472509143437492,
+      "day_block_ci95_db": [
+        -0.25580166519825076,
+        0.026378023756783015
+      ]
+    },
+    "persistence_information_minus_zero": {
+      "mean_delta_db": -0.10689220562198898,
+      "day_block_ci95_db": [
+        -0.23200316515174035,
+        0.08377333296081735
+      ]
+    },
+    "forecast_information_minus_zero": {
+      "mean_delta_db": -0.13402976215729723,
+      "day_block_ci95_db": [
+        -0.31975918180987206,
+        0.12499373420555158
+      ]
+    },
+    "oracle_information_minus_zero": {
+      "mean_delta_db": -0.0953308328971616,
+      "day_block_ci95_db": [
+        -0.23126304108264295,
+        0.03481716176487765
+      ]
+    },
+    "oracle_minus_forecast": {
+      "mean_delta_db": 0.03869892926013563,
+      "day_block_ci95_db": [
+        -0.09017657244067395,
+        0.1554244042092513
+      ]
+    }
+  }
+}

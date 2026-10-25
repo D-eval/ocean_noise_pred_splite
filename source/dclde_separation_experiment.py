@@ -1,4 +1,4 @@
-"""Matched BSR/FC-BSR training and reference-free evaluation on real calls.
+"""Matched Zero-FiLM/FC-BSR training and reference-free evaluation on real calls.
 
 Both separators train on identical annotation-clean DCLDE backgrounds with
 identical diverse whale-like sweeps and vessel sounds. FC-BSR alone receives
@@ -32,6 +32,7 @@ from .dclde import (
     build_causal_feature_cache,
     build_clip_manifest,
     build_event_masked_feature_cache,
+    _log_band_features,
 )
 from .event_classifier import load_classifier
 from .metrics import paired_bootstrap_interval, si_sdr
@@ -157,7 +158,7 @@ class InjectedUpcallDataset(Dataset):
     def __init__(
         self, store: CausalFeatureStore, split: str, examples: int, seed: int,
         source_family: str | None = None, snr_range: tuple[float, float] = (-18.0, 12.0),
-        spread_rows: bool = False,
+        spread_rows: bool = False, cache_waveforms: bool = False,
     ):
         self.store = store
         self.rows = store.indices(split, label=0)
@@ -169,6 +170,8 @@ class InjectedUpcallDataset(Dataset):
         self.source_family = source_family
         self.snr_range = snr_range
         self.spread_rows = spread_rows
+        self.cache_waveforms = cache_waveforms
+        self._waveform_cache: dict[int, np.ndarray] = {}
 
     def __len__(self) -> int:
         return self.examples
@@ -179,8 +182,11 @@ class InjectedUpcallDataset(Dataset):
             if self.spread_rows and self.examples > 1 else item % len(self.rows)
         )
         manifest_index = int(self.rows[local])
-        base_item = self.base[local]
-        ocean = base_item["waveform"].numpy()
+        ocean = self._waveform_cache.get(local) if self.cache_waveforms else None
+        if ocean is None:
+            ocean = self.base[local]["waveform"].numpy()
+            if self.cache_waveforms:
+                self._waveform_cache[local] = ocean
         source, parameters = render_marine_training_target(
             len(ocean), self.seed + item * 104729, source_family=self.source_family,
         )
@@ -193,6 +199,11 @@ class InjectedUpcallDataset(Dataset):
         if peak > 0.98:
             scale = peak / 0.98
             mixture, ocean, source = mixture / scale, ocean / scale, source / scale
+        # Oracle means E(N_t) for the waveform in this very training tuple,
+        # including the rare joint mixture scaling above.
+        oracle_spectrum = (_log_band_features(ocean, self.store.bands)[0] - self.store.mean) / self.store.scale
+        wrong_local = (local + len(self.rows) // 2) % len(self.rows)
+        wrong_index = int(self.rows[wrong_local])
         row = self.store.frame.iloc[manifest_index]
         return {
             "mixture": torch.from_numpy(mixture.astype(np.float32)),
@@ -201,7 +212,8 @@ class InjectedUpcallDataset(Dataset):
             "background": torch.from_numpy(ocean.astype(np.float32)),
             "event": torch.from_numpy(source.astype(np.float32)),
             "history": torch.from_numpy(self.store.normalized_history(manifest_index)),
-            "target_spectrum": torch.from_numpy(self.store.normalized_target(manifest_index)),
+            "target_spectrum": torch.from_numpy(oracle_spectrum.astype(np.float32)),
+            "shuffled_spectrum": torch.from_numpy(self.store.normalized_target(wrong_index)),
             "snr_db": torch.tensor(snr_db, dtype=torch.float32),
             "source_family": parameters["family"],
             "example_id": f"{row.day}:{Path(row.path).stem}:{float(row.start_seconds):.1f}",
@@ -282,6 +294,18 @@ def _load_transfer(model: ForecastConditionedSeparator, path: Path) -> int:
     }
     model.load_state_dict(compatible, strict=False)
     return len(compatible)
+
+
+def _condition_for_batch(
+    variant: str, batch: dict, device: torch.device,
+) -> torch.Tensor | None:
+    if variant == "oracle_film":
+        return batch["target_spectrum"].to(device)
+    if variant == "shuffled_film":
+        return batch["shuffled_spectrum"].to(device)
+    if variant == "persistence_film":
+        return batch["history"][:, -1].to(device)
+    return None
 
 
 @torch.no_grad()
@@ -376,7 +400,7 @@ def _validation_score(model: ForecastConditionedSeparator, loader: DataLoader, d
         mixture = batch["mixture"].to(device)
         source = batch["source"].to(device)
         history = batch["history"].to(device)
-        estimate = model(mixture, history)["estimate"]
+        estimate = model(mixture, history, _condition_for_batch(model.variant, batch, device))["estimate"]
         length = min(estimate.shape[-1], source.shape[-1])
         improvement = si_sdr(estimate[..., :length], source[..., :length]) - si_sdr(mixture[..., :length], source[..., :length])
         improvements.extend(improvement.cpu().tolist())
@@ -399,7 +423,7 @@ def _full_reference_test(
         mixture = batch["mixture"].to(device)
         source = batch["source"].to(device)
         history = batch["history"].to(device)
-        estimate = model(mixture, history)["estimate"]
+        estimate = model(mixture, history, _condition_for_batch(model.variant, batch, device))["estimate"]
         length = min(estimate.shape[-1], source.shape[-1], mixture.shape[-1])
         estimate = estimate[..., :length]
         source = source[..., :length]
@@ -446,10 +470,15 @@ def train_separator(
     _seed_everything(config.seed)
     device = torch.device(config.device)
     train_set = InjectedUpcallDataset(store, "train", config.train_examples, config.seed)
-    validation_set = InjectedUpcallDataset(store, "validation", config.validation_examples, config.seed + 10_000_000)
+    validation_set = InjectedUpcallDataset(
+        store, "validation", config.validation_examples, config.seed + 10_000_000,
+        cache_waveforms=True,
+    )
     generator = torch.Generator().manual_seed(config.seed)
     train_loader = DataLoader(train_set, batch_size=config.batch_size, shuffle=True, generator=generator)
-    validation_loader = DataLoader(validation_set, batch_size=config.batch_size * 2, shuffle=False)
+    # Batch 24 matches the old batch-8 outputs numerically on the target GPU.
+    # Batch 32 triggers a different upstream CUDA iSTFT path and changes scores.
+    validation_loader = DataLoader(validation_set, batch_size=24, shuffle=False)
     model = _make_model(variant, store.bands, config.seed, device)
     transferred = _load_transfer(model, Path(config.transfer_checkpoint))
     if forecast_checkpoint is not None:
@@ -476,7 +505,7 @@ def train_separator(
         mixture = batch["mixture"].to(device)
         source = batch["source"].to(device)
         history_tensor = batch["history"].to(device)
-        estimate = model(mixture, history_tensor)["estimate"]
+        estimate = model(mixture, history_tensor, _condition_for_batch(model.variant, batch, device))["estimate"]
         loss = multi_resolution_loss(estimate, source)
         optimiser.zero_grad(set_to_none=True)
         loss.backward()
@@ -513,7 +542,7 @@ def train_separator(
         "forecaster_frozen": forecast_checkpoint is not None,
     }
     test_summary, test_rows = _full_reference_test(
-        model, test_set, config.batch_size * 2, device,
+        model, test_set, 24, device,
     )
     summary["test_full_reference"] = test_summary
     _write_rows(output / "clean_synthetic_test.csv", test_rows)
@@ -595,7 +624,8 @@ def evaluate_real_events(
     summary = {
         "protocol": {
             "test_examples": seen, "split": "three held-out recording days",
-            "comparison": "paired BS-RoFormer versus FC-BSR on identical eligible real events",
+            "comparison": "paired Zero-condition FiLM versus GRU-Forecast FiLM on identical eligible real events",
+            "legacy_bs_roformer_key": "the bs_roformer key in this artifact is a none_film checkpoint, not a true no-FiLM BSR",
             "history": "12 strictly preceding 5-s 30-band features; annotated call intervals and 2-s guards are excluded",
             "separator_training": "real annotation-clean 5-s ocean + identical whale-sweep and vessel proxies",
             "real_event_source_gt": False, "classifier_frozen": True,
@@ -664,7 +694,7 @@ def compare_clean_synthetic_tests(
             "current_background": "annotation-clean real 5-s WAV",
             "target": "marine-aware synthetic event with exact stem references",
             "history": "12 preceding event-masked 5-s background features (60 s total)",
-            "models": "matched BS-RoFormer versus GRU + FiLM + BS-RoFormer",
+            "models": "matched Zero-condition FiLM versus GRU-Forecast FiLM; not a true no-FiLM BSR",
             "independent_day_blocks": len(days),
         },
         "baseline_mean_si_sdri_db": float(np.mean([row["baseline_si_sdri_db"] for row in rows])),
@@ -698,7 +728,7 @@ def evaluate_saved_clean_separator(
         store, "test", config.validation_examples, config.seed + 20_000_000,
         spread_rows=True,
     )
-    summary, rows = _full_reference_test(model, dataset, config.batch_size * 2, device)
+    summary, rows = _full_reference_test(model, dataset, 24, device)
     output.parent.mkdir(parents=True, exist_ok=True)
     _write_rows(output.parent / "clean_synthetic_test.csv", rows)
     result = {
@@ -741,7 +771,7 @@ def main() -> None:
     if train_clean_hours < 24.0:
         raise RuntimeError(f"main setup needs >=24 h of clean training background; found {train_clean_hours:.2f} h")
     forecast_folder = Path("experiments/dclde_forecaster")
-    baseline_folder = Path("experiments/dclde_bsr")
+    baseline_folder = Path("experiments/dclde_bsr")  # Legacy path: this is none_film / Zero-FiLM.
     conditioned_folder = Path("experiments/dclde_fc_bsr")
     if not args.skip_train:
         if not args.skip_forecast:
@@ -781,6 +811,7 @@ def main() -> None:
     evaluation_store = CausalFeatureStore(MANIFEST, EVENT_MASKED_FEATURE_CACHE)
     evaluation_store.mean = store.mean.copy()
     evaluation_store.scale = store.scale.copy()
+    # Keep the old JSON key for downstream compatibility; its model is Zero-FiLM.
     print(json.dumps(evaluate_real_events(
         {"bs_roformer": ("none_film", baseline_folder / "best.pt"), "fc_bsr": ("film", conditioned_folder / "best.pt")},
         Path("experiments/dclde_event_classifier/best.pt"), evaluation_store,
