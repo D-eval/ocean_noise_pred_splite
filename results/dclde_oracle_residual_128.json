@@ -1,0 +1,33 @@
+{
+  "protocol": {
+    "dataset": "same annotation-clean DCLDE 5-s real ocean plus synthetic events",
+    "examples": 4096,
+    "train_examples": 48000,
+    "backbone": "same transferred mixture-only BS-RoFormer (256-point STFT, 20 tokens, dim 32)",
+    "oracle": "current N_t, 512-point STFT, 128 equal-width power groups per 64-ms frame",
+    "innovation": "log|X| - log|B| in the same 128-group, time-resolved grid",
+    "fusion": "[X-derived BSR tokens, log|B|, innovation] via zero-initialized additive linear projection before axial attention; no FiLM",
+    "baseline_training": "existing dclde_true_bsr checkpoint; same seed, transferred tensors, 6000 updates, 100-step validation selection",
+    "oracle_training": "6000 updates, same batch/data/seed/optimizer/scheduler/loss and best-validation checkpoint rule",
+    "initial_waveform_max_difference": 0.0,
+    "baseline_checkpoint_sha256": "af6366df2913eba6b9c816227ad2cd473e5a3063ee45ce18b3fe3e578eccdf4e",
+    "interval": "paired bootstrap over held-out recording-day means"
+  },
+  "baseline_si_sdri_db": 9.631022460191161,
+  "oracle_residual_si_sdri_db": 16.766933005499595,
+  "delta_si_sdri_db": 7.135910545308434,
+  "delta_day_ci95_db": [
+    6.969776468118952,
+    7.282374173713012
+  ],
+  "days": {
+    "2009-04-01": 7.178706428525017,
+    "2009-04-02": 7.282374173713012,
+    "2009-04-03": 6.969776468118952
+  },
+  "baseline_best_step": 5300,
+  "oracle_best_step": 6000,
+  "oracle_best_validation_si_sdri_db": 18.439606276675477,
+  "checkpoint": "experiments\\dclde_oracle_residual_128\\best.pt",
+  "samples_csv": "experiments\\dclde_oracle_residual_128\\clean_synthetic_test.csv"
+}

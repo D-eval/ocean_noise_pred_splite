@@ -191,6 +191,18 @@ python -m source.plot_oracle_ladder
 
 **定位**：在这条固定的波形答案通路内，等宽组从 128 降到 64 时失去可确认的留出收益；对数分带在名义 128 带（其中只有 95 带含 STFT bin）已经失效。保持 257 bin 时，单独将功率汇总到 1 秒仍有可靠收益，因此频率平均及分带规则比时间平均更关键。最粗的“30 带/5 秒”与论文原始 `E(N_t)` 相似，但不是相同的数值定义。该阈值只针对这个线性融合接口，不能作为信息论极限，也不能代替 FiLM 重新训练。完整 29 级结果及逐例数据见 [results/dclde_information_ladder.json](results/dclde_information_ladder.json)、[results/dclde_information_ladder_samples.csv](results/dclde_information_ladder_samples.csv)；矢量图见 [paper/figures/oracle_information_ladder.pdf](paper/figures/oracle_information_ladder.pdf)。
 
+### 128 组逐帧 Oracle 残差分离器
+
+只使用当前真实干净背景作为 Oracle，不训练 GRU。对 `x_t` 与 `N_t` 做 512 点 STFT、128 点帧移，在每帧按 128 个等宽频率组计算平均功率；由 `log|B_t|` 和显式创新 `R_t=log|X_t|−log|B_t|` 组成 256 维逐帧图。该图插值到 BSR 帧网格，再通过零初始化线性投影加到混合声音得到的子带 token，送入轴向注意力。这是显式 `[X,B,R]` 的残差形式，**没有 FiLM 或历史预测**。训练前的波形输出与真正无条件 BSR 完全一致。
+
+```powershell
+python -m source.dclde_oracle_residual_experiment --device cuda
+```
+
+新模型与已有真正 BSR 共享训练/验证/测试混合、迁移骨干初值、种子、批次顺序、损失、优化器及余弦日程；两者均执行 6000 次更新，每 100 步验证并选择最高分 checkpoint。BSR 选中 5300 步，Oracle 模型选中 6000 步。**同一 4096 个留出样本**的目标 SI-SDRi 分别为 `9.631` 和 `16.767 dB`，逐例配对提升 `+7.136 dB`，按三个录音日分块的 95% 区间 `[6.970,7.282]`；三个日期各自的差值为 `+7.179/+7.282/+6.970 dB`。这满足事先提出的“至少稳定 +0.5 dB 且区间排除零”判据。
+
+汇总见 [results/dclde_oracle_residual_128.json](results/dclde_oracle_residual_128.json)，逐例结果见 [results/dclde_oracle_residual_128_samples.csv](results/dclde_oracle_residual_128_samples.csv)，完整训练轨迹见 [results/dclde_oracle_residual_128_training.json](results/dclde_oracle_residual_128_training.json)，选中模型见 [models/oracle_residual_128.pt](models/oracle_residual_128.pt)。这是**当前背景真值**与显式创新接口的组合可行性结果；接口增加了 163,840 个可训练投影参数，因此这两路比较还不能单独量化背景信息与额外容量各自的作用，也不能代表历史预测条件的效果。
+
 分离模型每个条件最多训练 10,000 次更新、至少 5,000 次，并依据固定验证集早停及选取 checkpoint；预测器最多 5,000 次更新、至少 2,500 次。正式比较使用相同留出日、相同 `(N_t,s_t)` 测试样本。其它 FiLM/拼接/交叉注意力、时间尺度、SanctSound TOL 和未标注 WAV 强度实验均为消融，不是主证据。
 
 训练完成后生成论文图和强度结果曲线：

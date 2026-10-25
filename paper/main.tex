@@ -27,6 +27,9 @@ mixtures, showing that the compressed condition is not a full-information oracle
 With the copy interface fixed, an information ladder retains a positive
 day-block gain at 128 equal-width frequency groups but not at 64; 30 geometric
 bands lose a confirmed gain even at the finest tested time grid.
+A trained 128-group time-resolved Oracle residual separator reaches 16.767 dB
+on the same held-out mixtures versus 9.631 dB for BSR (paired $+7.136$ dB,
+day-block CI $[6.970,7.282]$); no forecast is used in this Oracle test.
 A separate 13-family study compares other conditioning modes as ablations.  On untouched real calls,
 where no isolated stem exists, a frozen event classifier finds no clear
 semantic advantage over a matched zero-condition FiLM control.  We therefore
@@ -327,6 +330,29 @@ loss.  The threshold depends on frequency grouping and this copy interface.}
 \label{fig:ladder}
 \end{figure*}
 
+\paragraph{Trained high-resolution Oracle residual separator.}
+We next test the representation in an actual BS-RoFormer, rather than only a
+frozen linear copy head.  The actual current $N_t$ and mixture $x_t$ are
+transformed with a 512-point, 128-hop STFT.  Mean power in 128 equal-width
+frequency groups yields time-resolved $\log|B_t|$; the explicit innovation is
+$R_t=\log|X_t|-\log|B_t|$ on the same grid.  These maps are interpolated to
+the BSR frame grid and projected into its mixture-derived band tokens before
+axial attention.  This zero-initialized residualized $[X_t,B_t,R_t]$ input
+uses neither FiLM nor a forecaster; its initial waveform output exactly
+matches ordinary BSR (maximum difference zero).
+
+Both models use the same day-disjoint DCLDE mixtures, transferred backbone
+initialization, seed, batch order, 6,000 updates, AdamW/cosine schedule,
+loss, and validation-best checkpoint rule.  The existing BSR selected step
+5,300; the Oracle model selected step 6,000.  On 4,096 matched test examples,
+BSR scores 9.631 and Oracle-Residual-BSR 16.767 dB target SI-SDRi.
+The paired improvement is $+7.136$ dB (recording-day 95\% interval
+$[6.970,7.282]$), with all three held-out days positive.  The combined
+high-resolution prior and explicit innovation interface therefore benefits
+this controlled separator.  Actual $N_t$ is unavailable at deployment;
+this two-model comparison also does not isolate adapter capacity from the
+condition information.
+
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{figures/clean_background_strength.pdf}
@@ -452,6 +478,11 @@ bottleneck: even mixture-phase conditions retain a confirmed gain at 128
 equal-width frequency groups or 1-s full-bin temporal pooling, whereas 64
 equal-width groups and 30 geometric bands do not.  The original FiLM result
 cannot be assigned to this bottleneck alone because its interface differs.
+The trained 128-group Oracle-Residual-BSR gains $+7.136$ dB on matched
+held-out mixtures, showing that a high-resolution true background and
+explicit innovation can help the BSR backbone.  The added adapter capacity
+and current-background Oracle access remain limitations of this feasibility
+test; a causal forecast has not been evaluated through this interface.
 Zero-FiLM is effectively tied with BS-RoFormer, while Forecast is no better
 than either Zero or Shuffled.  The result does not isolate prediction error
 as the bottleneck; a five-second, 30-band static summary and its FiLM interface
@@ -466,9 +497,9 @@ The local frontend is usable for inspection: on a CPU smoke test, one 5-s
 chunk ran at RTF 0.014 after history features were prepared; the interface
 displays forecasts and permits playback and download of both estimates.  This
 does not establish field deployment.
-The next representation to test is a time-frequency innovation map comparing
-the current mixture with predicted background, rather than only a static band
-mean.  Further work should cover more sites and seasons and obtain isolated
+The next step is to test whether causal history can predict a sufficiently
+accurate time-frequency background for this same innovation interface.
+Further work should cover more sites and seasons and obtain isolated
 or stronger partial references for real events.  Classifier-based restoration
 is evidence of semantic transfer, not a replacement for waveform fidelity.
 
