@@ -247,6 +247,23 @@ python -m source.dclde_causal_highres_experiment summary
 | GRU-Forecast-Residual | 14.351 | +4.720 |
 | Oracle-Residual | 16.767 | +7.136 |
 
-Zero 相对 BSR 提高 `+2.525 dB`，Shuffled 提高 `+2.313 dB`，说明不能把因果模型相对 BSR 的全部收益归因于历史信息。Zero 相对 BSR 的差异同时包含适配器参数和创新通路提供的当前混合对数谱，尚不能只量化“容量”作用。保持接口相同后，Persistence 相比 Zero 高 `+2.138 dB`，按三个录音日配对的 95% 区间为 `[1.775,2.377]`；相比错日 Shuffled 高 `+2.351 dB`，区间 `[1.571,2.661]`。三个留出日均同向，支持正确时刻的历史背景有额外价值。GRU 背景图的测试对数幅度 MAE 为 `0.5308`，Persistence 为 `0.5386`；Forecast 相对 Persistence 仅高 `+0.056 dB`，区间 `[0.036,0.074]`。因此 GRU 的增益真实而很小。真实事件上的效果仍需独立验证。
+Zero 相对 BSR 提高 `+2.525 dB`，Shuffled 提高 `+2.313 dB`，说明不能把因果模型相对 BSR 的全部收益归因于历史信息。Zero 相对 BSR 的差异同时包含适配器参数和创新通路提供的当前混合对数谱，尚不能只量化“容量”作用。保持接口相同后，Persistence 相比 Zero 高 `+2.138 dB`，按三个录音日配对的 95% 区间为 `[1.775,2.377]`；相比错日 Shuffled 高 `+2.351 dB`，区间 `[1.571,2.661]`。三个留出日均同向，支持正确时刻的历史背景有额外价值。GRU 背景图的测试对数幅度 MAE 为 `0.5308`，Persistence 为 `0.5386`；Forecast 相对 Persistence 仅高 `+0.056 dB`，区间 `[0.036,0.074]`。因此 GRU 的增益真实而很小。下节独立报告真实事件上的迁移结果。
 
 完整汇总见 [results/dclde_causal_highres_comparison.json](results/dclde_causal_highres_comparison.json)，逐例配对分数见 [results/dclde_causal_highres_test_samples.csv](results/dclde_causal_highres_test_samples.csv)；冻结预测器及五路残差检查点位于 `models/`，包括 `highres_gru_128.pt`、`zero_residual_128.pt`、`shuffled_residual_128.pt`、`persistence_residual_128.pt`、`forecast_residual_128.pt`、`oracle_residual_128.pt`。
+
+### 128 频组残差模型的真实鲸声迁移
+
+使用与前期 FiLM 评估完全相同的 103 个测试鲸声片段、冻结事件分类器及恢复干预，不用真实隔离声轨训练或选点。每段鲸声的 60 秒条件历史只取自同一 WAV 中严格早于当前的标注干净 5 秒窗；6 段历史各缺一窗，用这 60 秒内最近的干净窗填补。Shuffled 从另一测试录音日抽取标注干净背景；Forecast 现场运行冻结的 128 频组 GRU，条件不读取当前鲸声。
+
+```powershell
+python -m source.dclde_real_residual_eval --device cuda --batch-size 8
+```
+
+| 残差条件 | $p(x)$ | $p(\hat N)\downarrow$ | $p(\hat s)\uparrow$ | 恢复单调率$\uparrow$ | 区间外相对改动$\downarrow$ |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Zero | .909 | .891 | .802 | .990 | .062 |
+| Shuffled | .909 | .781 | .910 | .989 | .078 |
+| Persistence | .909 | .829 | .849 | .992 | .037 |
+| GRU Forecast | .909 | .838 | .842 | .989 | .036 |
+
+Persistence 相对 Zero 的背景事件概率下降 `.0624`（按三个录音日配对的 95% 区间 `[-.0682,-.0547]`），事件声轨概率上升 `.0469`（`[.0198,.1006]`），区间外改动下降 `.0255`（`[-.0386,-.0077]`）。但错日 Shuffled 在两项分类器事件概率上优于 Persistence/Forecast，同时区间外改动明显更大：Persistence 减 Shuffled 的区间外差为 `-.0408`（`[-.0519,-.0320]`）。单调率四路接近饱和。因此不能宣称真实目标上正确历史条件全面胜出；分类器可能奖励激进的事件提取，而因果条件在背景保留上更好。逐例数据和全部配对区间见 [results/dclde_real_residual_event_results.csv](results/dclde_real_residual_event_results.csv) 与 [results/dclde_real_residual_event_results.json](results/dclde_real_residual_event_results.json)。

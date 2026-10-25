@@ -29,7 +29,10 @@ $2.416$ dB below Oracle. Thus the residual interface itself helps, and
 time-relevant historical background supplies a further substantial gain;
 this GRU adds little beyond persistence. Synthetic targets and only three
 held-out days limit generalization; classifier tests on untouched calls do
-not establish real-event superiority.
+not establish real-event superiority. On the same 103 real calls, causal
+conditions preserve off-event audio better than wrong-day Shuffled, whereas
+Shuffled scores better on the classifier's two event-probability measures;
+the real-event ranking is therefore unresolved.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -495,7 +498,7 @@ sweep.  Lines show the four conditions; shaded bands are paired 95\% intervals.}
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=.98\textwidth,trim=0 0 0 23,clip]{figures/real_audio_visualization.pdf}
+\includegraphics[width=.91\textwidth,trim=0 0 0 23,clip]{figures/real_audio_visualization.pdf}
 \caption{Preliminary 30-band FiLM illustration: median-selected $-12$ dB synthetic whale pulse packet in an
 annotation-clean 5-s DCLDE recording.  The ocean and mixture share an absolute
 magnitude scale; the lower row shows each event stem relative to the actual
@@ -514,43 +517,58 @@ $\hat s$ at gains $\{-60,-30,-24,-18,-12,-6,0\}$ dB and test whether event
 probability recovers monotonically.  Identity and all-to-event controls reject
 trivial solutions; changes outside annotated intervals audit preservation.
 
-This exploratory transfer test uses the \emph{preliminary 30-band FiLM}
-forecaster and separator, rather than the new 128-group residual model.
-Because recent call activity is masked, 103 real
-test calls retain a full eligible 60-s history.  Table~\ref{tab:events} shows
-the untouched-call results: the preliminary forecast-FiLM separator trends toward lower residual event
-probability and off-event change, while event-stem probability is nearly
-unchanged.  The day-block intervals include zero for residual probability
-$\Delta=-.0731$ ($[-.2090,.0294]$), event-stem probability $\Delta=+.0022$
-($[-.0180,.0304]$), and monotonicity $\Delta=+.0178$ ($[-.0333,.0429]$).
-Off-event relative error decreases by $.0248$ ($[-.0456,-.0018]$).  This small
-semantic set is suggestive but not decisive; separated-stem ground truth is
-still unavailable.
+We evaluate the four frozen 128-group residual models on the exact 103 test
+calls used by the preliminary FiLM audit. Each call receives twelve strictly
+earlier annotation-clean maps from the same WAV. Six histories each lack one
+clean window, filled by the nearest clean window still inside the prior 60 s.
+Zero uses the training mean, Shuffled a clean background from another test
+day, Persistence the last historical map, and Forecast the frozen GRU applied
+to that history. No condition reads the current call. Table~\ref{tab:events}
+and Fig.~\ref{fig:real} show the results.
+
+Persistence versus Zero lowers $p(\hat N)$ by $.0624$ (recording-day paired
+95\% CI $[-.0682,-.0547]$), raises $p(\hat s)$ by $.0469$
+($[.0198,.1006]$), and lowers off-event change by $.0255$
+($[-.0386,-.0077]$). Forecast shows the same directions versus Zero, with
+$\Delta p(\hat N)=-.0531$ and $\Delta$ off-event $=-.0260$.
+However, wrong-day Shuffled attains lower $p(\hat N)$ and higher $p(\hat s)$
+than either causal condition: Persistence minus Shuffled is $+.0471$
+($[.0317,.0706]$) for $p(\hat N)$ and $-.0606$ ($[-.0731,-.0404]$) for
+$p(\hat s)$. Persistence protects off-event audio much better
+($\Delta=-.0408$, $[-.0519,-.0320]$). Monotonicity is near saturation for
+all four models and does not separate them. The classifier probabilities
+therefore do not reproduce the controlled full-reference ranking; they can
+reward aggressive extraction, while off-event preservation favors the causal
+conditions. Isolated real-event stems remain unavailable.
 
 \begin{table*}[t]
-\caption{Reference-free matched comparison on 103 real calls with eligible histories.}
+\caption{Frozen 128-group residual models on the same 103 real calls. All
+models see the same mixture; real separated stems are unavailable.
+Off-event is relative background change outside annotated calls.}
 \label{tab:events}\centering\footnotesize
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lrrrrr}
 \toprule
 Method &$p(x)$&$p(\hat N)\downarrow$&$p(\hat s)\uparrow$&Mono.$\uparrow$&Off-event$\downarrow$\\
 \midrule
-Zero-condition FiLM&.909&.786&.900&.937&.230\\
-30-band Forecast-FiLM&.909&.713&.902&.955&.206\\
+Zero-Residual&.909&.891&.802&.990&.062\\
+Shuffled-Residual&.909&.781&.910&.989&.078\\
+Persistence-Residual&.909&.829&.849&.992&.037\\
+GRU-Forecast-Residual&.909&.838&.842&.989&.036\\
 \bottomrule
 \end{tabular}
 }%
 \end{table*}
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{figures/dclde_reference_free.pdf}
-\caption{Reference-free restoration curves and preservation audit for
-Zero-condition FiLM and preliminary 30-band Forecast-FiLM. Both perform
-nontrivial semantic separation, but the latter is not uniformly better on
-real calls. The new residual model has not been tested on real calls.}
+\includegraphics[width=.82\textwidth]{figures/dclde_residual_reference_free.pdf}
+\caption{Frozen-classifier event restoration and off-event preservation for
+four matched residual models. Identity and all-to-event are degenerate
+controls. Shuffled scores strongly on event probabilities but changes more
+audio outside annotated calls than either causal condition.}
 \label{fig:real}
-\end{figure}
+\end{figure*}
 
 \section{Discussion and Conclusion}
 The main-domain 30-band Oracle is a diagnostic of the existing interface: even when FiLM receives
@@ -585,9 +603,14 @@ as the bottleneck; a five-second, 30-band static summary and its FiLM interface
 may be too coarse for the separator's time-frequency tokens.  FiLM remains the
 best interface on controlled spectral surrogates, and the secondary unlabeled
 WAV sweep shows weak-target gains, but neither establishes a main-domain gain.
-No decisive forecast advantage appears on untouched whale calls.  The main
-test has three held-out recording days, so small or site-dependent effects
-remain possible.
+The new real-call audit has a mixed outcome: causal maps improve all three
+semantic/preservation measures against Zero, but Shuffled wins the two
+classifier event probabilities while losing markedly on off-event change.
+Forecast is not uniformly better than Persistence. Thus the real calls do
+not establish that correctly timed history improves semantic separation;
+they expose a preservation-versus-detection tradeoff under a surrogate
+classifier. The old 30-band FiLM real-call comparison remains preliminary.
+Only three held-out days and no isolated real stems limit this inference.
 
 The existing 30-band FiLM frontend is usable for inspection: on a CPU smoke test, one 5-s
 chunk ran at RTF 0.014 after history features were prepared; the interface
@@ -599,7 +622,6 @@ seasons, and obtain isolated
 or stronger partial references for real events.  Classifier-based restoration
 is evidence of semantic transfer, not a replacement for waveform fidelity.
 
-\balance
 \bibliographystyle{IEEEtran}
 \bibliography{reference}
 \end{document}

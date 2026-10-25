@@ -31,7 +31,8 @@ $[0.036,0.074]$，但仍低于 Oracle $2.416$ dB。
 因此，残差接口本身已有收益，时间相关的历史背景又带来显著额外收益；
 当前 GRU 相比直接沿用上一窗只带来很小增益。
 合成目标和仅三个留出日限制了外推结论；
-未修改真实事件上的分类器测试尚不能确立语义分离优势。
+同一批 103 个真实鲸声事件上，因果条件比错日 Shuffled 更好地保留标注区间外音频，
+但 Shuffled 的两项事件分类概率更优；真实事件上的排序尚未闭合。
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -393,7 +394,7 @@ Forecast 恢复了 Oracle 相对 BSR 增益的 66.1\%，与 Oracle 仍差 $2.416
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=.98\textwidth,trim=0 0 0 23,clip]{figures/real_audio_visualization.pdf}
+\includegraphics[width=.91\textwidth,trim=0 0 0 23,clip]{figures/real_audio_visualization.pdf}
 \caption{前期 30 频带 FiLM 示例：标注干净 DCLDE 背景中按组内中位数选择的鲸声脉冲包（$-12$ dB，5 秒）。
 海洋背景和混合声音共用绝对幅度色标；下排三张事件声轨图共用相对真实背景幅度的 dB 色标。
 本图并非新的 128 组残差模型。两种估计均未彻底去除背景纹理；前期总体强度结果见图\ref{fig:cleanstrength}。}
@@ -407,36 +408,49 @@ Forecast 恢复了 Oracle 相对 BSR 增益的 66.1\%，与 Oracle 仍差 $2.416
 $\{-60,-30,-24,-18,-12,-6,0\}$ dB 逐级恢复，检查事件概率是否单调回升；Identity 与
 all-to-event 排除平凡解，标注区间外变化审计背景保留。
 
-这项探索性真实事件迁移评估使用的是\emph{前期 30 频带 FiLM} 预测器与分离器，
-尚未测试新的 128 组残差模型。由于近期事件历史被排除，测试中有 103 个
-真实事件保留完整 60 秒历史。表\ref{tab:events}显示前期预测 FiLM 的残余事件概率和区间外改动呈下降趋势，
-事件声轨概率近似不变。按留出日期分块后，残余事件概率差 $-0.0731$ 的 95\% 区间为 $[-.2090,.0294]$，
-事件声轨概率差 $+.0022$ 的区间为 $[-.0180,.0304]$，单调率差 $+.0178$ 的区间为 $[-.0333,.0429]$，
-均包含零；区间外相对误差差 $-.0248$ 的区间为 $[-.0456,-.0018]$。因此该小样本提供有利但不确定的语义迹象，
-仍没有真实分离声轨真值。
+本次直接评估冻结的四个 128 频组残差模型，样本与前期 FiLM 审计的 103 个测试鲸声完全相同。
+每段历史只包含同一 WAV 中严格早于当前的 12 张标注干净背景图；6 段各缺 1 张，
+在过去 60 秒内部用最近干净窗填补。Zero 使用训练均值，Shuffled 使用另一测试日的干净背景，
+Persistence 使用最后一张历史图，Forecast 将历史送入冻结 GRU；条件均不读取当前鲸声。
+表\ref{tab:events}与图\ref{fig:real}给出结果。
+
+相对 Zero，Persistence 使 $p(\hat N)$ 下降 $.0624$（按日配对 95\% 区间
+$[-.0682,-.0547]$），$p(\hat s)$ 上升 $.0469$（$[.0198,.1006]$），
+区间外变化下降 $.0255$（$[-.0386,-.0077]$）；Forecast 与 Zero 比较也同向，
+$p(\hat N)$ 差为 $-.0531$，区间外变化差为 $-.0260$。
+但错日 Shuffled 的 $p(\hat N)$ 比两种因果条件更低、$p(\hat s)$ 更高：
+Persistence 减 Shuffled 分别为 $+.0471$（$[.0317,.0706]$）与
+$-.0606$（$[-.0731,-.0404]$）。Persistence 的区间外改动则显著更小，
+差为 $-.0408$（$[-.0519,-.0320]$）。四路单调率都接近饱和，区分力很弱。
+因此分类器概率没有重现受控全参考实验的排序：它可能奖励更激进的事件提取，
+而因果条件更好地保留了事件区间外音频。真实隔离声轨仍不可得。
 
 \begin{table*}[t]
-\caption{103 个具有合格历史的真实事件上的无参考匹配比较。}
+\caption{同一批 103 个真实鲸声上的冻结 128 频组残差模型比较。
+四路使用相同混合声音；没有真实分离声轨。区间外指标为标注外背景相对改动。}
 \label{tab:events}\centering\footnotesize
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lrrrrr}
 \toprule
 方法 &$p(x)$&$p(\hat N)\downarrow$&$p(\hat s)\uparrow$&单调率$\uparrow$&区间外$\downarrow$\\
 \midrule
-零条件 FiLM&.909&.786&.900&.937&.230\\
-30 频带 Forecast-FiLM&.909&.713&.902&.955&.206\\
+Zero-Residual&.909&.891&.802&.990&.062\\
+Shuffled-Residual&.909&.781&.910&.989&.078\\
+Persistence-Residual&.909&.829&.849&.992&.037\\
+GRU-Forecast-Residual&.909&.838&.842&.989&.036\\
 \bottomrule
 \end{tabular}
 }%
 \end{table*}
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{figures/dclde_reference_free.pdf}
-\caption{零条件 FiLM 与前期 30 频带 Forecast-FiLM 的无参考恢复曲线及背景保留审计。
-两种模型都进行了非平凡语义分离，但后者在真实事件上没有全面胜出；新残差模型尚未参与此测试。}
+\includegraphics[width=.82\textwidth]{figures/dclde_residual_reference_free.pdf}
+\caption{四路匹配残差模型的冻结分类器恢复曲线与区间外保留。
+Identity 和 all-to-event 为平凡解对照。错日 Shuffled 的事件概率更强，
+但对标注事件区间外音频的改动大于两种因果条件。}
 \label{fig:real}
-\end{figure}
+\end{figure*}
 
 \section{讨论与结论}
 主域 30 频带 Oracle 只诊断当前接口：FiLM 即使得到当前实际干净波形的 $E(N_t)$，
@@ -461,7 +475,11 @@ Zero-FiLM 与无条件骨干几乎重合，Forecast 也没有超过 Zero 或 Shu
 因此不能把预测误差单独认定为瓶颈；5 秒静态 30 维频带摘要与 FiLM 接口
 可能不足以对齐分离器的时频 token。FiLM 在频谱代理消融中仍是最好的接口，
 未标注 WAV 强度消融也显示弱目标收益，但两者都不能证明主域增益。
-未修改鲸声上的预测优势也不明确；主测试只有三个留出录音日，小效应或站点差异仍可能存在。
+新的真实鲸声审计呈现权衡：两种因果条件相对 Zero 改善事件概率和区间外保留，
+但错日 Shuffled 在两项事件分类概率上胜出，同时明显损害区间外保留；
+Forecast 对 Persistence 也并非全面胜出。因此真实事件尚未证明正确历史提高了语义分离，
+而是揭示了代理分类器下的事件检测与背景保留权衡。旧 30 频带 FiLM 真实事件对照仍属前期实验。
+只有三个留出录音日，且没有真实隔离声轨，限制了该结论。
 
 既有 30 频带 FiLM 前端可用于实验检查：在已准备历史特征的 CPU 冒烟测试中，单个 5 秒块 RTF 为 0.014；界面可显示预测并试听、下载两条估计声轨，但尚未部署新的 128 组残差模型，也不等于野外部署。
 下一步应提高预测对事件相关时频结构的辨别能力，而不只压低平均对数幅度 MAE；

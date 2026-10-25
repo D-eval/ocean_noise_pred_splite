@@ -743,6 +743,47 @@ def reference_free_figure(path: Path, results_path: Path) -> None:
     save_figure(figure, path)
 
 
+def real_residual_figure(path: Path, results_path: Path) -> None:
+    """Frozen-classifier restoration and event-interval preservation for 128-band residual arms."""
+    results = json.loads(results_path.read_text(encoding="utf-8"))
+    conditions = results["conditions"]
+    gains = np.asarray(results["protocol"]["restoration_gains_db"])
+    styles = {
+        "zero": ("Zero", COLORS["navy"], "o"),
+        "shuffled": ("Shuffled", COLORS["gold"], "s"),
+        "persistence": ("Persistence", COLORS["cyan"], "^"),
+        "forecast": ("GRU forecast", COLORS["coral"], "D"),
+    }
+    figure, axes = plt.subplots(1, 2, figsize=(9.4, 3.25), constrained_layout=True)
+    for name, (label, color, marker) in styles.items():
+        axes[0].plot(gains, conditions[name]["restoration_curve"],
+                     color=color, marker=marker, linewidth=1.8,
+                     markersize=4, label=label)
+    for name, label, color in (("identity", "Identity", COLORS["muted"]),
+                               ("all_to_event", "All-to-event", "#9B9B9B")):
+        axes[0].plot(gains, conditions[name]["restoration_curve"],
+                     linestyle="--", color=color, linewidth=1.1, label=label)
+    axes[0].set(xlabel="Restored event gain (dB)",
+                ylabel="Frozen classifier event probability",
+                title="Event restoration on 103 real calls", ylim=(0.38, 1.0))
+    axes[0].legend(frameon=False, fontsize=7, ncol=2, loc="lower right")
+    labels = [value[0] for value in styles.values()]
+    colors = [value[1] for value in styles.values()]
+    x = np.arange(len(styles))
+    off_error = [conditions[name]["off_event_relative_error"] for name in styles]
+    axes[1].bar(x, off_error, width=.54, color=colors)
+    axes[1].set(xticks=x, xticklabels=labels, ylabel="Off-event relative change (lower is better)",
+                title="Preservation outside event labels", ylim=(0, .10))
+    axes[1].tick_params(axis="x", labelrotation=18)
+    for position, value in enumerate(off_error):
+        axes[1].text(position, value + .002, f"{value:.3f}", ha="center", fontsize=8)
+    for axis in axes:
+        axis.grid(alpha=.16, axis="y")
+        axis.set_axisbelow(True)
+        axis.spines[["top", "right"]].set_visible(False)
+    save_figure(figure, path)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", type=Path, default=Path("paper/figures"))
@@ -760,6 +801,10 @@ def main() -> None:
     parser.add_argument(
         "--dclde-results", type=Path, default=Path("results/dclde_real_event_results.json")
     )
+    parser.add_argument(
+        "--dclde-residual-results", type=Path,
+        default=Path("results/dclde_real_residual_event_results.json")
+    )
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = parser.parse_args()
@@ -772,6 +817,9 @@ def main() -> None:
         window_resolution_figure(args.output_dir / "window_resolution.pdf", args.window_results)
     if args.dclde_results.exists():
         reference_free_figure(args.output_dir / "dclde_reference_free.pdf", args.dclde_results)
+    if args.dclde_residual_results.exists():
+        real_residual_figure(args.output_dir / "dclde_residual_reference_free.pdf",
+                             args.dclde_residual_results)
     main_oracle_results = Path("results/dclde_main_oracle.json")
     clean_test_csv = Path("results/dclde_clean_synthetic_test.csv")
     if main_oracle_results.exists():
