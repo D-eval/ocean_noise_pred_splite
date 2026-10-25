@@ -20,8 +20,10 @@ reduces held-out forecast MAE from 2.111 to 1.926 dB (8.8\%) against
 persistence.  A six-way, matched-condition audit on 4,096 held-out mixtures
 finds 9.631 dB target SI-SDRi for both the true BS-RoFormer and Zero-FiLM,
 9.497 dB for GRU-Forecast FiLM, and 9.535 dB for Oracle-FiLM using the actual
-current $E(N_t)$.  Oracle minus BS-RoFormer is $-0.096$ dB (day-block 95\% CI
+current 30-band $E(N_t)$.  Oracle minus BS-RoFormer is $-0.096$ dB (day-block 95\% CI
 $[-0.238,0.034]$): this 30-band condition has no demonstrated average benefit.
+A separate full-waveform oracle copy check learns $x_t-N_t$ on the same held-out
+mixtures, showing that the compressed condition is not a full-information oracle.
 A separate 13-family study compares other conditioning modes as ablations.  On untouched real calls,
 where no isolated stem exists, a frozen event classifier finds no clear
 semantic advantage over a matched zero-condition FiLM control.  We therefore
@@ -105,8 +107,10 @@ the same split ($j\ne t$); on the held-out test, this selects a different day.
 Persistence-FiLM
 uses $S_{t-1}$, and Forecast-FiLM uses the frozen GRU output.  Oracle-FiLM
 receives $S_t^{\mathrm{oracle}}=E(N_t)$ computed from the actual current clean
-background after any shared mixture scaling.  Oracle is a diagnostic condition
-available only in this controlled experiment.
+background after any shared mixture scaling.  We call this the \emph{30-band
+Oracle-FiLM}: $E$ removes temporal structure and phase, so this row bounds
+neither a full-background condition nor the value of perfect forecasting with
+a richer representation.  It is available only in the controlled experiment.
 
 \begin{figure*}[t]
 \centering
@@ -220,13 +224,13 @@ average over Zero.  Thus the matched controls do not establish that temporal
 forecast information improves this separator.  Oracle's higher validation
 score (11.372 versus 10.946 dB for BS-RoFormer) does not transfer to a clear
 held-out gain.  With only three test days, the intervals leave small effects
-unresolved; an oracle supplies more information, but separately optimized
+unresolved; the 30-band oracle supplies more information, but separately optimized
 FiLM models do not form a guaranteed performance ordering.
 
 \begin{table*}[t]
 \caption{Main DCLDE test on 4,096 matched annotation-clean 5-s backgrounds plus
 synthetic events.  Values are target SI-SDRi (dB); brackets are paired 95\%
-bootstrap intervals over held-out recording days.  Oracle alone sees $E(N_t)$.}
+bootstrap intervals over held-out recording days.  The 30-band Oracle alone sees $E(N_t)$.}
 \label{tab:cleanmain}\centering\footnotesize
 \begin{tabular}{lrrrr}
 \toprule
@@ -237,10 +241,48 @@ Zero-condition FiLM &10.967&9.631&$-0.0002\;[-0.007,0.009]$&0\\
 Shuffled-condition FiLM &10.609&9.526&$-0.105\;[-0.247,0.020]$&$-0.105\;[-0.256,0.026]$\\
 Persistence-condition FiLM &11.205&9.524&$-0.107\;[-0.239,0.083]$&$-0.107\;[-0.232,0.084]$\\
 GRU-Forecast FiLM (FC-BSR) &11.213&9.497&$-0.134\;[-0.327,0.125]$&$-0.134\;[-0.320,0.125]$\\
-Oracle-FiLM, $E(N_t)$ &11.372&9.535&$-0.096\;[-0.238,0.034]$&$-0.095\;[-0.231,0.035]$\\
+30-band Oracle-FiLM, $E(N_t)$ &11.372&9.535&$-0.096\;[-0.238,0.034]$&$-0.095\;[-0.231,0.035]$\\
 \bottomrule
 \end{tabular}
 \end{table*}
+
+\paragraph{Full-waveform oracle copy check.}
+To test whether losing information in $E$ explains the negative 30-band result,
+we freeze the same trained BS-RoFormer and fit a pointwise, three-coefficient
+head on 8,192 training mixtures:
+\begin{equation}
+\hat s_t=w_b\hat s_{\rm BSR}(x_t)+w_xx_t+w_cc_t.
+\end{equation}
+The head starts at $(1,0,0)$, exactly reproducing BSR, and its waveform-MSE
+global optimum is solved by least squares.  We fit the \emph{same} head with
+zero, wrong-time, and actual current background waveforms; validation and
+testing use 4,096 examples each, with the test IDs, SNRs, mixture scores, and
+frozen BSR outputs checked against Table~\ref{tab:cleanmain}.
+For $c_t=N_t$, the learned weights are $(0,1,-1)$ to numerical precision:
+the head copies the exact answer $x_t-N_t=s_t$.  The maximum test waveform
+error is $5.96\times10^{-8}$; the finite SI-SDRi of 80.755 dB is limited by
+the metric's numerical floor.  Zero and wrong-time heads receive no useful
+background identity and do not improve SI-SDRi (Table~\ref{tab:copy}).  This
+is an intentionally noncausal information/path sanity check with a different
+interface, not an architecture-matched FiLM ablation or evidence that the
+30-band forecast can recover a phase-aligned background waveform.
+
+\begin{table}[t]
+\caption{Full-waveform oracle copy check on the same 4,096 DCLDE test mixtures.
+Target SI-SDRi and paired day-block $\Delta$ against the frozen BSR (dB).}
+\label{tab:copy}\centering\footnotesize
+\begin{tabular}{lrr}
+\toprule
+Frozen BSR + fitted head & SI-SDRi & $\Delta$ [95\% CI]\\
+\midrule
+BSR; initial $(1,0,0)$ & 9.631 & 0\\
+Zero waveform & 9.231 & $-0.400\;[-0.483,-0.269]$\\
+Wrong-time waveform & 9.231 & $-0.400\;[-0.483,-0.269]$\\
+Actual $N_t$ waveform & 80.755 & $+71.124\;[69.945,72.081]$\\
+Analytic $x_t-N_t$ & 80.755 & $+71.124\;[69.945,72.081]$\\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \begin{figure}[t]
 \centering
@@ -356,9 +398,13 @@ but FC-BSR is not uniformly better on real calls.}
 \end{figure}
 
 \section{Discussion and Conclusion}
-The main-domain Oracle is the decisive diagnostic: even when FiLM receives
+The main-domain 30-band Oracle is a diagnostic of the existing interface: even when FiLM receives
 $E(N_t)$ from the exact current clean waveform, its held-out mean does not
 exceed the mixture-only BS-RoFormer, and its paired interval spans zero.
+The full-waveform copy check succeeds exactly, so the current negative result
+cannot be interpreted as evidence that the true background lacks useful
+information.  It leaves the relative roles of 30-band compression and FiLM
+injection unresolved.
 Zero-FiLM is effectively tied with BS-RoFormer, while Forecast is no better
 than either Zero or Shuffled.  The result does not isolate prediction error
 as the bottleneck; a five-second, 30-band static summary and its FiLM interface

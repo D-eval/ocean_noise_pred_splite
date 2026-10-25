@@ -20,9 +20,10 @@
 5 秒海洋录音、合成海洋事件及其精确混合。现有录音提供 146.4 小时的干净当前背景，其中训练集
 有 37.3 小时可用于训练。预测器在 5 秒分辨率上训练，验证 MAE 从 persistence 的 2.111 降至 1.926 dB（8.8\%）。
 在 4,096 个留出混合上的六路匹配实验中，真正的 BS-RoFormer 与 Zero-FiLM 均为 9.631 dB SI-SDRi，
-GRU-Forecast FiLM 为 9.497 dB，使用实际当前 $E(N_t)$ 的 Oracle-FiLM 为 9.535 dB。
+GRU-Forecast FiLM 为 9.497 dB，使用实际当前 30 维 $E(N_t)$ 的 Oracle-FiLM 为 9.535 dB。
 Oracle 相对 BS-RoFormer 为 $-0.096$ dB，按日期分块的 95\% 区间 $[-0.238,0.034]$；
-因此当前 30 维条件没有显示明确平均收益。其他注入方式仅作为消融。
+因此当前 30 维条件没有显示明确平均收益。另一个全波形 Oracle 校验在同一留出混合上学得
+$x_t-N_t$，说明压缩频谱不能代表完整背景真值。其他注入方式仅作为消融。
 在没有隔离声轨的真实事件上，冻结分类器也未显示 FC-BSR 相比零条件 FiLM 有明确语义优势。
 本文支持标注干净背景上的完全监督分离，但现有 30 维预测条件与 FiLM 接口的分离增益尚未确立。
 \end{abstract}
@@ -81,7 +82,9 @@ Zero-FiLM 保留 FiLM 分支与同一冻结 GRU，但用 $c=0$ 替换其输出�
 取得另一时窗的 $E(N_j)$；留出测试中该窗来自另一录音日。
 Persistence-FiLM 使用最后一个历史频谱 $S_{t-1}$，Forecast-FiLM 使用冻结 GRU 的预测。
 Oracle-FiLM 使用 $S_t^{\mathrm{oracle}}=E(N_t)$，其中 $N_t$ 是当前样本实际采用的干净背景波形，
-包含极少数混合峰值归一化后的幅度。Oracle 只作为受控实验中的信息上限诊断。
+包含极少数混合峰值归一化后的幅度。本文明确称之为“30 频带 Oracle-FiLM”：
+$E$ 丢失时间结构与相位，因此这一路既不是完整背景条件的上限，也不能限制更丰富表示下完美预测的价值。
+该条件仅在受控实验中可用。
 
 \begin{figure*}[t]
 \centering
@@ -160,12 +163,12 @@ Oracle−BS-RoFormer 为 $-0.096$ dB（$[-0.238,0.034]$）；
 Oracle−Forecast 仅为 $+0.039$ dB（$[-0.090,0.155]$）。
 错时与 persistence 条件相对 Zero 也没有显示正的平均收益。
 Oracle 的验证 SI-SDRi 比 BS-RoFormer 高（11.372 对 10.946 dB），但没有形成明确的留出优势。
-三个测试录音日使小效应仍未确定；Oracle 拥有更丰富的真实信息，然而独立优化的 FiLM 模型
+三个测试录音日使小效应仍未确定；30 频带 Oracle 拥有更丰富的真实信息，然而独立优化的 FiLM 模型
 不必按信息量形成性能排序。
 
 \begin{table*}[t]
 \caption{主域 DCLDE：4,096 个匹配的标注干净 5 秒背景与合成事件。数值为目标 SI-SDRi（dB）；
-方括号是按留出录音日配对 bootstrap 的 95\% 区间。只有 Oracle 使用 $E(N_t)$。}
+方括号是按留出录音日配对 bootstrap 的 95\% 区间。只有 30 频带 Oracle 使用 $E(N_t)$。}
 \label{tab:cleanmain}\centering\footnotesize
 \begin{tabular}{lrrrr}
 \toprule
@@ -176,10 +179,42 @@ Zero-condition FiLM &10.967&9.631&$-0.0002\;[-0.007,0.009]$&0\\
 Shuffled-condition FiLM &10.609&9.526&$-0.105\;[-0.247,0.020]$&$-0.105\;[-0.256,0.026]$\\
 Persistence-condition FiLM &11.205&9.524&$-0.107\;[-0.239,0.083]$&$-0.107\;[-0.232,0.084]$\\
 GRU-Forecast FiLM (FC-BSR) &11.213&9.497&$-0.134\;[-0.327,0.125]$&$-0.134\;[-0.320,0.125]$\\
-Oracle-FiLM, $E(N_t)$ &11.372&9.535&$-0.096\;[-0.238,0.034]$&$-0.095\;[-0.231,0.035]$\\
+30 频带 Oracle-FiLM, $E(N_t)$ &11.372&9.535&$-0.096\;[-0.238,0.034]$&$-0.095\;[-0.231,0.035]$\\
 \bottomrule
 \end{tabular}
 \end{table*}
+
+\paragraph{全波形 Oracle 的抄答案校验。}
+为检验 $E$ 的信息损失能否解释 30 频带结果，我们冻结同一已训练 BS-RoFormer，
+在 8,192 个训练混合上拟合逐采样点三系数融合头：
+\begin{equation}
+\hat s_t=w_b\hat s_{\rm BSR}(x_t)+w_xx_t+w_cc_t.
+\end{equation}
+初始系数 $(1,0,0)$ 精确复现 BSR，用最小二乘求波形均方误差的全局最优解。
+同一结构分别输入全零、错时背景及真实当前背景波形；验证与测试各用 4,096 个样本。
+测试 ID、SNR、混合 SI-SDR 及冻结 BSR 输出均与表\ref{tab:cleanmain}逐例核对。
+当 $c_t=N_t$ 时，学得系数数值上等于 $(0,1,-1)$，即精确抄得 $x_t-N_t=s_t$。
+测试波形最大绝对误差为 $5.96\times10^{-8}$；80.755 dB 的有限 SI-SDRi
+由指标数值底噪限制。零条件与错时条件均未改善 SI-SDRi（表\ref{tab:copy}）。
+此处是有意使用非因果真值、且接口不同的信息量和答案通路校验；它不是匹配架构的 FiLM 消融，
+也不证明 30 频带历史预测可以恢复相位对齐的当前背景波形。
+
+\begin{table}[t]
+\caption{与主实验相同的 4,096 个 DCLDE 测试混合上的全波形抄答案校验。
+目标 SI-SDRi 及相对冻结 BSR 按日期配对的差值（dB）。}
+\label{tab:copy}\centering\footnotesize
+\begin{tabular}{lrr}
+\toprule
+冻结 BSR + 拟合融合头 & SI-SDRi & $\Delta$ [95\% 区间]\\
+\midrule
+BSR；初始 $(1,0,0)$ & 9.631 & 0\\
+全零波形 & 9.231 & $-0.400\;[-0.483,-0.269]$\\
+错时背景波形 & 9.231 & $-0.400\;[-0.483,-0.269]$\\
+当前实际 $N_t$ 波形 & 80.755 & $+71.124\;[69.945,72.081]$\\
+解析式 $x_t-N_t$ & 80.755 & $+71.124\;[69.945,72.081]$\\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \begin{figure}[t]
 \centering
@@ -211,7 +246,8 @@ Oracle-FiLM, $E(N_t)$ &11.372&9.535&$-0.096\;[-0.238,0.034]$&$-0.095\;[-0.231,0.
 \end{table}
 
 另一个未标注 SanctSound WAV 消融在 1152 个配对测试混合上比较零条件 FiLM、当前真值频谱 oracle、因果
-预测和错时条件。这里的 oracle 属于次级数据域；表\ref{tab:cleanmain} 中的主域 Oracle 使用标注干净 DCLDE 的实际 $N_t$。
+预测和错时条件。这里的 oracle 属于次级数据域；表\ref{tab:cleanmain} 中的主域 30 频带 Oracle
+使用标注干净 DCLDE 的实际 $N_t$ 提取 $E(N_t)$。
 跨训练 SNR 平均后，零条件 FiLM 为 23.470 dB，Forecast-FC-BSR 为 22.871 dB
 （$\Delta=-0.599$，区间 $[-0.851,-0.346]$），oracle 平均值也更低。这暴露了简单分辨率诊断
 没有显示的条件化/容量影响。图\ref{fig:strength}进一步表明：在 $-18,-15,-12,-9,-6$ dB，
@@ -273,8 +309,10 @@ FC-BSR&.909&.713&.902&.955&.206\\
 \end{figure}
 
 \section{讨论与结论}
-主域 Oracle 是决定性的诊断：FiLM 即使得到当前实际干净波形的 $E(N_t)$，
+主域 30 频带 Oracle 只诊断当前接口：FiLM 即使得到当前实际干净波形的 $E(N_t)$，
 留出平均值仍未超过无条件 BS-RoFormer，且配对区间跨零。
+全波形抄答案校验则精确成功，因此这一负结果不能说明真实背景没有可用信息；
+30 频带压缩与 FiLM 注入各自的影响仍未分清。
 Zero-FiLM 与无条件骨干几乎重合，Forecast 也没有超过 Zero 或 Shuffled 的明确证据。
 因此不能把预测误差单独认定为瓶颈；5 秒静态 30 维频带摘要与 FiLM 接口
 可能不足以对齐分离器的时频 token。FiLM 在频谱代理消融中仍是最好的接口，

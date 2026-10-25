@@ -1,0 +1,128 @@
+{
+  "protocol": {
+    "dataset": "same annotation-clean DCLDE 5-s mixture test as dclde_main_oracle.json",
+    "train_examples": 8192,
+    "validation_examples": 4096,
+    "test_examples": 4096,
+    "held_out_days": [
+      "2009-04-01",
+      "2009-04-02",
+      "2009-04-03"
+    ],
+    "model": "frozen main-domain BSR plus a three-coefficient full-waveform fusion head",
+    "head_input": "[BSR(x), x, condition waveform] at every audio sample",
+    "initial_coefficients": [
+      1.0,
+      0.0,
+      0.0
+    ],
+    "fit": "global waveform-MSE least-squares optimum on training split; no test fitting",
+    "conditions": "zero; half-cycle-shifted wrong-time clean waveform; actual current clean N_t",
+    "analytic": "x_t - N_t, exact only in the controlled synthetic-mixture task",
+    "interpretation": "information and copy-path sanity check; not an architecture-matched FiLM ablation or a deployable predictor",
+    "interval": "paired 95% bootstrap over the three held-out recording-day means"
+  },
+  "coefficients": {
+    "zero": [
+      0.9289661138437393,
+      0.08445854415779297,
+      0.0
+    ],
+    "shuffled": [
+      0.9289657453825696,
+      0.08445889598908828,
+      -0.00021361706938120018
+    ],
+    "current": [
+      -1.997701294898298e-10,
+      1.0000000002591607,
+      -1.0000000002401734
+    ]
+  },
+  "validation": {
+    "bsr": {
+      "mean_si_sdri_db": 10.946422559049097,
+      "delta_vs_bsr_db": 0.0,
+      "delta_vs_bsr_day_ci95_db": [
+        0.0,
+        0.0
+      ]
+    },
+    "zero": {
+      "mean_si_sdri_db": 10.334401991640334,
+      "delta_vs_bsr_db": -0.6120205674087629,
+      "delta_vs_bsr_day_ci95_db": [
+        -0.6120205674087629,
+        -0.6120205674087629
+      ]
+    },
+    "shuffled": {
+      "mean_si_sdri_db": 10.334409869537922,
+      "delta_vs_bsr_db": -0.6120126895111753,
+      "delta_vs_bsr_day_ci95_db": [
+        -0.6120126895111753,
+        -0.6120126895111753
+      ]
+    },
+    "current": {
+      "mean_si_sdri_db": 85.74971970357001,
+      "delta_vs_bsr_db": 74.80329714452091,
+      "delta_vs_bsr_day_ci95_db": [
+        74.80329714452091,
+        74.80329714452091
+      ]
+    },
+    "analytic": {
+      "mean_si_sdri_db": 85.74971970357001,
+      "delta_vs_bsr_db": 74.80329714452091,
+      "delta_vs_bsr_day_ci95_db": [
+        74.80329714452091,
+        74.80329714452091
+      ]
+    }
+  },
+  "test": {
+    "bsr": {
+      "mean_si_sdri_db": 9.631022460191161,
+      "delta_vs_bsr_db": 0.0,
+      "delta_vs_bsr_day_ci95_db": [
+        0.0,
+        0.0
+      ]
+    },
+    "zero": {
+      "mean_si_sdri_db": 9.231122805504128,
+      "delta_vs_bsr_db": -0.39989965468703303,
+      "delta_vs_bsr_day_ci95_db": [
+        -0.48267209865525035,
+        -0.26888070993337426
+      ]
+    },
+    "shuffled": {
+      "mean_si_sdri_db": 9.231116747643682,
+      "delta_vs_bsr_db": -0.3999057125474792,
+      "delta_vs_bsr_day_ci95_db": [
+        -0.4826938822310584,
+        -0.26885267655771694
+      ]
+    },
+    "current": {
+      "mean_si_sdri_db": 80.7548204883933,
+      "delta_vs_bsr_db": 71.12379802820215,
+      "delta_vs_bsr_day_ci95_db": [
+        69.94466142216397,
+        72.08135066294432
+      ]
+    },
+    "analytic": {
+      "mean_si_sdri_db": 80.7548204883933,
+      "delta_vs_bsr_db": 71.12379802820215,
+      "delta_vs_bsr_day_ci95_db": [
+        69.94466142216397,
+        72.08135066294432
+      ]
+    }
+  },
+  "analytic_max_abs_error": 5.960464477539063e-08,
+  "samples_csv": "results\\dclde_full_background_oracle_samples.csv"
+}

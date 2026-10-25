@@ -11,6 +11,7 @@ import unittest
 from source.data import SpectrumNormaliser, eligible_origins
 from source.dclde import _log_band_features, recording_start
 from source.dclde_separation_experiment import InjectedUpcallDataset, render_marine_training_target, render_upcalls
+from source.dclde_full_oracle_experiment import fit_heads
 from source.inference import SeparationEngine
 from source.metrics import (
     jensen_shannon_bits,
@@ -33,6 +34,28 @@ from source.windowed_audio import (
 
 
 class JointPipelineTests(unittest.TestCase):
+    def test_full_waveform_oracle_fits_exact_background_subtraction(self):
+        from torch.utils.data import DataLoader
+
+        class DummyModel(torch.nn.Module):
+            def forward(self, mixture, history):
+                return {"estimate": mixture.square()}
+
+        rng = np.random.default_rng(47)
+        ocean = torch.tensor(rng.normal(size=(3, 64)), dtype=torch.float32)
+        source = torch.tensor(rng.normal(size=(3, 64)), dtype=torch.float32)
+        mixture = ocean + source
+        rows = [
+            {"mixture": mixture[i], "source": source[i], "ocean": ocean[i],
+             "wrong_ocean": ocean[(i + 1) % 3], "history": torch.zeros(2, 3)}
+            for i in range(3)
+        ]
+        weights = fit_heads(DummyModel(), DataLoader(rows, batch_size=2), torch.device("cpu"))
+        np.testing.assert_allclose(weights["current"].numpy(), [0, 1, -1], atol=1e-6)
+        self.assertGreater(torch.max(torch.abs(mixture - ocean - source)).item(), 0)
+        self.assertLess(torch.max(torch.abs(mixture - ocean - source)).item(), 1e-6)
+        self.assertGreater(torch.max(torch.abs(mixture - ocean.roll(1, 0) - source)).item(), 1)
+
     def test_synthetic_upcalls_are_localised_and_reproducible(self):
         first, intervals = render_upcalls(16000, 91)
         second, second_intervals = render_upcalls(16000, 91)

@@ -148,7 +148,7 @@ python -m source.dclde_separation_experiment --forecast-steps 5000 --separation-
 python -m source.dclde_oracle_experiment --device cuda
 ```
 
-六路分别为真正跳过条件注入的 BS-RoFormer、零条件 FiLM、错时频谱 FiLM、最后历史频谱的 persistence FiLM、GRU-Forecast FiLM、当前真实干净背景频谱的 Oracle-FiLM。Oracle 使用当前训练样本的 `E(N_t)`，只用于估计现有表示与 FiLM 接口的上限。汇总、模型表和 4096 行配对逐例数据分别写到 `results/dclde_main_oracle.json`、同名 CSV 和 `results/dclde_main_oracle_samples.csv`；汇总脚本会逐例拒绝 ID、SNR 或混合基准分数不一致的模型输出。强度曲线由下方制图命令重建。
+六路分别为真正跳过条件注入的 BS-RoFormer、零条件 FiLM、错时频谱 FiLM、最后历史频谱的 persistence FiLM、GRU-Forecast FiLM、当前真实干净背景频谱的 **30 频带 Oracle-FiLM**。后者使用当前样本的 `E(N_t)`，只检验现有压缩表示与 FiLM 接口，不能充当完整真实背景的上限。汇总、模型表和 4096 行配对逐例数据分别写到 `results/dclde_main_oracle.json`、同名 CSV 和 `results/dclde_main_oracle_samples.csv`；汇总脚本会逐例拒绝 ID、SNR 或混合基准分数不一致的模型输出。强度曲线由下方制图命令重建。
 
 | 主域方法 | 留出目标 SI-SDRi (dB) | 相对真正 BSR 的配对差及日期分块 95% 区间 (dB) |
 | --- | ---: | ---: |
@@ -157,9 +157,17 @@ python -m source.dclde_oracle_experiment --device cuda
 | Shuffled-condition FiLM | 9.526 | −0.105 [−0.247, 0.020] |
 | Persistence-condition FiLM | 9.524 | −0.107 [−0.239, 0.083] |
 | GRU-Forecast FiLM | 9.497 | −0.134 [−0.327, 0.125] |
-| Oracle-FiLM（当前真实 `E(N_t)`） | 9.535 | −0.096 [−0.238, 0.034] |
+| 30 频带 Oracle-FiLM（当前真实 `E(N_t)`） | 9.535 | −0.096 [−0.238, 0.034] |
 
 真正 BSR 与 Zero-FiLM 的总体差几乎为零；Oracle 的验证 SI-SDRi 高于 BSR（11.372 对 10.946 dB），但三个留出录音日上没有形成明确的正收益。Oracle−Forecast 为 +0.039 dB，日期分块区间 [−0.090, 0.155]；因此不能把预测误差单独认定为瓶颈。该 Oracle 是主 DCLDE 干净背景上的 `E(N_t)`，与图 3 中未标注 SanctSound WAV 消融的 oracle 不是同一实验。
+
+针对 `E(N_t)` 丢失时间结构和相位的问题，另做**全波形 Oracle 抄答案校验**。固定已经训练好的真正 BSR，只拟合逐采样点的三系数头 `w_b·BSR(x)+w_x·x+w_c·c`。它从 `(1,0,0)` 开始，精确复现 BSR；用 8192 个训练混合的波形 MSE 最小二乘全局最优解分别拟合零波形、错时背景波形和当前真实 `N_t` 波形。测试仍是上表的 4096 个混合，逐例核对 ID、SNR、混合分数和 BSR 输出。
+
+```powershell
+python -m source.dclde_full_oracle_experiment --device cuda
+```
+
+真实 `N_t` 学得的系数为数值精度内的 `(0,1,−1)`，因此输出等于 `x−N_t=s_t`，最大绝对波形误差 `5.96e−8`。测试 SI-SDRi：原 BSR `9.631 dB`，零波形头 `9.231 dB`，错时背景头 `9.231 dB`，真实背景头和解析差分均为 `80.755 dB`（受 SI-SDR 数值底噪限制）；真实背景相对 BSR 的日期分块配对差为 `+71.124 dB`，95% 区间 `[69.945,72.081]`。逐例数据和完整系数见 [results/dclde_full_background_oracle_samples.csv](results/dclde_full_background_oracle_samples.csv) 与 [results/dclde_full_background_oracle.json](results/dclde_full_background_oracle.json)。这是有意非因果、不同接口的信息量校验，不能据此宣称 30 频带 GRU 预测能提供当前完整波形，也不能将其与六路匹配 FiLM 对照混为一谈。
 
 分离模型每个条件最多训练 10,000 次更新、至少 5,000 次，并依据固定验证集早停及选取 checkpoint；预测器最多 5,000 次更新、至少 2,500 次。正式比较使用相同留出日、相同 `(N_t,s_t)` 测试样本。其它 FiLM/拼接/交叉注意力、时间尺度、SanctSound TOL 和未标注 WAV 强度实验均为消融，不是主证据。
 
