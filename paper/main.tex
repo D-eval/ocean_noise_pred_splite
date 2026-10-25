@@ -24,6 +24,9 @@ current 30-band $E(N_t)$.  Oracle minus BS-RoFormer is $-0.096$ dB (day-block 95
 $[-0.238,0.034]$): this 30-band condition has no demonstrated average benefit.
 A separate full-waveform oracle copy check learns $x_t-N_t$ on the same held-out
 mixtures, showing that the compressed condition is not a full-information oracle.
+With the copy interface fixed, an information ladder retains a positive
+day-block gain at 128 equal-width frequency groups but not at 64; 30 geometric
+bands lose a confirmed gain even at the finest tested time grid.
 A separate 13-family study compares other conditioning modes as ablations.  On untouched real calls,
 where no isolated stem exists, a frozen event classifier finds no clear
 semantic advantage over a matched zero-condition FiLM control.  We therefore
@@ -284,6 +287,46 @@ Analytic $x_t-N_t$ & 80.755 & $+71.124\;[69.945,72.081]$\\
 \end{tabular}
 \end{table}
 
+\paragraph{Oracle information ladder.}
+We next reduce the information in the \emph{current} $N_t$ while keeping the
+frozen BSR, the three-coefficient head, training examples, and 4,096 matched
+test mixtures fixed.  A 512-point Hann STFT at 2 kHz has 257 frequency bins
+on a 64-ms hop.  We average background power across either adjacent
+equal-width groups (128, 64, 32) or geometric 20--950-Hz groups
+(128, 64, 48, 30), and separately pool frames over 0.25, 1, or 5 s.
+The retained magnitude is inverted with either the actual $N_t$ phase or the
+mixture $x_t$ phase.  Geometric groups absorb edge bins; only 95 of the
+nominal 128 geometric groups contain an STFT bin.  The 30-band/5-s rung is
+analogous to, but not numerically identical with, the original $E(N_t)$.
+
+Figure~\ref{fig:ladder} identifies where this \emph{copy path} ceases to show
+a held-out gain.  Exact amplitude with mixture phase still adds 11.164 dB
+over BSR (day-block CI $[10.889,11.594]$).  With equal-width groups,
+128 retains $+2.067$ dB ($[0.969,3.386]$), while 64 has $-0.623$ dB
+($[-1.404,0.259]$): the confirmed gain disappears between these levels.
+For geometric bands, nominal 128 already gives $-0.529$ dB
+($[-1.257,0.319]$), and 30 per-frame bands give $-0.672$ dB
+($[-1.323,0.086]$).  Retaining the true phase at 30 per-frame bands gives
+only $+0.117$ dB ($[-0.671,1.084]$).  By contrast, keeping all 257 bins but
+pooling power to 1 s still yields $+0.585$ dB with mixture phase
+($[0.285,1.132]$); the 5-s version yields $+0.249$ dB
+($[-0.044,0.495]$).  Thus this interface is especially sensitive to
+frequency averaging and the grouping rule, while time averaging alone is
+less destructive.  These are sufficiency results for the fixed waveform
+copy head, not information-theoretic limits or new FiLM results.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=.97\textwidth]{figures/oracle_information_ladder.pdf}
+\caption{Current-background Oracle information ladder on identical DCLDE test
+mixtures.  Each point fits the same three-coefficient copy head on training
+mixtures.  Vertical bars are paired 95\% day-block intervals for SI-SDRi
+difference from frozen BSR.  Full-resolution true-phase $N_t$ gives $+71.1$
+dB and is above the plotted range; mixture phase is a separate information
+loss.  The threshold depends on frequency grouping and this copy interface.}
+\label{fig:ladder}
+\end{figure*}
+
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{figures/clean_background_strength.pdf}
@@ -404,7 +447,11 @@ exceed the mixture-only BS-RoFormer, and its paired interval spans zero.
 The full-waveform copy check succeeds exactly, so the current negative result
 cannot be interpreted as evidence that the true background lacks useful
 information.  It leaves the relative roles of 30-band compression and FiLM
-injection unresolved.
+injection unresolved.  The fixed-head ladder shows a clear representation
+bottleneck: even mixture-phase conditions retain a confirmed gain at 128
+equal-width frequency groups or 1-s full-bin temporal pooling, whereas 64
+equal-width groups and 30 geometric bands do not.  The original FiLM result
+cannot be assigned to this bottleneck alone because its interface differs.
 Zero-FiLM is effectively tied with BS-RoFormer, while Forecast is no better
 than either Zero or Shuffled.  The result does not isolate prediction error
 as the bottleneck; a five-second, 30-band static summary and its FiLM interface

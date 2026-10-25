@@ -169,6 +169,28 @@ python -m source.dclde_full_oracle_experiment --device cuda
 
 真实 `N_t` 学得的系数为数值精度内的 `(0,1,−1)`，因此输出等于 `x−N_t=s_t`，最大绝对波形误差 `5.96e−8`。测试 SI-SDRi：原 BSR `9.631 dB`，零波形头 `9.231 dB`，错时背景头 `9.231 dB`，真实背景头和解析差分均为 `80.755 dB`（受 SI-SDR 数值底噪限制）；真实背景相对 BSR 的日期分块配对差为 `+71.124 dB`，95% 区间 `[69.945,72.081]`。逐例数据和完整系数见 [results/dclde_full_background_oracle_samples.csv](results/dclde_full_background_oracle_samples.csv) 与 [results/dclde_full_background_oracle.json](results/dclde_full_background_oracle.json)。这是有意非因果、不同接口的信息量校验，不能据此宣称 30 频带 GRU 预测能提供当前完整波形，也不能将其与六路匹配 FiLM 对照混为一谈。
 
+### Oracle 信息阶梯
+
+在相同冻结 BSR、三系数融合头、8192 个训练样本和匹配的 4096 个测试样本上，只压缩当前真实背景条件。512 点 STFT 提供 257 个频率 bin 和 64 ms 帧步长；对比等宽频率组、对数频带、逐帧至整段 5 秒的功率平均，以及真实背景相位和混合相位。每级分别在训练集求最小二乘最优系数，测试时严格逐例核对旧主实验的 ID、SNR、混合分数和 BSR 输出。
+
+```powershell
+python -m source.dclde_information_ladder --device cuda
+python -m source.plot_oracle_ladder
+```
+
+| 当前背景条件 | 真实相位：相对 BSR Δ dB [日期区间] | 混合相位：相对 BSR Δ dB [日期区间] |
+| --- | ---: | ---: |
+| 完整 257 bin、逐帧 | +71.124 [69.945, 72.081] | +11.164 [10.889, 11.594] |
+| 完整 257 bin、1 秒平均 | +1.948 [1.544, 2.667] | +0.585 [0.285, 1.132] |
+| 完整 257 bin、5 秒平均 | +1.139 [0.799, 1.487] | +0.249 [−0.044, 0.495] |
+| 等宽 128 组、逐帧 | +4.537 [3.118, 6.267] | +2.067 [0.969, 3.386] |
+| 等宽 64 组、逐帧 | +0.471 [−0.494, 1.602] | −0.623 [−1.404, 0.259] |
+| 对数 128 带、逐帧 | +0.261 [−0.599, 1.313] | −0.529 [−1.257, 0.319] |
+| 对数 30 带、逐帧 | +0.117 [−0.671, 1.084] | −0.672 [−1.323, 0.086] |
+| 对数 30 带、5 秒平均 | −0.025 [−0.401, 0.493] | −0.516 [−0.783, −0.150] |
+
+**定位**：在这条固定的波形答案通路内，等宽组从 128 降到 64 时失去可确认的留出收益；对数分带在名义 128 带（其中只有 95 带含 STFT bin）已经失效。保持 257 bin 时，单独将功率汇总到 1 秒仍有可靠收益，因此频率平均及分带规则比时间平均更关键。最粗的“30 带/5 秒”与论文原始 `E(N_t)` 相似，但不是相同的数值定义。该阈值只针对这个线性融合接口，不能作为信息论极限，也不能代替 FiLM 重新训练。完整 29 级结果及逐例数据见 [results/dclde_information_ladder.json](results/dclde_information_ladder.json)、[results/dclde_information_ladder_samples.csv](results/dclde_information_ladder_samples.csv)；矢量图见 [paper/figures/oracle_information_ladder.pdf](paper/figures/oracle_information_ladder.pdf)。
+
 分离模型每个条件最多训练 10,000 次更新、至少 5,000 次，并依据固定验证集早停及选取 checkpoint；预测器最多 5,000 次更新、至少 2,500 次。正式比较使用相同留出日、相同 `(N_t,s_t)` 测试样本。其它 FiLM/拼接/交叉注意力、时间尺度、SanctSound TOL 和未标注 WAV 强度实验均为消融，不是主证据。
 
 训练完成后生成论文图和强度结果曲线：
