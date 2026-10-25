@@ -1,9 +1,10 @@
 """Causal 60-s high-resolution background forecasting and residual separation.
 
-The only separator conditions are the preceding clean window (persistence)
-or a GRU prediction made from twelve strictly preceding event-free 5-s maps.
+The main conditions are the preceding clean window (persistence) and a GRU
+prediction from twelve strictly preceding event-masked 5-s maps. Matched
+fixed-mean and wrong-day controls test the adapter and temporal information.
 The current clean waveform is used for forecast supervision, never as a
-separator input. The separate Oracle checkpoint remains an upper reference.
+causal separator input. The separate Oracle checkpoint is an upper reference.
 """
 from __future__ import annotations
 
@@ -324,10 +325,29 @@ class ConditionedInjectedDataset(InjectedUpcallDataset):
                  cache_waveforms: bool = False):
         super().__init__(cache.store, split, examples, seed, spread_rows=spread_rows,
                          cache_waveforms=cache_waveforms)
-        if condition not in {"persistence", "forecast"}:
-            raise ValueError("condition must be persistence or forecast")
+        if condition not in {"zero", "shuffled", "persistence", "forecast"}:
+            raise ValueError("unknown residual condition")
         self.cache = cache
         self.condition = condition
+        if condition == "zero":
+            # A fixed training-set prior is a better-formed null condition than
+            # B=0 in log magnitude (which implies unit amplitude at every bin).
+            self.constant_background = np.broadcast_to(
+                cache.mean[None, :], (FRAMES, GROUPS)).copy()
+        if condition == "shuffled":
+            # Validation contains only one day. Its wrong-date donors come
+            # from train days; train/test donors stay inside their own split.
+            donor_split = "train" if split == "validation" else split
+            donor_rows = cache.store.indices(donor_split, label=0)
+            donor_days = cache.store.frame.iloc[donor_rows]["day"].to_numpy()
+            self.donors_by_day = {
+                str(day): donor_rows[donor_days == day]
+                for day in np.unique(donor_days)
+            }
+            self.current_days = cache.store.frame.iloc[self.rows]["day"].to_numpy()
+            if not all(any(day != str(current) for day in self.donors_by_day)
+                       for current in np.unique(self.current_days)):
+                raise ValueError("shuffled control requires a different recording day")
         if condition == "forecast":
             self.forecasts = np.load(FORECAST_MAPS_PATH, mmap_mode="r")
             self.positions = np.full(len(cache.store.frame), -1, dtype=np.int32)
@@ -338,7 +358,21 @@ class ConditionedInjectedDataset(InjectedUpcallDataset):
         local = (round(item * (len(self.rows) - 1) / max(1, self.examples - 1))
                  if self.spread_rows and self.examples > 1 else item % len(self.rows))
         index = int(self.rows[local])
-        if self.condition == "persistence":
+        if self.condition == "zero":
+            condition_map = self.constant_background
+        elif self.condition == "shuffled":
+            current_day = str(self.current_days[local])
+            candidates = sorted(day for day in self.donors_by_day if day != current_day)
+            rng = np.random.default_rng(self.seed + item * 104729 + 271828)
+            donor_day = candidates[int(rng.integers(len(candidates)))]
+            pool = self.donors_by_day[donor_day]
+            donor = int(pool[int(rng.integers(len(pool)))])
+            if donor == index:
+                raise ValueError("shuffled condition selected the current background")
+            condition_map = self.cache.current(donor)
+            answer["condition_day"] = donor_day
+            answer["condition_manifest_index"] = donor
+        elif self.condition == "persistence":
             prior = int(self.cache.history_indices[index, -1])
             if prior >= index or prior < 0:
                 raise ValueError("persistence condition is not causal")
@@ -353,7 +387,7 @@ class ConditionedInjectedDataset(InjectedUpcallDataset):
 
 
 class CausalResidualBSR(OracleResidualBSR):
-    """Same Oracle residual adapter and backbone, with externally supplied causal map."""
+    """Same Oracle residual adapter and backbone, with an external map."""
     def forward(self, mixture: torch.Tensor, condition_map: torch.Tensor) -> torch.Tensor:
         if condition_map.shape != (len(mixture), FRAMES, GROUPS):
             raise ValueError("condition map must be [batch,79,128]")
@@ -400,13 +434,19 @@ def separation_test_rows(model: CausalResidualBSR, loader: DataLoader,
         score = si_sdr(estimate[..., :length], source[..., :length])
         for position, example_id in enumerate(batch["example_id"]):
             reference = baseline[len(rows)]
-            rows.append({
+            row = {
                 "example_id": example_id, "day": example_id.split(":", 1)[0],
                 "snr_db": float(batch["snr_db"][position]),
                 "mixture_si_sdr_db": float(mixed[position]),
                 "bsr_si_sdri_db": float(reference["source_si_sdri_db"]),
                 f"{condition}_si_sdri_db": float(score[position] - mixed[position]),
-            })
+            }
+            if condition == "shuffled":
+                row["condition_day"] = batch["condition_day"][position]
+                row["condition_manifest_index"] = int(batch["condition_manifest_index"][position])
+                if row["condition_day"] == row["day"]:
+                    raise ValueError("shuffled test donor is from the current day")
+            rows.append(row)
     _check_test_identity(rows)
     return rows
 
@@ -417,7 +457,7 @@ def train_separator(cache: HighResolutionStore, condition: str,
     config = ExperimentConfig(device=device_name)
     if (steps != reference["updates_run"] or config.seed != reference["config"]["seed"]
             or config.batch_size != reference["config"]["batch_size"]):
-        raise ValueError("causal arm must use matched BSR updates, seed and batch")
+        raise ValueError("residual arm must use matched BSR updates, seed and batch")
     _seed_everything(config.seed)
     device = torch.device(device_name)
     model = CausalResidualBSR(cache.store.bands, config.seed, device,
@@ -496,6 +536,14 @@ def train_separator(cache: HighResolutionStore, condition: str,
               "best_step": best_step, "best_validation_si_sdri_db": best,
               "initial_waveform_max_difference": initial_difference,
               "checkpoint": str(output / "best.pt"), "samples_csv": str(sample_path)}
+    if condition == "zero":
+        result["condition_definition"] = "fixed per-band training mean log background over all 79 frames"
+    if condition == "shuffled":
+        result["condition_definition"] = "annotation-clean donor from a different day; train/test donors from same split, validation donors from train because validation has one day"
+        result["test_donor_days"] = {
+            day: sum(row["condition_day"] == day for row in rows)
+            for day in sorted({row["condition_day"] for row in rows})
+        }
     (output / "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
     return result
 
@@ -503,49 +551,76 @@ def train_separator(cache: HighResolutionStore, condition: str,
 def summarize() -> dict:
     oracle = json.loads(ORACLE_RESULT.read_text(encoding="utf-8"))
     predictor = json.loads((PREDICTOR_DIR / "result.json").read_text(encoding="utf-8"))
+    conditions = ("zero", "shuffled", "persistence", "forecast")
     causal = {name: json.loads((OUTPUT_ROOT / f"dclde_{name}_residual_128" / "result.json").read_text(encoding="utf-8"))
-              for name in ("persistence", "forecast")}
-    with (OUTPUT_ROOT / "dclde_persistence_residual_128" / "clean_synthetic_test.csv").open(newline="", encoding="utf-8") as stream:
-        persistence_rows = list(csv.DictReader(stream))
-    with (OUTPUT_ROOT / "dclde_forecast_residual_128" / "clean_synthetic_test.csv").open(newline="", encoding="utf-8") as stream:
-        forecast_rows = list(csv.DictReader(stream))
+              for name in conditions}
+    samples = {}
+    for name in conditions:
+        path = OUTPUT_ROOT / f"dclde_{name}_residual_128" / "clean_synthetic_test.csv"
+        with path.open(newline="", encoding="utf-8") as stream:
+            samples[name] = list(csv.DictReader(stream))
     with (OUTPUT_ROOT / "dclde_oracle_residual_128" / "clean_synthetic_test.csv").open(newline="", encoding="utf-8") as stream:
         oracle_rows = list(csv.DictReader(stream))
-    if [row["example_id"] for row in persistence_rows] != [row["example_id"] for row in forecast_rows]:
-        raise ValueError("causal arms evaluated on different examples")
-    if [row["example_id"] for row in oracle_rows] != [row["example_id"] for row in forecast_rows]:
-        raise ValueError("Oracle and causal arms evaluated on different examples")
-    paired_rows = [{
-        "example_id": f["example_id"], "day": f["day"], "snr_db": f["snr_db"],
-        "mixture_si_sdr_db": f["mixture_si_sdr_db"],
-        "bsr_si_sdri_db": f["bsr_si_sdri_db"],
-        "persistence_si_sdri_db": p["persistence_si_sdri_db"],
-        "forecast_si_sdri_db": f["forecast_si_sdri_db"],
-        "oracle_si_sdri_db": o["oracle_residual_si_sdri_db"],
-    } for p, f, o in zip(persistence_rows, forecast_rows, oracle_rows, strict=True)]
+    reference_ids = [row["example_id"] for row in oracle_rows]
+    for name in conditions:
+        if [row["example_id"] for row in samples[name]] != reference_ids:
+            raise ValueError(f"{name} and Oracle evaluated on different examples")
+        for reference, candidate in zip(oracle_rows, samples[name]):
+            if candidate["day"] != reference["day"]:
+                raise ValueError(f"{name} and Oracle recording days differ")
+            for key in ("snr_db", "mixture_si_sdr_db", "bsr_si_sdri_db"):
+                if abs(float(candidate[key]) - float(reference[key])) > 1e-5:
+                    raise ValueError(f"{name} and Oracle differ in {key}")
+    if any(row["condition_day"] == row["day"] for row in samples["shuffled"]):
+        raise ValueError("shuffled test donor shares the target recording day")
+    paired_rows = []
+    for position, reference in enumerate(oracle_rows):
+        row = {key: reference[key] for key in
+               ("example_id", "day", "snr_db", "mixture_si_sdr_db", "bsr_si_sdri_db")}
+        for name in conditions:
+            row[f"{name}_si_sdri_db"] = samples[name][position][f"{name}_si_sdri_db"]
+        row["oracle_si_sdri_db"] = reference["oracle_residual_si_sdri_db"]
+        row["shuffled_donor_day"] = samples["shuffled"][position]["condition_day"]
+        paired_rows.append(row)
     with SUMMARY_ROWS_PATH.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(stream, fieldnames=list(paired_rows[0]))
         writer.writeheader(); writer.writerows(paired_rows)
-    days = np.asarray([row["day"] for row in persistence_rows])
-    delta = np.asarray([float(f[f"forecast_si_sdri_db"]) - float(p[f"persistence_si_sdri_db"])
-                        for p, f in zip(persistence_rows, forecast_rows, strict=True)])
-    day_means = np.asarray([delta[days == day].mean() for day in np.unique(days)])
-    oracle_gap = np.asarray([float(o["oracle_residual_si_sdri_db"]) - float(f["forecast_si_sdri_db"])
-                             for o, f in zip(oracle_rows, forecast_rows, strict=True)])
-    gap_day_means = np.asarray([oracle_gap[days == day].mean() for day in np.unique(days)])
+    days = np.asarray([row["day"] for row in paired_rows])
+    scores = {name: np.asarray([float(row[f"{name}_si_sdri_db"]) for row in paired_rows])
+              for name in conditions}
+    scores["oracle"] = np.asarray([float(row["oracle_si_sdri_db"]) for row in paired_rows])
+    scores["bsr"] = np.asarray([float(row["bsr_si_sdri_db"]) for row in paired_rows])
+
+    def contrast(left: str, right: str) -> dict:
+        difference = scores[left] - scores[right]
+        by_day = {str(day): float(difference[days == day].mean()) for day in np.unique(days)}
+        return {"mean_db": float(difference.mean()),
+                "day_ci95_db": [float(x) for x in paired_bootstrap_interval(np.asarray(list(by_day.values())))],
+                "days": by_day}
+
+    comparisons = {
+        f"{left}_minus_{right}": contrast(left, right)
+        for left, right in (("zero", "bsr"), ("shuffled", "bsr"),
+                            ("persistence", "zero"), ("persistence", "shuffled"),
+                            ("forecast", "zero"), ("forecast", "shuffled"),
+                            ("forecast", "persistence"), ("oracle", "forecast"))
+    }
     result = {"protocol": "DCLDE clean 5-s real ocean plus synthetic target; same 4096 test mixtures, same BSR backbone initialization, training steps and validation rule",
               "history": "past 12 annotated event-masked 5-s windows from same WAV and split",
               "map": "512-point STFT, 128 equal-width groups, 79 time frames; causal predictions are log magnitudes",
               "innovation": "log|X|-predicted log|B|; identical residual adapter to Oracle",
               "bsr_si_sdri_db": oracle["baseline_si_sdri_db"],
+              "zero_si_sdri_db": causal["zero"]["mean_si_sdri_db"],
+              "shuffled_si_sdri_db": causal["shuffled"]["mean_si_sdri_db"],
               "persistence_si_sdri_db": causal["persistence"]["mean_si_sdri_db"],
               "forecast_si_sdri_db": causal["forecast"]["mean_si_sdri_db"],
               "oracle_si_sdri_db": oracle["oracle_residual_si_sdri_db"],
               "paired_test_samples_csv": str(SUMMARY_ROWS_PATH),
-              "forecast_minus_persistence_db": float(delta.mean()),
-              "forecast_minus_persistence_day_ci95_db": [float(x) for x in paired_bootstrap_interval(day_means)],
-              "oracle_minus_forecast_db": float(oracle_gap.mean()),
-              "oracle_minus_forecast_day_ci95_db": [float(x) for x in paired_bootstrap_interval(gap_day_means)],
+              "contrasts": comparisons,
+              "forecast_minus_persistence_db": comparisons["forecast_minus_persistence"]["mean_db"],
+              "forecast_minus_persistence_day_ci95_db": comparisons["forecast_minus_persistence"]["day_ci95_db"],
+              "oracle_minus_forecast_db": comparisons["oracle_minus_forecast"]["mean_db"],
+              "oracle_minus_forecast_day_ci95_db": comparisons["oracle_minus_forecast"]["day_ci95_db"],
               "oracle_gain_recovered_by_forecast_fraction": float(
                   causal["forecast"]["delta_vs_bsr_db"] / oracle["delta_si_sdri_db"]),
               "predictor": predictor, "causal_arms": causal}
@@ -578,7 +653,7 @@ def cached_forecast_error(cache: HighResolutionStore, split: str) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("stage", choices=("cache", "predictor", "forecasts", "persistence", "forecast", "summary"))
+    parser.add_argument("stage", choices=("cache", "predictor", "forecasts", "zero", "shuffled", "persistence", "forecast", "summary"))
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = parser.parse_args()
     if args.stage == "cache":
@@ -590,7 +665,7 @@ def main() -> None:
             result = train_forecaster(cache, args.device)
         elif args.stage == "forecasts":
             result = prepare_forecasts(cache, args.device)
-        elif args.stage in ("persistence", "forecast"):
+        elif args.stage in ("zero", "shuffled", "persistence", "forecast"):
             result = train_separator(cache, args.stage, args.device)
         else:
             result = summarize()

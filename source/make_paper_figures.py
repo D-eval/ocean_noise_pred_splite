@@ -45,9 +45,9 @@ def save_figure(figure: plt.Figure, path: Path) -> None:
 
 
 def architecture_figure(path: Path) -> None:
-    figure, axis = plt.subplots(figsize=(13.0, 5.1))
-    axis.set_xlim(0, 13.0)
-    axis.set_ylim(0, 5.1)
+    figure, axis = plt.subplots(figsize=(14.4, 5.5))
+    axis.set_xlim(0, 16.0)
+    axis.set_ylim(0, 6.1)
     axis.axis("off")
 
     def box(x, y, width, height, label, color, subtitle=""):
@@ -57,10 +57,10 @@ def architecture_figure(path: Path) -> None:
         )
         axis.add_patch(patch)
         axis.text(x + width / 2, y + height * 0.62, label, ha="center", va="center",
-                  fontsize=9.1, fontweight="bold", color=COLORS["ink"], linespacing=0.92)
+                  fontsize=13, fontweight="bold", color=COLORS["ink"], linespacing=0.92)
         if subtitle:
             axis.text(x + width / 2, y + height * 0.18, subtitle, ha="center", va="center",
-                      fontsize=7.2, color=COLORS["muted"])
+                      fontsize=9.5, color=COLORS["muted"])
 
     def arrow(start, end, color=COLORS["muted"], label=""):
         axis.add_patch(FancyArrowPatch(start, end, arrowstyle="-|>", mutation_scale=13,
@@ -69,31 +69,38 @@ def architecture_figure(path: Path) -> None:
             axis.text((start[0] + end[0]) / 2, (start[1] + end[1]) / 2 + 0.13,
                       label, ha="center", fontsize=8, color=color)
 
-    axis.text(0.15, 4.77, "MAIN SETTING · 5-s WINDOWS · GRU + FiLM + BS-RoFormer", fontsize=10,
+    axis.text(0.25, 5.80, "PRIMARY METHOD  ·  60-s event-masked history  →  next 5-s mixture", fontsize=15,
               fontweight="bold", color=COLORS["ink"])
-    axis.text(0.15, 4.35, "SUPERVISED SAMPLE  (Hₜ, Nₜ, sₜ, xₜ = Nₜ + sₜ)", fontsize=8.8,
-              fontweight="bold", color=COLORS["muted"])
+    axis.text(0.25, 5.48, "128 equal-width frequency groups × 79 frames; all history ends strictly before the target window", fontsize=11,
+              color=COLORS["muted"])
 
-    box(0.18, 2.95, 2.15, 0.95, "Hₜ · 12 × 5-s history", COLORS["cyan"], "preceding event-free features")
-    box(2.9, 2.95, 1.75, 0.95, "Causal GRU", COLORS["cyan"], "predict next Ŝₜ")
-    box(5.25, 2.95, 2.0, 0.95, "FiLM conditioner", COLORS["gold"], "scale + bias per band")
-    box(8.0, 2.95, 2.05, 0.95, "BS-RoFormer", COLORS["blue"], "5-s mixture separator")
-    box(10.9, 2.95, 1.9, 0.95, "ŝₜ and N̂ₜ", COLORS["coral"], "event + residual ocean")
-    arrow((2.33, 3.42), (2.9, 3.42), COLORS["cyan"])
-    arrow((4.65, 3.42), (5.25, 3.42), COLORS["cyan"])
-    arrow((7.25, 3.42), (8.0, 3.42), COLORS["gold"], "prior")
-    arrow((10.05, 3.42), (10.9, 3.42), COLORS["blue"])
+    box(0.25, 4.05, 2.15, 0.94, r"$H_t$", COLORS["cyan"], "12 clean maps")
+    box(2.85, 4.05, 2.05, 0.94, "GRU / copy", COLORS["cyan"], "or persistence")
+    box(5.35, 4.05, 2.15, 0.94, r"$\hat B_t$", COLORS["cyan"], "79 × 128 log map")
+    arrow((2.42, 4.52), (2.84, 4.52), COLORS["cyan"])
+    arrow((4.92, 4.52), (5.33, 4.52), COLORS["cyan"])
 
-    box(0.65, 1.1, 2.15, 0.95, "Nₜ · real clean 5-s", COLORS["mint"], "annotated no-call segment")
-    box(3.35, 1.1, 2.15, 0.95, "sₜ · synthetic event", COLORS["gold"], "whale sweep or vessel proxy")
-    box(6.05, 1.1, 2.0, 0.95, "xₜ = Nₜ + sₜ", COLORS["blue"], "mixture sent to separator")
-    box(9.05, 1.1, 3.0, 0.95, "Source-reference losses", COLORS["coral"], "sₜ target; N̂ₜ = xₜ − ŝₜ")
-    arrow((2.8, 1.58), (6.05, 1.58), COLORS["muted"], "+")
-    arrow((5.5, 1.58), (6.05, 1.58), COLORS["muted"])
-    arrow((7.05, 2.05), (8.9, 2.95), COLORS["blue"], "audio xₜ")
-    arrow((11.85, 2.95), (11.85, 2.05), COLORS["coral"], "event estimate")
-    axis.text(0.18, 0.42, "Real-event branch: annotated calls are evaluated with a frozen event classifier; no separated real-call ground truth is assumed.",
-              fontsize=8.1, color=COLORS["muted"])
+    box(0.25, 2.40, 2.15, 0.94, r"$x_t=N_t+s_t$", COLORS["blue"], "current mixture")
+    box(2.85, 2.40, 2.05, 0.94, r"$X_t$", COLORS["blue"], "mixture STFT")
+    box(5.35, 2.40, 2.15, 0.94, r"$\hat R_t$", COLORS["gold"], "innovation")
+    arrow((2.42, 2.87), (2.84, 2.87), COLORS["blue"])
+    arrow((4.92, 2.87), (5.33, 2.87), COLORS["blue"])
+    arrow((6.42, 4.02), (6.42, 3.37), COLORS["cyan"])
+
+    box(8.05, 3.22, 2.05, 1.03, r"$[X_t,\hat B_t,\hat R_t]$", COLORS["gold"], "aligned maps")
+    box(10.55, 3.22, 2.05, 1.03, "Adapter", COLORS["gold"], "zero-init residual")
+    box(13.05, 3.22, 2.15, 1.03, "BS-RoFormer", COLORS["blue"], "separator")
+    arrow((7.52, 4.50), (8.03, 3.96), COLORS["cyan"])
+    arrow((7.52, 2.90), (8.03, 3.53), COLORS["gold"])
+    arrow((10.12, 3.73), (10.53, 3.73), COLORS["gold"])
+    arrow((12.62, 3.73), (13.03, 3.73), COLORS["blue"])
+
+    box(13.05, 1.55, 2.15, 0.94, r"$\hat s_t,\;\hat N_t$", COLORS["coral"], "event + ocean")
+    arrow((14.12, 3.20), (14.12, 2.51), COLORS["coral"])
+    axis.text(0.25, 1.05, "TRAINING: real clean $N_t$ + synthetic $s_t$ give exact stems; only $x_t$ and past history reach causal arms.",
+              fontsize=11.2, color=COLORS["ink"])
+    axis.text(0.25, 0.52, "CONTROLS: fixed-mean Zero · other-day Shuffled · last-map Persistence · GRU Forecast · current-background Oracle.",
+              fontsize=11.2, color=COLORS["muted"])
     path.parent.mkdir(parents=True, exist_ok=True)
     figure.savefig(path, bbox_inches="tight", facecolor="white")
     if path.suffix.lower() == ".pdf":
@@ -454,7 +461,7 @@ def clean_main_signal_figure(
     base_gain = float(si_sdr(torch.from_numpy(arrays[3]), torch.from_numpy(arrays[2]))) - mixture_score
     fc_gain = float(si_sdr(torch.from_numpy(arrays[4]), torch.from_numpy(arrays[2]))) - mixture_score
     figure.suptitle(
-        f"Main model · 5-s clean background + synthetic whale pulse packet · {item['snr_db']:+.0f} dB · "
+        f"Preliminary 30-band FiLM · 5-s clean background + synthetic whale pulse packet · {item['snr_db']:+.0f} dB · "
         f"SI-SDRi: BSR {base_gain:+.2f} dB, FC-BSR {fc_gain:+.2f} dB",
         fontsize=12, fontweight="bold",
     )

@@ -1,0 +1,21 @@
+{
+  "condition": "zero",
+  "test_examples": 4096,
+  "mean_si_sdri_db": 12.156408750277478,
+  "delta_vs_bsr_db": 2.525386290086317,
+  "delta_vs_bsr_day_ci95_db": [
+    2.262307054627529,
+    2.7013334368273525
+  ],
+  "days": {
+    "2009-04-01": 2.701333436827352,
+    "2009-04-02": 2.262307054627529,
+    "2009-04-03": 2.6446780338020397
+  },
+  "best_step": 4200,
+  "best_validation_si_sdri_db": 13.219631723841303,
+  "initial_waveform_max_difference": 0.0,
+  "checkpoint": "experiments\\dclde_zero_residual_128\\best.pt",
+  "samples_csv": "experiments\\dclde_zero_residual_128\\clean_synthetic_test.csv",
+  "condition_definition": "fixed per-band training mean log background over all 79 frames"
+}

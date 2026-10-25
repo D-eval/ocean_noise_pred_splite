@@ -1,0 +1,26 @@
+{
+  "condition": "shuffled",
+  "test_examples": 4096,
+  "mean_si_sdri_db": 11.943879551166901,
+  "delta_vs_bsr_db": 2.31285709097574,
+  "delta_vs_bsr_day_ci95_db": [
+    2.0271784474169685,
+    2.904784190990403
+  ],
+  "days": {
+    "2009-04-01": 2.904784190990403,
+    "2009-04-02": 2.0271784474169685,
+    "2009-04-03": 2.1583855261443663
+  },
+  "best_step": 5600,
+  "best_validation_si_sdri_db": 12.662366567841673,
+  "initial_waveform_max_difference": 0.0,
+  "checkpoint": "experiments\\dclde_shuffled_residual_128\\best.pt",
+  "samples_csv": "experiments\\dclde_shuffled_residual_128\\clean_synthetic_test.csv",
+  "condition_definition": "annotation-clean donor from a different day; train/test donors from same split, validation donors from train because validation has one day",
+  "test_donor_days": {
+    "2009-04-01": 1450,
+    "2009-04-02": 1371,
+    "2009-04-03": 1275
+  }
+}

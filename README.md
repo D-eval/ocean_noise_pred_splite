@@ -1,6 +1,6 @@
 # Forecast-conditioned ocean source separation
 
-本仓库把两个原型连接成一个可训练系统：用严格因果的历史海洋声景预测当前噪声，随后把预测频谱作为 BS-RoFormer 的条件，分离叠加在当前背景上的合成声源。代码同时保留表示消融，并完成三种条件注入消融：
+当前论文主方法以过去 60 秒事件掩蔽海洋声景预测下一段 `79×128` 背景图，并将其与显式创新图送入残差适配器及 BS-RoFormer。下列旧频谱条件、FiLM、拼接和交叉注意力实验保留为前期消融：
 
 1. `none`：不做噪声预测，直接训练条件置零的 BS-RoFormer；
 2. `latent`：将 GRU 历史编码器的预测潜表示注入 band-split token；
@@ -132,9 +132,9 @@ python -m source.event_classifier --epochs 30 --batch-size 64 --device cuda
 
 冻结分类器在按日留出的测试集上达到 AUROC `0.9704`、AP `0.9738`、F1 `0.9196`。严格因果条件由当前片段之前的八个 8 秒窗构成；预测器的验证 MAE 为 `1.921 dB`，优于一步持续性基线的 `2.081 dB`（改善 `7.67%`）。旧零条件 FiLM 与 FC-BSR 使用相同真实干净背景、合成上扫声、随机种子、分离器初值、训练步数和验证选模规则，验证 SI-SDRi 分别为 `13.871` 和 `13.925 dB`。旧分离器命令已停用，复现当前主实验应使用下方命令。
 
-## 当前主实验：事件掩蔽历史与标注干净背景
+## 前期主数据域实验：30 频带 FiLM 审计
 
-主设置固定为 **5 s + 12 个事件掩蔽历史 5-s 特征 + GRU + FiLM + BS-RoFormer**。每个样本是 `(H_t, N_t, s_t, x_t)`：`H_t` 是当前窗前连续 60 s 的 5-s 特征序列，历史中排除已标注事件及两侧 2 s；`N_t` 是真实、标注无事件的当前 5 s 片段；`s_t` 从 5 类鲸声代理与 2 类船噪代理均匀抽样（广分布生成器总共 13 类）；`x_t=N_t+s_t`。分离器只接收 `x_t,H_t`，以 `s_t` 为监督目标，背景输出由混合一致性残差得到。按录音日隔离后，146.4 h 原始干净当前窗经过连续历史筛选，94.5 h 可用于主实验，其中训练/验证/测试为 37.3/9.7/47.6 h。
+前期设置固定为 **5 s + 12 个事件掩蔽历史 5-s 特征 + GRU + FiLM + BS-RoFormer**。每个样本是 `(H_t, N_t, s_t, x_t)`：`H_t` 是当前窗前连续 60 s 的 5-s 特征序列，历史中排除已标注事件及两侧 2 s；`N_t` 是真实、标注无事件的当前 5 s 片段；`s_t` 从 5 类鲸声代理与 2 类船噪代理均匀抽样（广分布生成器总共 13 类）；`x_t=N_t+s_t`。分离器只接收 `x_t,H_t`，以 `s_t` 为监督目标，背景输出由混合一致性残差得到。按录音日隔离后，146.4 h 原始干净当前窗经过连续历史筛选，94.5 h 可用于主实验，其中训练/验证/测试为 37.3/9.7/47.6 h。
 
 重建事件掩蔽历史特征并训练预测器、零条件 FiLM 对照和主 FC-BSR：
 
@@ -221,14 +221,16 @@ python -m source.web
 
 既有真实事件无参考评估包含 103 个拥有完整干净历史的测试鲸声。该历史实验中的旧“BS-RoFormer”检查点实际上是零条件 FiLM，对照须据此解读：零条件/GRU-Forecast 的背景事件概率为 `.786/.713`，事件声轨概率为 `.900/.902`，区间外相对误差为 `.230/.206`。按录音日分块，事件概率差的区间仍跨零，因此不能宣称真实事件语义分离已有确定优势。完整数据见 [results/dclde_real_event_results.json](results/dclde_real_event_results.json)；真正无条件 BSR 的全参考比较由本次六路 Oracle 实验提供。引用文献 PDF 与目录说明位于 [ref](ref)。
 
-### 过去 60 秒的高分辨率因果残差实验
+## 当前主实验：过去 60 秒的高分辨率因果残差
 
-这一步把上面的 128 组逐帧 Oracle 真值图换成因果先验。过去 12 个 5 秒窗各形成 `79×128` 的对数幅度图；历史中的事件标注窗由同一过去 60 秒内最近的干净窗填补。预测器为小型残差 GRU，输出未来 5 秒完整 `79×128` 图。Persistence 直接沿用最后一个干净历史图。两路都按 `log|X|−B̂` 构造显式创新，并通过与 Oracle 相同的残差适配器进入 BSR；预测器先训练并冻结。4,096 个测试混合、BSR 骨干初值、合成目标、分离器 6,000 步预算与验证选点规则保持匹配。
+这一步把上面的 128 组逐帧 Oracle 真值图换成因果先验。过去 12 个 5 秒窗各形成 `79×128` 的对数幅度图；历史中的事件标注窗由同一过去 60 秒内最近的干净窗填补。预测器为小型残差 GRU，输出未来 5 秒完整 `79×128` 图。Persistence 直接沿用最后一个干净历史图。Zero 使用训练集固定逐频组均值图；Shuffled 从另一录音日抽取标注干净背景图。验证集只有一天，因此 Shuffled 的验证条件从训练日抽取。五路残差模型均按 `log|X|−B̂` 构造显式创新，使用完全相同的适配器；预测器先训练并冻结。4,096 个测试混合、BSR 骨干初值、合成目标、分离器 6,000 步预算与验证选点规则保持匹配。
 
 ```powershell
 python -m source.dclde_causal_highres_experiment cache
 python -m source.dclde_causal_highres_experiment predictor
 python -m source.dclde_causal_highres_experiment forecasts
+python -m source.dclde_causal_highres_experiment zero
+python -m source.dclde_causal_highres_experiment shuffled
 python -m source.dclde_causal_highres_experiment persistence
 python -m source.dclde_causal_highres_experiment forecast
 python -m source.dclde_causal_highres_experiment summary
@@ -239,10 +241,12 @@ python -m source.dclde_causal_highres_experiment summary
 | 条件 | 留出目标 SI-SDRi (dB) | 相对 BSR (dB) |
 | --- | ---: | ---: |
 | BSR | 9.631 | 0 |
+| Zero-Residual | 12.156 | +2.525 |
+| Shuffled-Residual | 11.944 | +2.313 |
 | Persistence-Residual | 14.295 | +4.664 |
 | GRU-Forecast-Residual | 14.351 | +4.720 |
 | Oracle-Residual | 16.767 | +7.136 |
 
-GRU 背景图的测试对数幅度 MAE 为 `0.5308`，Persistence 为 `0.5386`；Forecast 相对 Persistence 的目标 SI-SDRi 增益仅 `+0.056 dB`，按三个录音日配对的 95% 区间为 `[0.036,0.074]`。这说明高分辨率因果条件在受控合成事件上有价值，但当前预测器的额外分离收益很小。BSR 与因果模型的比较仍包含新增适配器容量；真实事件上的效果仍需独立验证。
+Zero 相对 BSR 提高 `+2.525 dB`，Shuffled 提高 `+2.313 dB`，说明不能把因果模型相对 BSR 的全部收益归因于历史信息。Zero 相对 BSR 的差异同时包含适配器参数和创新通路提供的当前混合对数谱，尚不能只量化“容量”作用。保持接口相同后，Persistence 相比 Zero 高 `+2.138 dB`，按三个录音日配对的 95% 区间为 `[1.775,2.377]`；相比错日 Shuffled 高 `+2.351 dB`，区间 `[1.571,2.661]`。三个留出日均同向，支持正确时刻的历史背景有额外价值。GRU 背景图的测试对数幅度 MAE 为 `0.5308`，Persistence 为 `0.5386`；Forecast 相对 Persistence 仅高 `+0.056 dB`，区间 `[0.036,0.074]`。因此 GRU 的增益真实而很小。真实事件上的效果仍需独立验证。
 
-完整汇总见 [results/dclde_causal_highres_comparison.json](results/dclde_causal_highres_comparison.json)，逐例配对分数见 [results/dclde_causal_highres_test_samples.csv](results/dclde_causal_highres_test_samples.csv)；冻结预测器、Persistence 分离器与 Forecast 分离器分别保存在 `models/highres_gru_128.pt`、`models/persistence_residual_128.pt`、`models/forecast_residual_128.pt`。
+完整汇总见 [results/dclde_causal_highres_comparison.json](results/dclde_causal_highres_comparison.json)，逐例配对分数见 [results/dclde_causal_highres_test_samples.csv](results/dclde_causal_highres_test_samples.csv)；冻结预测器及五路残差检查点位于 `models/`，包括 `highres_gru_128.pt`、`zero_residual_128.pt`、`shuffled_residual_128.pt`、`persistence_residual_128.pt`、`forecast_residual_128.pt`、`oracle_residual_128.pt`。
