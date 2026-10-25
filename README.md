@@ -267,3 +267,22 @@ python -m source.dclde_real_residual_eval --device cuda --batch-size 8
 | GRU Forecast | .909 | .838 | .842 | .989 | .036 |
 
 Persistence 相对 Zero 的背景事件概率下降 `.0624`（按三个录音日配对的 95% 区间 `[-.0682,-.0547]`），事件声轨概率上升 `.0469`（`[.0198,.1006]`），区间外改动下降 `.0255`（`[-.0386,-.0077]`）。但错日 Shuffled 在两项分类器事件概率上优于 Persistence/Forecast，同时区间外改动明显更大：Persistence 减 Shuffled 的区间外差为 `-.0408`（`[-.0519,-.0320]`）。单调率四路接近饱和。因此不能宣称真实目标上正确历史条件全面胜出；分类器可能奖励激进的事件提取，而因果条件在背景保留上更好。逐例数据和全部配对区间见 [results/dclde_real_residual_event_results.csv](results/dclde_real_residual_event_results.csv) 与 [results/dclde_real_residual_event_results.json](results/dclde_real_residual_event_results.json)。
+
+### 冻结分类器底噪与合成鲸声覆盖诊断
+
+此诊断保持上述 103 个真实测试事件和冻结分类器不变。每个真实事件取同一 WAV 中此前最近的标注干净 5 秒窗作为配对背景，并另从测试日按日期比例确定性抽取 4096 个标注干净窗。分类器只接收与分离器输出长度一致的前 9984 个采样点。以每个配对背景为底，按训练时的五种鲸声合成类型和 $[-18,12]$ dB 强度范围生成 32 个样本，共 3296 个。
+
+```powershell
+python -m source.diagnose_target_gap --device cuda --broad-clean-count 4096 --synths-per-event 32
+```
+
+| 冻结分类器输入 | 数量 | 平均事件概率 | 中位事件概率 |
+| --- | ---: | ---: | ---: |
+| 广泛抽取的标注干净背景 | 4096 | .153 | .093 |
+| 与真实事件同 WAV 配对的标注干净背景 | 103 | .176 | .093 |
+| 真实鲸声混合 | 103 | .909 | — |
+| 干净背景 + 合成鲸声 | 3296 | .407 | .150 |
+
+四路分离背景的平均事件概率 `.781–.891` 均明显高于同 WAV 干净背景；逐例相减的平均差为 Shuffled `.606`、Persistence `.653`、Forecast `.662`、Zero `.715`。因此分类器自身的非零底噪解释不了高响应，但没有真实隔离声轨，不能把这个概率差直接换算成鲸声残留能量；分离伪影和漏标也可能触发分类器。
+
+覆盖检查使用该分类器冻结的 64 维倒数第二层激活：每个有事件片段的激活减去同 WAV 配对干净片段的激活，按合成样本逐维标准化，再计算欧氏最近邻距离。真实事件彼此的留一最近邻中位距离为 `.233`。若直接用全部 3296 个合成样本，真实到合成的中位距离为 `.262`，只有 `3.9%` 超过真实最近邻距离的第 95 百分位；但候选数不匹配。每次只取 103 个合成样本、每个真实事件对应一个，并重复 32 次后，真实到合成的中位最近邻距离为 `.483`，是 `.233` 的 `2.08` 倍；超过真实第 95 百分位阈值的比例中位数为 `51.5%`。五类合成鲸声的平均分类器概率也相差很大：上扫 `.700`、下扫 `.134`、拱形 `.338`、S 形 `.699`、脉冲包 `.161`。这些结果表明当前合成分布在**等量、分类器表征**下较稀疏，支持 synthetic-to-real 覆盖不足的假设；但真实事件相对前一干净窗的背景变化也进入了嵌入差，且分类器表征并非孤立鲸声分布距离，因此不能证明覆盖缺口是分离失败的唯一原因。逐例数据见 [results/dclde_target_gap_diagnostic.csv](results/dclde_target_gap_diagnostic.csv)，全部诊断与抽样设置见 [results/dclde_target_gap_diagnostic.json](results/dclde_target_gap_diagnostic.json)，合成抽样明细见 [results/dclde_target_gap_synthetic_samples.csv](results/dclde_target_gap_synthetic_samples.csv)。

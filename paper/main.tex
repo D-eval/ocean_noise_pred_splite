@@ -570,6 +570,36 @@ audio outside annotated calls than either causal condition.}
 \label{fig:real}
 \end{figure*}
 
+\subsection{Classifier floor and synthetic-target coverage}
+To audit the high $p(\hat N)$, we apply the frozen classifier to
+annotation-clean test audio, truncated to the separator's 9,984 output
+samples. Its mean probability is $.153$ on 4,096 day-proportional clean
+windows and $.176$ on 103 clean windows from the same WAV, immediately before
+the corresponding real calls; both medians are $.093$. The real mixtures
+average $.909$. The four separated-background means of $.781$--$.891$ are
+well above the clean floor; paired differences from the same-WAV control
+range from $.606$ to $.715$. This is a classifier-response gap, not a waveform
+measure of leaked whale energy: artifacts or unmarked events can also elicit
+responses.
+
+We generate 32 whale-target mixtures per matched clean window (3,296 total),
+using the five training whale families and $[-18,12]$ dB sampled strengths.
+Their mean classifier probability is $.407$. For a proxy coverage test, each
+event-bearing clip's frozen 64-D penultimate activation is subtracted from
+its same-WAV clean activation. After scaling dimensions by synthetic
+variability, median real-to-real leave-one-out nearest-neighbor distance is
+$.233$. Searching all 3,296 synthetic clips gives a real-to-synthetic median
+of $.262$, but this reference set is much larger. Using one synthetic clip
+per real call gives 103 candidates per repeat; across 32 repeats the median
+distance is $.483$, or $2.08\times$ the real-to-real distance. A median
+$51.5\%$ of calls exceed the real-to-real 95th-percentile distance threshold
+(versus $3.9\%$ with all 3,296 synthetic candidates). Synthetic examples are
+thus sparse near real events in this \emph{classifier-dependent, equal-size}
+representation. This motivates target-distribution refinement; neither the
+embedding nor detector confidence establishes the physical cause of residual
+event responses without isolated real whale stems. Real background evolution
+since the preceding clean window also enters this embedding difference.
+
 \section{Discussion and Conclusion}
 The main-domain 30-band Oracle is a diagnostic of the existing interface: even when FiLM receives
 $E(N_t)$ from the exact current clean waveform, its held-out mean does not
@@ -611,6 +641,11 @@ not establish that correctly timed history improves semantic separation;
 they expose a preservation-versus-detection tradeoff under a surrogate
 classifier. The old 30-band FiLM real-call comparison remains preliminary.
 Only three held-out days and no isolated real stems limit this inference.
+The clean-control audit rules out a uniformly high classifier floor as the
+sole explanation of $p(\hat N)$, while the density-matched embedding audit
+finds a synthetic-to-real target coverage gap in classifier space. Better
+target sampling is a testable next step; the current evidence does not
+isolate this gap from separation artifacts or annotation uncertainty.
 
 The existing 30-band FiLM frontend is usable for inspection: on a CPU smoke test, one 5-s
 chunk ran at RTF 0.014 after history features were prepared; the interface
