@@ -1,0 +1,81 @@
+{
+  "protocol": "DCLDE clean 5-s real ocean plus synthetic target; same 4096 test mixtures, same BSR backbone initialization, training steps and validation rule",
+  "history": "past 12 annotated event-masked 5-s windows from same WAV and split",
+  "map": "512-point STFT, 128 equal-width groups, 79 time frames; causal predictions are log magnitudes",
+  "innovation": "log|X|-predicted log|B|; identical residual adapter to Oracle",
+  "bsr_si_sdri_db": 9.631022460191161,
+  "persistence_si_sdri_db": 14.29477920604404,
+  "forecast_si_sdri_db": 14.35113365892903,
+  "oracle_si_sdri_db": 16.766933005499595,
+  "paired_test_samples_csv": "results\\dclde_causal_highres_test_samples.csv",
+  "forecast_minus_persistence_db": 0.05635445288498886,
+  "forecast_minus_persistence_day_ci95_db": [
+    0.03585001784095126,
+    0.07391149785930626
+  ],
+  "oracle_minus_forecast_db": 2.415799346570566,
+  "oracle_minus_forecast_day_ci95_db": [
+    2.1143338650349945,
+    2.640335080165629
+  ],
+  "oracle_gain_recovered_by_forecast_fraction": 0.6614588522050835,
+  "predictor": {
+    "best_step": 3000,
+    "train_examples": 26869,
+    "validation_examples": 6958,
+    "steps_run": 3000,
+    "validation": {
+      "forecast_mae_log": 0.5456048957535761,
+      "persistence_mae_log": 0.5518081206844011
+    },
+    "skill_over_persistence": 0.011241633999751977,
+    "checkpoint": "experiments\\dclde_highres_gru\\best.pt"
+  },
+  "causal_arms": {
+    "persistence": {
+      "condition": "persistence",
+      "test_examples": 4096,
+      "mean_si_sdri_db": 14.29477920604404,
+      "delta_vs_bsr_db": 4.663756745852879,
+      "delta_vs_bsr_day_ci95_db": [
+        4.4760548698155045,
+        4.819592585243007
+      ],
+      "days": {
+        "2009-04-01": 4.4760548698155045,
+        "2009-04-02": 4.6391147410679325,
+        "2009-04-03": 4.819592585243007
+      },
+      "best_step": 6000,
+      "best_validation_si_sdri_db": 14.874059966721688,
+      "initial_waveform_max_difference": 0.0,
+      "checkpoint": "experiments\\dclde_persistence_residual_128\\best.pt",
+      "samples_csv": "experiments\\dclde_persistence_residual_128\\clean_synthetic_test.csv"
+    },
+    "forecast": {
+      "condition": "forecast",
+      "test_examples": 4096,
+      "mean_si_sdri_db": 14.35113365892903,
+      "delta_vs_bsr_db": 4.720111198737868,
+      "delta_vs_bsr_day_ci95_db": [
+        4.538371348359388,
+        4.855442603083958
+      ],
+      "days": {
+        "2009-04-01": 4.538371348359388,
+        "2009-04-02": 4.713026238927239,
+        "2009-04-03": 4.855442603083958
+      },
+      "best_step": 6000,
+      "best_validation_si_sdri_db": 14.917788110504262,
+      "initial_waveform_max_difference": 0.0,
+      "checkpoint": "experiments\\dclde_forecast_residual_128\\best.pt",
+      "samples_csv": "experiments\\dclde_forecast_residual_128\\clean_synthetic_test.csv"
+    }
+  },
+  "predictor_test": {
+    "examples": 34248,
+    "forecast_mae_log": 0.5307788858690121,
+    "persistence_mae_log": 0.5386491136621975
+  }
+}

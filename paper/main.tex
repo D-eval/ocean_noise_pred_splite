@@ -10,31 +10,24 @@
 \maketitle
 
 \begin{abstract}
-We evaluate FC-BSR with one fixed main setting: a causal GRU, FiLM, a
-BS-RoFormer separator, and 5-s windows.  Each supervised example is
-$(H_t,N_t,s_t,x_t)$: twelve immediately preceding 5-s background features whose annotated whale-call intervals are
-masked, an annotation-clean real 5-s ocean segment, a synthetic marine event,
-and their exact mixture.  The available recordings provide 146.4 h of
-call-free background, with 37.3 h eligible for training.  The 12-step GRU
-reduces held-out forecast MAE from 2.111 to 1.926 dB (8.8\%) against
-persistence.  A six-way, matched-condition audit on 4,096 held-out mixtures
-finds 9.631 dB target SI-SDRi for both the true BS-RoFormer and Zero-FiLM,
-9.497 dB for GRU-Forecast FiLM, and 9.535 dB for Oracle-FiLM using the actual
-current 30-band $E(N_t)$.  Oracle minus BS-RoFormer is $-0.096$ dB (day-block 95\% CI
-$[-0.238,0.034]$): this 30-band condition has no demonstrated average benefit.
-A separate full-waveform oracle copy check learns $x_t-N_t$ on the same held-out
-mixtures, showing that the compressed condition is not a full-information oracle.
-With the copy interface fixed, an information ladder retains a positive
-day-block gain at 128 equal-width frequency groups but not at 64; 30 geometric
-bands lose a confirmed gain even at the finest tested time grid.
-A trained 128-group time-resolved Oracle residual separator reaches 16.767 dB
-on the same held-out mixtures versus 9.631 dB for BSR (paired $+7.136$ dB,
-day-block CI $[6.970,7.282]$); no forecast is used in this Oracle test.
-A separate 13-family study compares other conditioning modes as ablations.  On untouched real calls,
-where no isolated stem exists, a frozen event classifier finds no clear
-semantic advantage over a matched zero-condition FiLM control.  We therefore
-support fully supervised separation on annotated-clean backgrounds, but the
-present 30-band forecast/FiLM interface has no established separation gain.
+We test whether past ocean soundscape can predict a background prior that
+improves separation of a future event.  DCLDE examples combine an
+annotation-clean real 5-s ocean recording with a synthetic marine event;
+the preceding 60-s history masks annotated calls.  An initial 30-band GRU
+forecast injected through FiLM does not improve BS-RoFormer on 4,096 held-out
+mixtures (9.497 versus 9.631 dB target SI-SDRi), even with the true current
+30-band spectrum as an Oracle (9.535 dB).  An information ladder instead
+identifies a useful 128-group, time-resolved representation.  We feed its
+background map and explicit mixture-minus-background innovation through a
+matched residual adapter.  The true-background Oracle reaches 16.767 dB;
+replacing it with past-60-s persistence or a frozen GRU forecast reaches
+14.295 and 14.351 dB, respectively.  Forecast exceeds persistence by
+$0.056$ dB (recording-day paired 95\% CI $[0.036,0.074]$), but remains
+$2.416$ dB below Oracle.  Thus a causal high-resolution prior can improve
+controlled separation, while this GRU adds little beyond persistence.
+Adapter capacity, synthetic targets, and only three held-out days limit the
+claim; classifier tests on untouched calls do not establish real-event
+superiority.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -58,6 +51,10 @@ main data tuple is
 where $H_t$ excludes annotated call intervals and $N_t$ is a real current
 no-call segment.  Training has exact stems, while the separator never receives
 $N_t$ or $s_t$ as input.
+After auditing this original 30-band FiLM formulation, we test the same
+causal question with a 128-group, time-resolved background map and an explicit
+mixture-minus-background innovation.  The latter is the decisive controlled
+experiment in Table~\ref{tab:causalresidual}.
 
 Time-domain separators \cite{luo2019convtasnet,luo2020dprnn}, attention models
 \cite{subakan2021sepformer,wang2023tfgridnet}, and band-split systems
@@ -76,7 +73,9 @@ annotation-aware construction of 146.4 h of current call-free ocean background
 and event-masked 5-s histories; (3) a 13-family broad event generator with
 seven whale/vessel families in the main DCLDE experiment;
 and (4) a frozen-classifier evaluation on untouched real calls against a
-zero-condition FiLM control.  TOL-domain,
+zero-condition FiLM control; and (5) a matched causal 128-group residual
+experiment against persistence, mixture-only BSR, and the true-background
+Oracle.  TOL-domain,
 conditioning-mode, time-scale, and unannotated-background strength studies are
 reported as ablations rather than as the primary evidence.
 
@@ -353,6 +352,62 @@ this controlled separator.  Actual $N_t$ is unavailable at deployment;
 this two-model comparison also does not isolate adapter capacity from the
 condition information.
 
+\paragraph{Causal high-resolution residual conditions.}
+We then replace the current-background Oracle map with two conditions computed
+strictly from the preceding 60 s.  Each of twelve 5-s history windows has the
+same $79\times128$ log-magnitude grid.  Annotation-overlapping windows are
+masked; when one is unavailable, its slot copies the nearest annotation-clean
+window still inside the past 60 s.  This affects 235 of 68,075 eligible
+current windows.  Persistence uses the last clean history map.  A lightweight
+GRU encodes each map into four temporal chunks, processes twelve steps, and
+decodes a residual correction to persistence.  It predicts the entire future
+$79\times128$ log-background map, without seeing the current waveform.
+The predictor is trained for 3,000 updates on training-day clean backgrounds
+and frozen at its lowest validation log-magnitude MAE.  Validation MAE is
+0.5456 for the GRU versus 0.5518 for persistence (1.12\% relative gain).
+On the held-out test days, the corresponding map MAEs are 0.5308 and 0.5386.
+
+For either causal map $\widehat B_t$, we form
+$\widehat R_t=\log|X_t|-\widehat B_t$ and feed
+$[X_t,\widehat B_t,\widehat R_t]$ through precisely the Oracle residual
+adapter.  The two new separators start from the same transferred BSR
+backbone and a zero adapter, so both initially produce the same waveform as
+ordinary BSR.  They use the identical synthetic events, training-example
+order, 6,000 update budget, optimizer, loss, and checkpoint-selection rule
+as BSR and Oracle.  The held-out examples and SI-SDRi definition are also
+identical.  Only the source of the condition map changes.
+
+\begin{table}[t]
+\caption{Matched DCLDE test on 4,096 clean-background mixtures. The Oracle
+receives the current true background; the two causal conditions use only the
+past 60 s. Values are mean target SI-SDRi in dB.}
+\label{tab:causalresidual}\centering\footnotesize
+\begin{tabular}{lrr}
+\toprule
+Condition & SI-SDRi & Gain vs. BSR\\
+\midrule
+BSR (mixture only)&9.631&---\\
+Persistence-Residual&14.295&+4.664\\
+GRU-Forecast-Residual&14.351&+4.720\\
+Oracle-Residual&16.767&+7.136\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:causalresidual} shows that both causal conditions substantially
+outperform the mixture-only BSR on these controlled mixtures.  Across the
+three held-out recording days, Persistence minus BSR is $+4.664$ dB
+($[4.476,4.820]$ day-block 95\% CI), and Forecast minus BSR is $+4.720$ dB
+($[4.538,4.855]$).  The directly paired Forecast minus Persistence gain is
+only $+0.056$ dB ($[0.036,0.074]$), positive on all three days but small in
+practice.  Forecast retains 66.1\% of the Oracle gain over BSR, with a
+$2.416$ dB Oracle gap ($[2.114,2.640]$).  Thus a causal high-resolution
+residual map has value in this supervised setting; the present GRU adds only
+a minor improvement beyond the last clean map.  Because BSR lacks the
+residual adapter entirely, the BSR-to-causal contrast still includes an
+architecture-capacity difference.  The matched causal-to-causal contrast
+isolates the forecast-map change.
+
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{figures/clean_background_strength.pdf}
@@ -480,9 +535,14 @@ equal-width groups and 30 geometric bands do not.  The original FiLM result
 cannot be assigned to this bottleneck alone because its interface differs.
 The trained 128-group Oracle-Residual-BSR gains $+7.136$ dB on matched
 held-out mixtures, showing that a high-resolution true background and
-explicit innovation can help the BSR backbone.  The added adapter capacity
-and current-background Oracle access remain limitations of this feasibility
-test; a causal forecast has not been evaluated through this interface.
+explicit innovation can help the BSR backbone.  Replacing true current
+background with past-60-s persistence or a frozen GRU forecast retains large
+gains of $+4.664$ and $+4.720$ dB over BSR.  The forecast adds a consistent
+but modest $+0.056$ dB over persistence on three test days; the remaining
+$2.416$ dB Oracle gap shows substantial headroom for a better causal prior.
+The adapter-capacity difference from ordinary BSR, synthetic-target
+supervision, and only three held-out days limit causal attribution and
+generalization.
 Zero-FiLM is effectively tied with BS-RoFormer, while Forecast is no better
 than either Zero or Shuffled.  The result does not isolate prediction error
 as the bottleneck; a five-second, 30-band static summary and its FiLM interface
@@ -497,9 +557,9 @@ The local frontend is usable for inspection: on a CPU smoke test, one 5-s
 chunk ran at RTF 0.014 after history features were prepared; the interface
 displays forecasts and permits playback and download of both estimates.  This
 does not establish field deployment.
-The next step is to test whether causal history can predict a sufficiently
-accurate time-frequency background for this same innovation interface.
-Further work should cover more sites and seasons and obtain isolated
+Further work should improve prediction of event-relevant time-frequency
+structure rather than only mean log-magnitude MAE, cover more sites and
+seasons, and obtain isolated
 or stronger partial references for real events.  Classifier-based restoration
 is evidence of semantic transfer, not a replacement for waveform fidelity.
 

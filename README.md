@@ -220,3 +220,29 @@ python -m source.web
 浏览器打开 `http://127.0.0.1:8000`。前端接受当前混合 WAV，以及此前 60 秒干净历史 WAV（自动提取特征）或至少 12 行事件掩蔽特征 CSV；模型文件为 `models/practical_film.pt`。历史 WAV 应由用户确保无事件或预先清理，不能把含鲸声的历史当作训练定义中的干净先验。
 
 既有真实事件无参考评估包含 103 个拥有完整干净历史的测试鲸声。该历史实验中的旧“BS-RoFormer”检查点实际上是零条件 FiLM，对照须据此解读：零条件/GRU-Forecast 的背景事件概率为 `.786/.713`，事件声轨概率为 `.900/.902`，区间外相对误差为 `.230/.206`。按录音日分块，事件概率差的区间仍跨零，因此不能宣称真实事件语义分离已有确定优势。完整数据见 [results/dclde_real_event_results.json](results/dclde_real_event_results.json)；真正无条件 BSR 的全参考比较由本次六路 Oracle 实验提供。引用文献 PDF 与目录说明位于 [ref](ref)。
+
+### 过去 60 秒的高分辨率因果残差实验
+
+这一步把上面的 128 组逐帧 Oracle 真值图换成因果先验。过去 12 个 5 秒窗各形成 `79×128` 的对数幅度图；历史中的事件标注窗由同一过去 60 秒内最近的干净窗填补。预测器为小型残差 GRU，输出未来 5 秒完整 `79×128` 图。Persistence 直接沿用最后一个干净历史图。两路都按 `log|X|−B̂` 构造显式创新，并通过与 Oracle 相同的残差适配器进入 BSR；预测器先训练并冻结。4,096 个测试混合、BSR 骨干初值、合成目标、分离器 6,000 步预算与验证选点规则保持匹配。
+
+```powershell
+python -m source.dclde_causal_highres_experiment cache
+python -m source.dclde_causal_highres_experiment predictor
+python -m source.dclde_causal_highres_experiment forecasts
+python -m source.dclde_causal_highres_experiment persistence
+python -m source.dclde_causal_highres_experiment forecast
+python -m source.dclde_causal_highres_experiment summary
+```
+
+缓存保存在被 Git 排除的 `data/dclde2013/`，两张逐帧图数组合计约 3.5 GB；重新构建需要本机 DCLDE WAV、干净背景清单、已有特征缓存及迁移骨干。结果和检查点如下。
+
+| 条件 | 留出目标 SI-SDRi (dB) | 相对 BSR (dB) |
+| --- | ---: | ---: |
+| BSR | 9.631 | 0 |
+| Persistence-Residual | 14.295 | +4.664 |
+| GRU-Forecast-Residual | 14.351 | +4.720 |
+| Oracle-Residual | 16.767 | +7.136 |
+
+GRU 背景图的测试对数幅度 MAE 为 `0.5308`，Persistence 为 `0.5386`；Forecast 相对 Persistence 的目标 SI-SDRi 增益仅 `+0.056 dB`，按三个录音日配对的 95% 区间为 `[0.036,0.074]`。这说明高分辨率因果条件在受控合成事件上有价值，但当前预测器的额外分离收益很小。BSR 与因果模型的比较仍包含新增适配器容量；真实事件上的效果仍需独立验证。
+
+完整汇总见 [results/dclde_causal_highres_comparison.json](results/dclde_causal_highres_comparison.json)，逐例配对分数见 [results/dclde_causal_highres_test_samples.csv](results/dclde_causal_highres_test_samples.csv)；冻结预测器、Persistence 分离器与 Forecast 分离器分别保存在 `models/highres_gru_128.pt`、`models/persistence_residual_128.pt`、`models/forecast_residual_128.pt`。
