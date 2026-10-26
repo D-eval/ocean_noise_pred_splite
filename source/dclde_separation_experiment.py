@@ -473,14 +473,32 @@ def train_separator(
     variant: str,
     output: Path,
     forecast_checkpoint: Path | None = None,
+    cache_training_waveforms: bool = False,
+    memoize_validation_examples: bool = False,
 ) -> dict:
     _seed_everything(config.seed)
     device = torch.device(config.device)
-    train_set = InjectedUpcallDataset(store, "train", config.train_examples, config.seed)
+    train_set = InjectedUpcallDataset(store, "train", config.train_examples, config.seed,
+                                      cache_waveforms=cache_training_waveforms)
     validation_set = InjectedUpcallDataset(
         store, "validation", config.validation_examples, config.seed + 10_000_000,
         cache_waveforms=True,
     )
+    if memoize_validation_examples:
+        class _MemoizedValidation(Dataset):
+            def __init__(self, base: Dataset):
+                self.base = base
+                self.values: dict[int, dict] = {}
+
+            def __len__(self) -> int:
+                return len(self.base)
+
+            def __getitem__(self, item: int) -> dict:
+                if item not in self.values:
+                    self.values[item] = self.base[item]
+                return self.values[item]
+
+        validation_set = _MemoizedValidation(validation_set)
     generator = torch.Generator().manual_seed(config.seed)
     train_loader = DataLoader(train_set, batch_size=config.batch_size, shuffle=True, generator=generator)
     # Batch 24 matches the old batch-8 outputs numerically on the target GPU.

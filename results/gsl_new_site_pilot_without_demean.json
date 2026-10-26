@@ -1,0 +1,476 @@
+{
+  "protocol": {
+    "dataset": "Gulf of St. Lawrence continuous dataset B, 2015-2017",
+    "source_doi": "10.20383/101.0241",
+    "selection": "12 lowest SHA-256 hashes among B_cont_0.wav through B_cont_49.wav; selected before any model outcome",
+    "selected_files": [
+      "B_cont_16.wav",
+      "B_cont_31.wav",
+      "B_cont_38.wav",
+      "B_cont_28.wav",
+      "B_cont_22.wav",
+      "B_cont_45.wav",
+      "B_cont_15.wav",
+      "B_cont_2.wav",
+      "B_cont_49.wav",
+      "B_cont_43.wav",
+      "B_cont_26.wav",
+      "B_cont_0.wav"
+    ],
+    "annotated_events": 264,
+    "evaluable_events": 259,
+    "skipped": {
+      "boundary": 5
+    },
+    "event_mask": "call-center +/-1.5 s proxy; original annotation has no onset/offset",
+    "history": "12 strictly preceding 5-s windows, excluding annotated calls +/-2 s; nearest clean historical imputation",
+    "shuffled": "annotation-negative condition from a different selected file; exact dates unavailable",
+    "sample_rate": 2000,
+    "model_and_detector_sha256": {
+      "bsr": "af6366df2913eba6b9c816227ad2cd473e5a3063ee45ce18b3fe3e578eccdf4e",
+      "zero": "9fa3c06eb7f5e4ce7f9cae51aad6a73c5f4939a5f526b34a13528f6d090f4217",
+      "shuffled": "613109889922da698cad0bc81cc994bd50852426b0f4f4fc447cae4d97ad497b",
+      "persistence": "78cb0b4a69cdb3b264db8c274d412ddedfbf049ec97ffd0f1e1bba8f70f37562",
+      "forecast": "8d81c868e116500d2b7d4b024e92a78e41b6c790aa071e01b76d31217562a1a7",
+      "empirical_persistence": "26042ac033d79300dde75f6117e1b47fa92906564c40c243fc3726ae8087dd40",
+      "empirical_forecast": "cb8d8e6a129cd62e40d740cfee6c3b93e2cb8a24e2bbefa329b5df863168deb6",
+      "weak_adapter_persistence": "e55ad60a85dd4e63049aa9e579f68bd49a8ffe9288893142c5903e5854ba3db1",
+      "predictor": "b814adefa00465e84e60a8386edbe46ccd57eceb84c8eed63c8055ae10d55378",
+      "evaluation_detector": "18eef19ea7003a9060d7ec843eb0616ea037767533513e5b309b09da3536aca1"
+    },
+    "test_used_for_training_or_selection": false,
+    "real_clean_event_stems_available": false,
+    "restoration_gains_db": [
+      -60.0,
+      -30.0,
+      -24.0,
+      -18.0,
+      -12.0,
+      -6.0,
+      0.0
+    ],
+    "source_sample_rates_hz": [
+      32768
+    ]
+  },
+  "matched_annotation_negative_probability": 0.11529260440855413,
+  "methods": {
+    "bsr": {
+      "mixture_event_probability": 0.8488141149642039,
+      "background_event_probability": 0.6807785780244583,
+      "event_stem_probability": 0.8151988879989646,
+      "monotonic_fraction": 0.935006438707753,
+      "off_event_relative_error": 0.43902685512648354,
+      "removal_logit": 2.229637351101462,
+      "restoration_auc": 0.1263585221058326
+    },
+    "zero": {
+      "mixture_event_probability": 0.8488141149642039,
+      "background_event_probability": 0.8425160323172578,
+      "event_stem_probability": 0.5143566584667644,
+      "monotonic_fraction": 0.9768339797106489,
+      "off_event_relative_error": 0.13197984886229844,
+      "removal_logit": 0.2538673924776621,
+      "restoration_auc": 0.10393270696998794
+    },
+    "shuffled": {
+      "mixture_event_probability": 0.8488141149642039,
+      "background_event_probability": 0.3659397104186901,
+      "event_stem_probability": 0.842044318511967,
+      "monotonic_fraction": 0.9157014204958691,
+      "off_event_relative_error": 0.47703953391537934,
+      "removal_logit": 4.492857602169615,
+      "restoration_auc": 0.28608067785335783
+    },
+    "persistence": {
+      "mixture_event_probability": 0.8488141149642039,
+      "background_event_probability": 0.3271007919468302,
+      "event_stem_probability": 0.8650322759229129,
+      "monotonic_fraction": 0.9742599775202025,
+      "off_event_relative_error": 0.47109159949490925,
+      "removal_logit": 4.697270712106844,
+      "restoration_auc": 0.2648534097611674
+    },
+    "forecast": {
+      "mixture_event_probability": 0.8488141149642039,
+      "background_event_probability": 0.34125223108225694,
+      "event_stem_probability": 0.8503860831332598,
+      "monotonic_fraction": 0.9710424743794106,
+      "off_event_relative_error": 0.47120625342325123,
+      "removal_logit": 4.606675253511752,
+      "restoration_auc": 0.12038892565086541
+    },
+    "empirical_persistence": {
+      "mixture_event_probability": 0.8488141149642039,
+      "background_event_probability": 0.37669968725502145,
+      "event_stem_probability": 0.8742870924181689,
+      "monotonic_fraction": 0.9581724634271791,
+      "off_event_relative_error": 0.4897281797638731,
+      "removal_logit": 4.59305636504594,
+      "restoration_auc": 0.6410169626467477
+    },
+    "empirical_forecast": {
+      "mixture_event_probability": 0.8488141149642039,
+      "background_event_probability": 0.38675987231455256,
+      "event_stem_probability": 0.8706193711738098,
+      "monotonic_fraction": 0.9543114591059078,
+      "off_event_relative_error": 0.4920752464135584,
+      "removal_logit": 4.5403604163719935,
+      "restoration_auc": 0.5701061016861997
+    },
+    "weak_adapter_persistence": {
+      "mixture_event_probability": 0.8488141149642039,
+      "background_event_probability": 0.35995564256294926,
+      "event_stem_probability": 0.8911254637547441,
+      "monotonic_fraction": 0.9517374569154614,
+      "off_event_relative_error": 0.49016973952327686,
+      "removal_logit": 4.69642029484396,
+      "restoration_auc": 0.34936474456405087
+    },
+    "identity": {
+      "mixture_event_probability": 0.8487779747759456,
+      "background_event_probability": 0.8487779747759456,
+      "event_stem_probability": 0.4694882603685828,
+      "monotonic_fraction": 1.0,
+      "off_event_relative_error": 0.0,
+      "removal_logit": 0.0,
+      "restoration_auc": 0.0
+    },
+    "all_to_event": {
+      "mixture_event_probability": 0.8487779747759456,
+      "background_event_probability": 0.4694882603685828,
+      "event_stem_probability": 0.8487779747759456,
+      "monotonic_fraction": 0.8616473693760205,
+      "off_event_relative_error": 0.9884169884169884,
+      "removal_logit": 4.03321096242107,
+      "restoration_auc": 0.10329494687897588
+    }
+  },
+  "contrasts": {
+    "persistence_minus_zero": {
+      "background_event_probability": {
+        "event_weighted_mean": -0.5154152403704275,
+        "by_file": {
+          "B_cont_0.wav": -0.6709517072886229,
+          "B_cont_15.wav": -0.5854887155195078,
+          "B_cont_16.wav": -0.5171254575252533,
+          "B_cont_2.wav": -0.593701047314839,
+          "B_cont_22.wav": -0.5955393858710114,
+          "B_cont_26.wav": -0.8940580561757088,
+          "B_cont_28.wav": -0.32120251655578613,
+          "B_cont_31.wav": -0.5105896790822347,
+          "B_cont_38.wav": -0.5931531488895416,
+          "B_cont_45.wav": -0.41562303304672243,
+          "B_cont_49.wav": -0.3109608581740289
+        },
+        "file_block_ci95": [
+          -0.641028265139009,
+          -0.4550040429656702
+        ],
+        "file_equal_mean": -0.5462176004948417
+      },
+      "event_stem_probability": {
+        "event_weighted_mean": 0.3506756174561485,
+        "by_file": {
+          "B_cont_0.wav": -0.0010752677917480469,
+          "B_cont_15.wav": 0.42862167706092197,
+          "B_cont_16.wav": 0.46435197442770004,
+          "B_cont_2.wav": 0.26024747995490377,
+          "B_cont_22.wav": 0.3467838659274335,
+          "B_cont_26.wav": 0.4607202708721161,
+          "B_cont_28.wav": 0.28714242577552795,
+          "B_cont_31.wav": 0.44119887178142864,
+          "B_cont_38.wav": 0.07361355423927307,
+          "B_cont_45.wav": 0.41060314178466795,
+          "B_cont_49.wav": 0.38883820737922387
+        },
+        "file_block_ci95": [
+          0.22541239940431892,
+          0.4065388388590543
+        ],
+        "file_equal_mean": 0.32373147285558623
+      },
+      "off_event_relative_error": {
+        "event_weighted_mean": 0.3391117506326108,
+        "by_file": {
+          "B_cont_0.wav": 0.08915351564064622,
+          "B_cont_15.wav": 0.07414576139611502,
+          "B_cont_16.wav": 0.21706634387373924,
+          "B_cont_2.wav": 0.3355236060240052,
+          "B_cont_22.wav": 0.6499246746225624,
+          "B_cont_26.wav": 0.09797532763332129,
+          "B_cont_28.wav": 0.023096215911209583,
+          "B_cont_31.wav": 0.08663717226590961,
+          "B_cont_38.wav": 0.23830965161323547,
+          "B_cont_45.wav": 0.6759524405002594,
+          "B_cont_49.wav": 0.017449053770471967
+        },
+        "file_block_ci95": [
+          0.1032901819851956,
+          0.3740888495584121
+        ],
+        "file_equal_mean": 0.2277485239319523
+      }
+    },
+    "persistence_minus_shuffled": {
+      "background_event_probability": {
+        "event_weighted_mean": -0.03883891847185992,
+        "by_file": {
+          "B_cont_0.wav": -0.34310999885201454,
+          "B_cont_15.wav": 0.00351753830909729,
+          "B_cont_16.wav": 0.010702639818191528,
+          "B_cont_2.wav": -0.022083086384968323,
+          "B_cont_22.wav": -0.028449971761022295,
+          "B_cont_26.wav": 0.007723402231931686,
+          "B_cont_28.wav": 0.014952398836612701,
+          "B_cont_31.wav": -0.011258011062939962,
+          "B_cont_38.wav": -0.2991102486848831,
+          "B_cont_45.wav": 0.04874168634414673,
+          "B_cont_49.wav": -0.07149605072974678
+        },
+        "file_block_ci95": [
+          -0.14678021718728276,
+          0.0023321098859052838
+        ],
+        "file_equal_mean": -0.06271542744869045
+      },
+      "event_stem_probability": {
+        "event_weighted_mean": 0.022987957410945857,
+        "by_file": {
+          "B_cont_0.wav": 0.0005880892276763916,
+          "B_cont_15.wav": 0.010189707080523172,
+          "B_cont_16.wav": 0.011202573776245117,
+          "B_cont_2.wav": -0.014537207951599901,
+          "B_cont_22.wav": -0.010638885047970986,
+          "B_cont_26.wav": 4.9173831939697266e-05,
+          "B_cont_28.wav": -0.012791961431503296,
+          "B_cont_31.wav": 0.004010051488876343,
+          "B_cont_38.wav": -0.0002759993076324463,
+          "B_cont_45.wav": -0.03341611623764038,
+          "B_cont_49.wav": 0.1219930102628085
+        },
+        "file_block_ci95": [
+          -0.01036985063345554,
+          0.03306421925534167
+        ],
+        "file_equal_mean": 0.006942948699247473
+      },
+      "off_event_relative_error": {
+        "event_weighted_mean": -0.005947934420470105,
+        "by_file": {
+          "B_cont_0.wav": -0.02193068154156208,
+          "B_cont_15.wav": -0.0003204653039574623,
+          "B_cont_16.wav": 0.001091010868549347,
+          "B_cont_2.wav": 0.00608045675537803,
+          "B_cont_22.wav": 0.025012724253596092,
+          "B_cont_26.wav": -0.002563200891017914,
+          "B_cont_28.wav": 0.004877358675003052,
+          "B_cont_31.wav": 0.0022087558172643185,
+          "B_cont_38.wav": 0.08057951927185059,
+          "B_cont_45.wav": 0.007932579517364502,
+          "B_cont_49.wav": -0.07146061635425975
+        },
+        "file_block_ci95": [
+          -0.01768073550764956,
+          0.023431267386410267
+        ],
+        "file_equal_mean": 0.0028643128243826116
+      }
+    },
+    "forecast_minus_persistence": {
+      "background_event_probability": {
+        "event_weighted_mean": 0.01415143913542672,
+        "by_file": {
+          "B_cont_0.wav": 0.0031487150117754936,
+          "B_cont_15.wav": 0.0014645929137865703,
+          "B_cont_16.wav": 0.0012630075216293335,
+          "B_cont_2.wav": 0.0039564252577044745,
+          "B_cont_22.wav": 0.0036711898081156673,
+          "B_cont_26.wav": 0.00010443106293678284,
+          "B_cont_28.wav": 0.0012758001685142517,
+          "B_cont_31.wav": 0.0005930078526337942,
+          "B_cont_38.wav": 0.0036455392837524414,
+          "B_cont_45.wav": 0.003749150037765503,
+          "B_cont_49.wav": 0.04924374094773685
+        },
+        "file_block_ci95": [
+          0.0016726160400382206,
+          0.015394655312564488
+        ],
+        "file_equal_mean": 0.006555963624213742
+      },
+      "event_stem_probability": {
+        "event_weighted_mean": -0.014646192789653093,
+        "by_file": {
+          "B_cont_0.wav": 0.0001239180564880371,
+          "B_cont_15.wav": 4.232426484425863e-05,
+          "B_cont_16.wav": 0.0004002898931503296,
+          "B_cont_2.wav": -6.129728122190996e-05,
+          "B_cont_22.wav": -4.7316356581084584e-05,
+          "B_cont_26.wav": 6.350874900817871e-05,
+          "B_cont_28.wav": -0.000520169734954834,
+          "B_cont_31.wav": 9.608765443166097e-05,
+          "B_cont_38.wav": 2.0802021026611328e-05,
+          "B_cont_45.wav": 7.299184799194335e-05,
+          "B_cont_49.wav": -0.061136030922493624
+        },
+        "file_block_ci95": [
+          -0.016706125577496657,
+          0.00011198456293952043
+        ],
+        "file_equal_mean": -0.005540444709846403
+      },
+      "off_event_relative_error": {
+        "event_weighted_mean": 0.00011465392834201283,
+        "by_file": {
+          "B_cont_0.wav": -0.0014640018343925476,
+          "B_cont_15.wav": 4.1293290754159294e-05,
+          "B_cont_16.wav": -4.709884524345398e-05,
+          "B_cont_2.wav": -7.622892206365412e-05,
+          "B_cont_22.wav": 0.00034116725532376037,
+          "B_cont_26.wav": 0.0002888292074203491,
+          "B_cont_28.wav": 4.718266427516937e-05,
+          "B_cont_31.wav": 1.1579133570194244e-05,
+          "B_cont_38.wav": -0.00010976195335388184,
+          "B_cont_45.wav": -9.816884994506836e-05,
+          "B_cont_49.wav": 7.94254423629853e-05
+        },
+        "file_block_ci95": [
+          -0.0003994665360574889,
+          0.00011196848359632272
+        ],
+        "file_equal_mean": -8.961667375381712e-05
+      }
+    },
+    "weak_adapter_persistence_minus_empirical_persistence": {
+      "background_event_probability": {
+        "event_weighted_mean": -0.01674404469207217,
+        "by_file": {
+          "B_cont_0.wav": -0.06115991808474064,
+          "B_cont_15.wav": 4.793206850687663e-06,
+          "B_cont_16.wav": 3.1575560569763184e-05,
+          "B_cont_2.wav": -9.725513783368197e-05,
+          "B_cont_22.wav": -3.668027264731271e-05,
+          "B_cont_26.wav": 0.00018761307001113892,
+          "B_cont_28.wav": -1.309812068939209e-05,
+          "B_cont_31.wav": 1.3805925846099854e-05,
+          "B_cont_38.wav": -0.0025392770767211914,
+          "B_cont_45.wav": 5.030035972595215e-05,
+          "B_cont_49.wav": -0.06581017984858444
+        },
+        "file_block_ci95": [
+          -0.028878786633729756,
+          2.938116519810548e-07
+        ],
+        "file_equal_mean": -0.011760756401655727
+      },
+      "event_stem_probability": {
+        "event_weighted_mean": 0.01683837133657518,
+        "by_file": {
+          "B_cont_0.wav": -0.0001434236764907837,
+          "B_cont_15.wav": -0.0004287511110305786,
+          "B_cont_16.wav": -0.00037553906440734863,
+          "B_cont_2.wav": -0.0003616327250545675,
+          "B_cont_22.wav": -0.0003033803433788066,
+          "B_cont_26.wav": -1.6689300537109375e-05,
+          "B_cont_28.wav": -0.00127391517162323,
+          "B_cont_31.wav": -0.00019387652476628622,
+          "B_cont_38.wav": -3.0994415283203125e-06,
+          "B_cont_45.wav": -0.001758444309234619,
+          "B_cont_49.wav": 0.07145217451597413
+        },
+        "file_block_ci95": [
+          -0.0007388964395190156,
+          0.01925654543358595
+        ],
+        "file_equal_mean": 0.006053947531629317
+      },
+      "off_event_relative_error": {
+        "event_weighted_mean": 0.00044155975940374795,
+        "by_file": {
+          "B_cont_0.wav": 2.570822834968567e-05,
+          "B_cont_15.wav": 2.925284206867218e-05,
+          "B_cont_16.wav": 6.544962525367737e-05,
+          "B_cont_2.wav": 0.00014815547249533913,
+          "B_cont_22.wav": 0.00030681855824528907,
+          "B_cont_26.wav": 6.846338510513306e-05,
+          "B_cont_28.wav": -1.3550743460655212e-05,
+          "B_cont_31.wav": -7.69738107919693e-07,
+          "B_cont_38.wav": 0.00018233060836791992,
+          "B_cont_45.wav": 0.00011559724807739258,
+          "B_cont_49.wav": 0.0012262460264948107
+        },
+        "file_block_ci95": [
+          5.2613464822946503e-05,
+          0.00042293139125608106
+        ],
+        "file_equal_mean": 0.00019579104662630406
+      }
+    },
+    "empirical_persistence_minus_persistence": {
+      "background_event_probability": {
+        "event_weighted_mean": 0.049598895308191254,
+        "by_file": {
+          "B_cont_0.wav": -0.03582129254937172,
+          "B_cont_15.wav": 0.1042717012266318,
+          "B_cont_16.wav": 0.04071293771266937,
+          "B_cont_2.wav": 0.17524704337120056,
+          "B_cont_22.wav": 0.12784137607228999,
+          "B_cont_26.wav": 0.039561137557029724,
+          "B_cont_28.wav": 0.09876516461372375,
+          "B_cont_31.wav": 0.017660923302173615,
+          "B_cont_38.wav": 0.06666916608810425,
+          "B_cont_45.wav": 0.09570552706718445,
+          "B_cont_49.wav": -0.16090997750119818
+        },
+        "file_block_ci95": [
+          -0.005000958725823555,
+          0.09825271419728095
+        ],
+        "file_equal_mean": 0.05179124608731251
+      },
+      "event_stem_probability": {
+        "event_weighted_mean": 0.009254816495256075,
+        "by_file": {
+          "B_cont_0.wav": -0.001616254448890686,
+          "B_cont_15.wav": -0.04646889120340347,
+          "B_cont_16.wav": 0.0036441683769226074,
+          "B_cont_2.wav": -0.004292201081460173,
+          "B_cont_22.wav": -0.006564835200504381,
+          "B_cont_26.wav": 0.0006486773490905762,
+          "B_cont_28.wav": -0.0884612649679184,
+          "B_cont_31.wav": -0.0001915420095125834,
+          "B_cont_38.wav": 0.00022995471954345703,
+          "B_cont_45.wav": -0.023415493965148925,
+          "B_cont_49.wav": 0.06573488632397305
+        },
+        "file_block_ci95": [
+          -0.031189047855115046,
+          0.011751311955810577
+        ],
+        "file_equal_mean": -0.009159345100664448
+      },
+      "off_event_relative_error": {
+        "event_weighted_mean": 0.018636580268963882,
+        "by_file": {
+          "B_cont_0.wav": 0.04014388844370842,
+          "B_cont_15.wav": 0.018507170180479687,
+          "B_cont_16.wav": -5.120038986206055e-05,
+          "B_cont_2.wav": 0.0008372935381802646,
+          "B_cont_22.wav": 0.011382804841411357,
+          "B_cont_26.wav": 0.05691298842430115,
+          "B_cont_28.wav": 0.019594994373619556,
+          "B_cont_31.wav": 0.004121774962792794,
+          "B_cont_38.wav": -0.0028446614742279053,
+          "B_cont_45.wav": 0.0003547191619873047,
+          "B_cont_49.wav": 0.0490974010899663
+        },
+        "file_block_ci95": [
+          0.00676530560596587,
+          0.031226824189463452
+        ],
+        "file_equal_mean": 0.018005197559305172
+      }
+    }
+  }
+}

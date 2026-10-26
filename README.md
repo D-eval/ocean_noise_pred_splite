@@ -375,3 +375,14 @@ python -m source.evaluate_weak_real --checkpoint models/adapter_weak_persistence
 | 冻结表示 + 教师一致性 | **12.156 dB** | **0.461** | **0.960** | 0.064 |
 
 这一版把旧合成域损失从 1.872 dB 缩至 0.038 dB，同时真实事件响应仍比预训练低，但未达到期待的 `0.25–0.30`，区间外改动略有恶化。干净背景的最终评估分类器平均响应为 `0.176`。测试日已在上一轮报告中使用，所以本轮 103 段结果是**探索性复核**；权重仍只依据验证日选定。更强教师权重的另一组只在验证日比较，未进入真实测试。[选点与冻结审计](results/dclde_adapter_weak_persistence_selection.json)、[验证轨迹](results/dclde_adapter_weak_persistence_training.json)、[验证配置比较](results/dclde_adapter_weak_validation_comparison.json)、[测试审计](results/dclde_adapter_weak_persistence_audit.json)、[检查点](models/adapter_weak_persistence_residual_128.pt)。
+
+### 新站点 GSL 的一次性真实事件测试
+
+从 [Gulf of St. Lawrence 公开数据](https://doi.org/10.20383/101.0241)的 50 个连续文件中，按文件名 SHA-256 排序，最终确认队列固定为第 13–28 个文件，共 16 个、约 8 小时；未依据模型输出选文件。原始 32,768 Hz WAV 通过 HTTP 分段从公开 ZIP 中按需读取、转成 2 kHz，E 盘仅保留约 230 MB 的降采样 WAV，无须保存完整 ZIP。386 个标注鲸声中心中有 373 个满足完整因果历史，来自 13 个含事件文件。所有分离器、GRU、评价检测器在打开此数据前已有检查点，GSL 从未参与训练、目标参数校准或选点。第 1–12 个文件的初次试运行漏掉了 DCLDE 训练时使用的每片段去均值，发现后仅修正预处理；这批试运行结果被明确排除，正式队列此前从未运行过模型。审计记录见 [试运行协议审计](results/gsl_new_site_pilot_protocol_audit.json)。
+
+```powershell
+python -m source.gsl_new_site_data
+python -m source.gsl_new_site_eval
+```
+
+冻结评价检测器在此站点的平均 `p(x)=0.907`，同文件先前标注阴性窗口为 `0.193`。各模型的 `p(背景声轨) / p(事件声轨) / 区间外改动`：BSR `0.688/0.931/0.489`，Zero `0.894/0.631/0.126`，Shuffled `0.425/0.936/0.528`，Persistence `0.361/0.927/0.543`，Forecast `0.361/0.927/0.543`，50/50 Persistence `0.439/0.915/0.557`，冻结主干弱监督 Persistence `0.439/0.915/0.557`。Persistence 相比 Shuffled 的背景概率低 `0.064`，按文件配对分块的 95% 区间为 `[-0.124,-0.013]`；但事件声轨概率也低 `0.009`（`[-0.013,-0.004]`），区间外相对改动高 `0.016`（`[0.007,0.027]`）。因此正确历史在外部站点改善背景检测响应，却没有多指标全面领先。因果模型的区间外改动较大，且背景声轨响应仍高于当地阴性窗口基线，不能只凭分类器概率宣称真实声轨已被干净分离。GSL 仅给事件中心，区间外指标采用预先声明的中心 ±1.5 秒代理；没有真实隔离鲸声真值，此数值不与 DCLDE 精确起止标注的区间外指标直接比较。完整协议、检查点哈希、逐例指标见 [汇总](results/gsl_new_site_frozen_eval.json)和[逐例数据](results/gsl_new_site_frozen_eval.csv)。

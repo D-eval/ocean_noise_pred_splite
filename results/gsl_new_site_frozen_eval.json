@@ -1,0 +1,512 @@
+{
+  "protocol": {
+    "dataset": "Gulf of St. Lawrence continuous dataset B, 2015-2017",
+    "source_doi": "10.20383/101.0241",
+    "selection": "SHA-256 filename ranks 13-28 among B_cont_0.wav through B_cont_49.wav; untouched after ranks 1-12 revealed a per-clip demeaning protocol error",
+    "selected_files": [
+      "B_cont_48.wav",
+      "B_cont_13.wav",
+      "B_cont_33.wav",
+      "B_cont_1.wav",
+      "B_cont_30.wav",
+      "B_cont_18.wav",
+      "B_cont_5.wav",
+      "B_cont_47.wav",
+      "B_cont_36.wav",
+      "B_cont_4.wav",
+      "B_cont_37.wav",
+      "B_cont_35.wav",
+      "B_cont_44.wav",
+      "B_cont_40.wav",
+      "B_cont_6.wav",
+      "B_cont_8.wav"
+    ],
+    "annotated_events": 386,
+    "evaluable_events": 373,
+    "skipped": {
+      "boundary": 12,
+      "no_clean_history": 1
+    },
+    "event_mask": "call-center +/-1.5 s proxy; original annotation has no onset/offset",
+    "history": "12 strictly preceding 5-s windows, excluding annotated calls +/-2 s; nearest clean historical imputation",
+    "shuffled": "annotation-negative condition from a different selected file; exact dates unavailable",
+    "sample_rate": 2000,
+    "input_preprocessing": "each 5-s clip demeaned, matching DCLDEClipDataset",
+    "source_sample_rates_hz": [
+      32768
+    ],
+    "model_and_detector_sha256": {
+      "bsr": "af6366df2913eba6b9c816227ad2cd473e5a3063ee45ce18b3fe3e578eccdf4e",
+      "zero": "9fa3c06eb7f5e4ce7f9cae51aad6a73c5f4939a5f526b34a13528f6d090f4217",
+      "shuffled": "613109889922da698cad0bc81cc994bd50852426b0f4f4fc447cae4d97ad497b",
+      "persistence": "78cb0b4a69cdb3b264db8c274d412ddedfbf049ec97ffd0f1e1bba8f70f37562",
+      "forecast": "8d81c868e116500d2b7d4b024e92a78e41b6c790aa071e01b76d31217562a1a7",
+      "empirical_persistence": "26042ac033d79300dde75f6117e1b47fa92906564c40c243fc3726ae8087dd40",
+      "empirical_forecast": "cb8d8e6a129cd62e40d740cfee6c3b93e2cb8a24e2bbefa329b5df863168deb6",
+      "weak_adapter_persistence": "e55ad60a85dd4e63049aa9e579f68bd49a8ffe9288893142c5903e5854ba3db1",
+      "predictor": "b814adefa00465e84e60a8386edbe46ccd57eceb84c8eed63c8055ae10d55378",
+      "evaluation_detector": "18eef19ea7003a9060d7ec843eb0616ea037767533513e5b309b09da3536aca1"
+    },
+    "test_used_for_training_or_selection": false,
+    "real_clean_event_stems_available": false,
+    "restoration_gains_db": [
+      -60.0,
+      -30.0,
+      -24.0,
+      -18.0,
+      -12.0,
+      -6.0,
+      0.0
+    ]
+  },
+  "matched_annotation_negative_probability": 0.1927789425647171,
+  "methods": {
+    "bsr": {
+      "mixture_event_probability": 0.9066079985600055,
+      "background_event_probability": 0.6875095946649364,
+      "event_stem_probability": 0.9313466738679773,
+      "monotonic_fraction": 0.9696157313783431,
+      "off_event_relative_error": 0.48868986762480826,
+      "removal_logit": 2.824447239495704,
+      "restoration_auc": 0.3385046685798638
+    },
+    "zero": {
+      "mixture_event_probability": 0.9066079985600055,
+      "background_event_probability": 0.8940414012242458,
+      "event_stem_probability": 0.6313035567628155,
+      "monotonic_fraction": 0.9932975876107613,
+      "off_event_relative_error": 0.12592326170557624,
+      "removal_logit": 0.3411281934715233,
+      "restoration_auc": 0.1255575422392334
+    },
+    "shuffled": {
+      "mixture_event_probability": 0.9066079985600055,
+      "background_event_probability": 0.42531140442268456,
+      "event_stem_probability": 0.9361361828070863,
+      "monotonic_fraction": 0.9642538018824268,
+      "off_event_relative_error": 0.5275128977647895,
+      "removal_logit": 4.731901500261721,
+      "restoration_auc": 0.40655993684706837
+    },
+    "persistence": {
+      "mixture_event_probability": 0.9066079985600055,
+      "background_event_probability": 0.36145147417569606,
+      "event_stem_probability": 0.9272166888451768,
+      "monotonic_fraction": 0.9548704255042703,
+      "off_event_relative_error": 0.5433323356814822,
+      "removal_logit": 5.086470769079098,
+      "restoration_auc": 0.3269762303530371
+    },
+    "forecast": {
+      "mixture_event_probability": 0.9066079985600055,
+      "background_event_probability": 0.3610172346533943,
+      "event_stem_probability": 0.927127609354002,
+      "monotonic_fraction": 0.9544235979264287,
+      "off_event_relative_error": 0.5433660832960309,
+      "removal_logit": 5.089830171616483,
+      "restoration_auc": 0.3230361646295952
+    },
+    "empirical_persistence": {
+      "mixture_event_probability": 0.9066079985600055,
+      "background_event_probability": 0.43914399482809185,
+      "event_stem_probability": 0.9153527951332423,
+      "monotonic_fraction": 0.9544235974470349,
+      "off_event_relative_error": 0.5572411778305555,
+      "removal_logit": 4.7276153529447384,
+      "restoration_auc": 0.4034030455946123
+    },
+    "empirical_forecast": {
+      "mixture_event_probability": 0.9066079985600055,
+      "background_event_probability": 0.44710924895854803,
+      "event_stem_probability": 0.9118688364061289,
+      "monotonic_fraction": 0.9517426325392787,
+      "off_event_relative_error": 0.5689361453775427,
+      "removal_logit": 4.691808082193296,
+      "restoration_auc": 0.34521609965721817
+    },
+    "weak_adapter_persistence": {
+      "mixture_event_probability": 0.9066079985600055,
+      "background_event_probability": 0.4390564487782624,
+      "event_stem_probability": 0.9149938332960609,
+      "monotonic_fraction": 0.9553172524429199,
+      "off_event_relative_error": 0.5573890596708088,
+      "removal_logit": 4.727975866555089,
+      "restoration_auc": 0.4353270916163362
+    },
+    "identity": {
+      "mixture_event_probability": 0.906659157067817,
+      "background_event_probability": 0.906659157067817,
+      "event_stem_probability": 0.4694891218845071,
+      "monotonic_fraction": 1.0,
+      "off_event_relative_error": 0.0,
+      "removal_logit": 0.0,
+      "restoration_auc": 0.0
+    },
+    "all_to_event": {
+      "mixture_event_probability": 0.906659157067817,
+      "background_event_probability": 0.4694891218845071,
+      "event_stem_probability": 0.906659157067817,
+      "monotonic_fraction": 0.9414655992476614,
+      "off_event_relative_error": 1.0,
+      "removal_logit": 4.578278124861758,
+      "restoration_auc": 0.363510015048586
+    }
+  },
+  "contrasts": {
+    "persistence_minus_zero": {
+      "background_event_probability": {
+        "event_weighted_mean": -0.5325899270485497,
+        "file_equal_mean": -0.5399826980191649,
+        "by_file": {
+          "B_cont_1.wav": -0.5682089014185799,
+          "B_cont_18.wav": -0.4373666506547194,
+          "B_cont_30.wav": -0.7655202176641015,
+          "B_cont_33.wav": -0.6170060075009647,
+          "B_cont_36.wav": -0.49688430672342127,
+          "B_cont_37.wav": -0.4569862502462724,
+          "B_cont_4.wav": -0.5440428555011749,
+          "B_cont_40.wav": -0.47137876983844873,
+          "B_cont_44.wav": -0.582176513154991,
+          "B_cont_48.wav": -0.5121851996942,
+          "B_cont_5.wav": -0.5792013659541096,
+          "B_cont_6.wav": -0.4382333215706202,
+          "B_cont_8.wav": -0.5505847143275397
+        },
+        "file_block_ci95": [
+          -0.5906433788325105,
+          -0.49741489205450157
+        ]
+      },
+      "event_stem_probability": {
+        "event_weighted_mean": 0.2959131320823613,
+        "file_equal_mean": 0.27637845807642863,
+        "by_file": {
+          "B_cont_1.wav": 0.3761928288473023,
+          "B_cont_18.wav": 0.40575971740942735,
+          "B_cont_30.wav": 0.4698132329127368,
+          "B_cont_33.wav": 0.06537852695454723,
+          "B_cont_36.wav": -0.003590968522158536,
+          "B_cont_37.wav": 0.3085603582508424,
+          "B_cont_4.wav": 0.32383252417339997,
+          "B_cont_40.wav": 0.29520976994976855,
+          "B_cont_44.wav": -0.006340431980788708,
+          "B_cont_48.wav": 0.2111896493218162,
+          "B_cont_5.wav": 0.4079042210110596,
+          "B_cont_6.wav": 0.33814735391310285,
+          "B_cont_8.wav": 0.4008631727525166
+        },
+        "file_block_ci95": [
+          0.18677357928817723,
+          0.3577876714185794
+        ]
+      },
+      "off_event_relative_error": {
+        "event_weighted_mean": 0.417409073975906,
+        "file_equal_mean": 0.4161568110143036,
+        "by_file": {
+          "B_cont_1.wav": 0.3036308225451244,
+          "B_cont_18.wav": 0.6753162985237745,
+          "B_cont_30.wav": 0.053241622908150446,
+          "B_cont_33.wav": 0.5486338391252186,
+          "B_cont_36.wav": 0.41070954264564946,
+          "B_cont_37.wav": 0.4897122260402231,
+          "B_cont_4.wav": 0.3559763628770323,
+          "B_cont_40.wav": 0.6253633640254989,
+          "B_cont_44.wav": 0.44785377010703087,
+          "B_cont_48.wav": 0.4741181673651392,
+          "B_cont_5.wav": 0.2031062939536891,
+          "B_cont_6.wav": 0.47883233329167174,
+          "B_cont_8.wav": 0.3435438997777445
+        },
+        "file_block_ci95": [
+          0.3237934093375096,
+          0.4985343306541294
+        ]
+      }
+    },
+    "persistence_minus_shuffled": {
+      "background_event_probability": {
+        "event_weighted_mean": -0.06385993024698851,
+        "file_equal_mean": -0.06389731242756765,
+        "by_file": {
+          "B_cont_1.wav": -0.015581925710042318,
+          "B_cont_18.wav": 0.011543936454332791,
+          "B_cont_30.wav": 0.002869503463015837,
+          "B_cont_33.wav": -0.1970750119375146,
+          "B_cont_36.wav": -0.31485721604390576,
+          "B_cont_37.wav": -0.0698813702545914,
+          "B_cont_4.wav": -0.0369394088492674,
+          "B_cont_40.wav": -0.06292770396579396,
+          "B_cont_44.wav": 0.03501456510275602,
+          "B_cont_48.wav": -0.17833276363936337,
+          "B_cont_5.wav": 0.024674721328275546,
+          "B_cont_6.wav": -0.05686885969979422,
+          "B_cont_8.wav": 0.027696472193513597
+        },
+        "file_block_ci95": [
+          -0.12363423095854824,
+          -0.013237429371815984
+        ]
+      },
+      "event_stem_probability": {
+        "event_weighted_mean": -0.0089194939619095,
+        "file_equal_mean": -0.00850337876277061,
+        "by_file": {
+          "B_cont_1.wav": 0.0015441394514507717,
+          "B_cont_18.wav": 0.007312190074187059,
+          "B_cont_30.wav": -0.00654149055480957,
+          "B_cont_33.wav": -0.014980210882166157,
+          "B_cont_36.wav": -0.006004371426322244,
+          "B_cont_37.wav": -0.005057548191033157,
+          "B_cont_4.wav": -0.013062964467441334,
+          "B_cont_40.wav": -0.002307660651929451,
+          "B_cont_44.wav": -0.025381202809512615,
+          "B_cont_48.wav": -0.002086753194982355,
+          "B_cont_5.wav": -0.01224825531244278,
+          "B_cont_6.wav": -0.01931542355795296,
+          "B_cont_8.wav": -0.012414372393063136
+        },
+        "file_block_ci95": [
+          -0.013249979080923251,
+          -0.0039850936291935994
+        ]
+      },
+      "off_event_relative_error": {
+        "event_weighted_mean": 0.015819437916692717,
+        "file_equal_mean": 0.015538664779323268,
+        "by_file": {
+          "B_cont_1.wav": 0.0038230663372410666,
+          "B_cont_18.wav": 0.004052437268770658,
+          "B_cont_30.wav": 0.0023495181299307767,
+          "B_cont_33.wav": 0.00984364618425784,
+          "B_cont_36.wav": 0.0057708024978637695,
+          "B_cont_37.wav": 0.0398105125801236,
+          "B_cont_4.wav": 0.07262224484892453,
+          "B_cont_40.wav": 0.0076314572131995,
+          "B_cont_44.wav": 0.013205073773860931,
+          "B_cont_48.wav": 0.01590508222579956,
+          "B_cont_5.wav": 0.008274125733545848,
+          "B_cont_6.wav": 0.013041389231779138,
+          "B_cont_8.wav": 0.005673286105905261
+        },
+        "file_block_ci95": [
+          0.00713446910161763,
+          0.02699132127189216
+        ]
+      }
+    },
+    "forecast_minus_persistence": {
+      "background_event_probability": {
+        "event_weighted_mean": -0.0004342395223017992,
+        "file_equal_mean": -0.0006518766347345806,
+        "by_file": {
+          "B_cont_1.wav": 0.0009315233263704511,
+          "B_cont_18.wav": 0.001567505873166598,
+          "B_cont_30.wav": 0.0005503754843683803,
+          "B_cont_33.wav": -0.006920045808605526,
+          "B_cont_36.wav": -0.012092304500666532,
+          "B_cont_37.wav": -0.0001804215066573199,
+          "B_cont_4.wav": 0.0013281440033632167,
+          "B_cont_40.wav": 0.0008918399160558528,
+          "B_cont_44.wav": -0.00098373182117939,
+          "B_cont_48.wav": 0.0006805495782331986,
+          "B_cont_5.wav": 6.616967064993722e-05,
+          "B_cont_6.wav": 0.0026536547407812004,
+          "B_cont_8.wav": 0.0030323447925703867
+        },
+        "file_block_ci95": [
+          -0.0032011400453835575,
+          0.0011614876350640219
+        ]
+      },
+      "event_stem_probability": {
+        "event_weighted_mean": -8.907949117489219e-05,
+        "file_equal_mean": -6.35315445427013e-05,
+        "by_file": {
+          "B_cont_1.wav": 2.223087681664361e-05,
+          "B_cont_18.wav": 0.0002392117793743427,
+          "B_cont_30.wav": -0.0013323321061975816,
+          "B_cont_33.wav": 3.8476579863092176e-05,
+          "B_cont_36.wav": -6.0346993533047765e-05,
+          "B_cont_37.wav": -6.2900431015912225e-06,
+          "B_cont_4.wav": 9.130029117359835e-06,
+          "B_cont_40.wav": -6.552717902443625e-05,
+          "B_cont_44.wav": 0.0006634299643337727,
+          "B_cont_48.wav": -9.25280831076882e-05,
+          "B_cont_5.wav": -7.26367746080671e-05,
+          "B_cont_6.wav": -0.0002887761410401792,
+          "B_cont_8.wav": 0.00012004801205226354
+        },
+        "file_block_ci95": [
+          -0.00032122347170968323,
+          0.00013871607410889756
+        ]
+      },
+      "off_event_relative_error": {
+        "event_weighted_mean": 3.3747614548609024e-05,
+        "file_equal_mean": 5.9801095329154656e-06,
+        "by_file": {
+          "B_cont_1.wav": 5.594806538687812e-05,
+          "B_cont_18.wav": -2.1338462829589844e-05,
+          "B_cont_30.wav": 0.0004212825613863328,
+          "B_cont_33.wav": -0.00025001556976981783,
+          "B_cont_36.wav": -4.2010437358509414e-05,
+          "B_cont_37.wav": 9.544164526696299e-05,
+          "B_cont_4.wav": -0.0001215671791749842,
+          "B_cont_40.wav": 9.963729164817117e-05,
+          "B_cont_44.wav": -0.0004325583577156067,
+          "B_cont_48.wav": 0.0001584244045344266,
+          "B_cont_5.wav": 0.0001529413940651076,
+          "B_cont_6.wav": 4.3196337563650946e-05,
+          "B_cont_8.wav": -8.16402690751212e-05
+        },
+        "file_block_ci95": [
+          -0.00010649656472158619,
+          0.00011483531848199591
+        ]
+      }
+    },
+    "weak_adapter_persistence_minus_empirical_persistence": {
+      "background_event_probability": {
+        "event_weighted_mean": -8.754604982946258e-05,
+        "file_equal_mean": -0.00014432157156110936,
+        "by_file": {
+          "B_cont_1.wav": 1.132736603418986e-05,
+          "B_cont_18.wav": 4.6225694509652945e-05,
+          "B_cont_30.wav": 0.00015596146969234243,
+          "B_cont_33.wav": -3.572035094966059e-05,
+          "B_cont_36.wav": -0.00240591439333829,
+          "B_cont_37.wav": -0.0003087894589293237,
+          "B_cont_4.wav": -7.526664172901827e-05,
+          "B_cont_40.wav": -2.7032512606996477e-05,
+          "B_cont_44.wav": 0.0009100884199142456,
+          "B_cont_48.wav": -0.00036994300105355,
+          "B_cont_5.wav": 4.312449267932347e-05,
+          "B_cont_6.wav": 0.00016113629146498077,
+          "B_cont_8.wav": 1.8622194017682758e-05
+        },
+        "file_block_ci95": [
+          -0.000589918288182853,
+          0.00016757757457908093
+        ]
+      },
+      "event_stem_probability": {
+        "event_weighted_mean": -0.00035896183718145695,
+        "file_equal_mean": -0.0003646171391720955,
+        "by_file": {
+          "B_cont_1.wav": -0.00023433069388071695,
+          "B_cont_18.wav": -0.0006417127755972055,
+          "B_cont_30.wav": -0.0007570911856258617,
+          "B_cont_33.wav": 3.794766962528229e-05,
+          "B_cont_36.wav": -8.176673542369496e-06,
+          "B_cont_37.wav": -0.00012640801130556594,
+          "B_cont_4.wav": -0.0003050355350269991,
+          "B_cont_40.wav": -0.0002001388506455855,
+          "B_cont_44.wav": -0.00017910473980009556,
+          "B_cont_48.wav": -0.00022632967342029917,
+          "B_cont_5.wav": -0.0005308219364711217,
+          "B_cont_6.wav": -0.000844602682152573,
+          "B_cont_8.wav": -0.0007242177213941302
+        },
+        "file_block_ci95": [
+          -0.0005203651204203925,
+          -0.0002150901953885401
+        ]
+      },
+      "off_event_relative_error": {
+        "event_weighted_mean": 0.00014788184025332372,
+        "file_equal_mean": 0.00013413300715651094,
+        "by_file": {
+          "B_cont_1.wav": 0.00020177455412016975,
+          "B_cont_18.wav": 0.00014938757969782903,
+          "B_cont_30.wav": 0.00037907239268807806,
+          "B_cont_33.wav": 0.00010653552801712699,
+          "B_cont_36.wav": 2.713907848704945e-05,
+          "B_cont_37.wav": 0.00031425204931520947,
+          "B_cont_4.wav": 5.667875794803395e-05,
+          "B_cont_40.wav": 0.0001663601759708289,
+          "B_cont_44.wav": -8.66129994392395e-05,
+          "B_cont_48.wav": 0.00019460781054063276,
+          "B_cont_5.wav": -6.268013800893511e-05,
+          "B_cont_6.wav": 0.00021688427243913923,
+          "B_cont_8.wav": 8.033003125871931e-05
+        },
+        "file_block_ci95": [
+          6.402591918014461e-05,
+          0.00020728608087382388
+        ]
+      }
+    },
+    "empirical_persistence_minus_persistence": {
+      "background_event_probability": {
+        "event_weighted_mean": 0.07769252065239579,
+        "file_equal_mean": 0.07490668261720142,
+        "by_file": {
+          "B_cont_1.wav": 0.05028002791934543,
+          "B_cont_18.wav": 0.04106363654136658,
+          "B_cont_30.wav": 0.038920493029496246,
+          "B_cont_33.wav": 0.19659205104993738,
+          "B_cont_36.wav": -0.008432977578856728,
+          "B_cont_37.wav": -0.008259780851064944,
+          "B_cont_4.wav": 0.035664014956530404,
+          "B_cont_40.wav": 0.017497497977632465,
+          "B_cont_44.wav": 0.2317606545984745,
+          "B_cont_48.wav": 0.03321508114988154,
+          "B_cont_5.wav": 0.16199489230556147,
+          "B_cont_6.wav": 0.05815474658596272,
+          "B_cont_8.wav": 0.1253365363393511
+        },
+        "file_block_ci95": [
+          0.03596047342614139,
+          0.11809319388042341
+        ]
+      },
+      "event_stem_probability": {
+        "event_weighted_mean": -0.01186389371193446,
+        "file_equal_mean": -0.011900401703860697,
+        "by_file": {
+          "B_cont_1.wav": -0.009023217691315545,
+          "B_cont_18.wav": -0.005012938609490028,
+          "B_cont_30.wav": -0.08078465917531182,
+          "B_cont_33.wav": -0.016422926974685295,
+          "B_cont_36.wav": -0.008596805008974943,
+          "B_cont_37.wav": 0.0004334923099069034,
+          "B_cont_4.wav": 0.001263288890614229,
+          "B_cont_40.wav": -0.0034883257114525995,
+          "B_cont_44.wav": 0.008420486003160477,
+          "B_cont_48.wav": -0.001973336393182928,
+          "B_cont_5.wav": -0.02299402973481587,
+          "B_cont_6.wav": -0.007007320164417734,
+          "B_cont_8.wav": -0.009518929890223913
+        },
+        "file_block_ci95": [
+          -0.025546259556858773,
+          -0.0030620557026179523
+        ]
+      },
+      "off_event_relative_error": {
+        "event_weighted_mean": 0.013908842149073253,
+        "file_equal_mean": 0.016597873859971222,
+        "by_file": {
+          "B_cont_1.wav": 0.031642310321331024,
+          "B_cont_18.wav": 0.002059496366060697,
+          "B_cont_30.wav": 0.12465991770081661,
+          "B_cont_33.wav": 0.006525494482206262,
+          "B_cont_36.wav": 0.004244395277716897,
+          "B_cont_37.wav": 0.0006913373283311433,
+          "B_cont_4.wav": -0.001294789945378023,
+          "B_cont_40.wav": 0.002843945315389922,
+          "B_cont_44.wav": 0.011277001351118088,
+          "B_cont_48.wav": 0.009564012289047241,
+          "B_cont_5.wav": 0.01576222199946642,
+          "B_cont_6.wav": 0.004470224891390119,
+          "B_cont_8.wav": 0.003326792802129473
+        },
+        "file_block_ci95": [
+          0.00440050072597176,
+          0.03634811304174198
+        ]
+      }
+    }
+  }
+}

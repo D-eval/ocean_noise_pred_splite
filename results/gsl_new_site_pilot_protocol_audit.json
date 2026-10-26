@@ -1,0 +1,10 @@
+{
+  "status": "excluded_from_confirmatory_inference",
+  "pilot_result": "results/gsl_new_site_pilot_without_demean.json",
+  "pilot_cohort": "SHA-256 filename ranks 1-12 of 50 continuous GSL recordings",
+  "protocol_error": "The first GSL evaluation omitted the per-5-s waveform mean subtraction used in DCLDEClipDataset for separator training and earlier real-event evaluation.",
+  "correction": "Apply the same per-clip mean subtraction to GSL mixture, historical background, shuffled donor, and matched annotation-negative clips.",
+  "frozen_model_weights_changed": false,
+  "final_cohort": "Previously unevaluated SHA-256 filename ranks 13-28, selected without examining their model outputs",
+  "final_result": "results/gsl_new_site_frozen_eval.json"
+}

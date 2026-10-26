@@ -10,43 +10,24 @@
 \maketitle
 
 \begin{abstract}
-We test whether past ocean soundscape can predict a background prior that
-improves separation of a future event.  DCLDE examples combine an
-annotation-clean real 5-s ocean recording with a synthetic marine event;
-the preceding 60-s history masks annotated calls.  An initial 30-band GRU
-forecast injected through FiLM does not improve BS-RoFormer on 4,096 held-out
-mixtures (9.497 versus 9.631 dB target SI-SDRi), even with the true current
-30-band spectrum as an Oracle (9.535 dB).  An information ladder instead
-identifies a useful 128-group, time-resolved representation.  We feed its
-background map and explicit mixture-minus-background innovation through a
-matched residual adapter.  The true-background Oracle reaches 16.767 dB;
-fixed-mean and wrong-day map controls reach 12.156 and 11.944 dB, while
-past-60-s persistence and a frozen GRU forecast reach 14.295 and 14.351 dB.
-Persistence exceeds the fixed-mean and wrong-day controls by 2.138 and
-2.351 dB, respectively. Forecast exceeds persistence by
-$0.056$ dB (recording-day paired 95\% CI $[0.036,0.074]$), but remains
-$2.416$ dB below Oracle. Thus the residual interface itself helps, and
-time-relevant historical background supplies a further substantial gain;
-this GRU adds little beyond persistence. Synthetic targets and only three
-held-out days limit generalization; classifier tests on untouched calls do
-not establish real-event superiority. On the same 103 real calls, causal
-conditions preserve off-event audio better than wrong-day Shuffled, whereas
-Shuffled scores better on the classifier's two event-probability measures;
-the real-event ranking is therefore unresolved. Training-day empirical
-targets reduce equal-size real-to-target embedding distance from $.483$ to
-$.322$. Retraining with this 50/50 procedural/pseudo-real pool lowers
-$p(\hat N)$ from $.829$ to $.652$ for Persistence on the same real calls,
-while off-event change rises from $.037$ to $.058$ and old-synthetic SI-SDRi
-falls from 14.295 to 12.195 dB. Target realism improves a semantic proxy
-but introduces a measurable preservation and distribution tradeoff. A separate
-framewise detector enables train-day-only weak fine-tuning on annotated real
-calls: held-out $p(\hat N)$ falls further to $.408$ and $p(\hat s)$ reaches
-$.978$, while old-synthetic SI-SDRi declines to 10.323 dB. Independent
-evaluation and off-event checks support a partial real-domain gain, not
-full-reference whale-stem recovery. Freezing the separator representation and
-distilling from the 50/50 teacher retains 12.156 dB on the old synthetic test,
-with real $p(\hat N)/p(\hat s)=.461/.960$; the stronger real suppression and
-near-preserved controlled separation remain a tradeoff.
+We ask whether a strictly past ocean soundscape provides useful background
+information for separating an event in the next five seconds. DCLDE mixtures
+have real annotation-clean ocean backgrounds and synthetic events with exact
+stems. A 30-band FiLM precursor fails to exploit even an oracle background;
+an information ladder instead motivates a time-resolved 128-group map and
+explicit mixture-minus-background innovation injected through a residual
+BS-RoFormer adapter. On 4,096 held-out mixtures, BS-RoFormer obtains 9.631 dB
+target SI-SDRi. Fixed-mean Zero and wrong-day Shuffled conditions obtain
+12.156 and 11.944 dB, while past-60-s Persistence and GRU Forecast obtain
+14.295 and 14.351 dB; the current-background Oracle reaches 16.767 dB.
+Thus correct historical information adds 2.138 and 2.351 dB over the matched
+Zero and Shuffled interfaces, whereas the GRU adds only 0.056 dB over
+Persistence. On a previously untouched Gulf of St. Lawrence cohort of 373
+real annotated calls, frozen Persistence reduces the background-stem event
+detector response relative to wrong-file Shuffled by 0.064 (file-block 95\%
+CI $[-.124,-.013]$), but event-stem response and off-event preservation
+worsen slightly. Without isolated real stems, these detector and preservation
+measures indicate partial transfer, not established real-event separation.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -773,6 +754,85 @@ matched-clean response of $.176$. Because this cohort was already reported
 for the preceding model, this follow-up comparison is exploratory rather
 than a fresh blind test.
 
+\section{Independent Holdout Checks}
+\subsection{Three separator seeds on fixed mixtures}
+We reuse the original run as seed one and independently retrain BSR, Zero,
+Shuffled, Persistence, and Forecast with two further seeds. All five arms
+receive the same per-seed transferred backbone initialization, training
+mixtures, 6,000 updates, 4,096-example validation draw, 100-step validation
+cadence, and best-validation checkpoint rule. A fixed 4,096-mixture test draw
+is identical across every arm and seed; sample IDs, SNRs, and mixture SI-SDR
+are checked before comparison. The background GRU remains the previously
+selected frozen checkpoint across seeds, so this experiment measures
+\emph{separator} seed sensitivity, not predictor-training variation.
+
+\subsection{One-shot real-event test at a new site}
+We froze the previously selected BSR, four original residual arms, both
+50/50-target residual arms, the adapter-only weak checkpoint, the background
+GRU, and the evaluation detector before opening a geographically distinct
+test set. The Gulf of St. Lawrence (GSL) continuous recordings and call-center
+annotations were collected in 2015--2017; none entered DCLDE target-profile
+calibration, weak training, or model selection
+\cite{kirsebom2020gslData,kirsebom2020gsl}. To bound storage and rule out
+outcome-based selection, we fixed SHA-256 filename ranks 13--28 among 50
+continuous files. The first 12 ranks were excluded from confirmatory analysis
+after a preprocessing audit found that their initial evaluation had omitted
+the per-clip mean subtraction used in all DCLDE training. No model weight,
+hyperparameter, or detector was changed. The untouched final eight hours
+contain 386 annotated upcalls; 373
+permit a full strictly past 60-s history. Each source WAV is resampled from
+32,768 to 2,000 Hz and each 5-s clip is demeaned as in DCLDE.
+History windows with call centers within a 2-s guard
+are replaced by the nearest annotation-negative window in that past minute.
+Shuffled uses a different selected file because per-file recording dates are
+not available. GSL marks call centers, not onsets and offsets, so the
+off-event region uses a declared $\pm1.5$-s center proxy. It is less precise
+than the original DCLDE interval mask, and the matched annotation-negative
+background is not an isolated clean stem.
+Detector probabilities may be miscalibrated after this site change, so we
+compare stems within the same files and report the local negative-window floor.
+The center-proxy off-event measure is not numerically interchangeable with
+the DCLDE onset/offset measure.
+
+\begin{table*}[t]
+\caption{One-shot GSL new-site evaluation on 373 annotated upcalls from 13
+event-bearing files. The frozen DCLDE-trained detector gives
+$p(x)=.907$ and $p(N_{\rm ann.-neg.})=.193$ on a preceding annotation-negative
+window. Lower $p(\hat N)$ and off-event alteration are desirable; higher
+$p(\hat s)$ and restoration monotonicity are desirable. Center-based masks
+and no isolated real stems make these semantic/preservation proxies.}
+\label{tab:gsl}\centering\footnotesize
+\begin{tabular}{lrrrr}
+\toprule
+Frozen separator & $p(\hat N)\downarrow$ & $p(\hat s)\uparrow$ & Monotonic $\uparrow$ & Off-event $\downarrow$\\
+\midrule
+BS-RoFormer & .688 & .931 & .970 & .489\\
+Zero-Residual & .894 & .631 & .993 & .126\\
+Shuffled-Residual & .425 & .936 & .964 & .528\\
+Persistence-Residual & .361 & .927 & .955 & .543\\
+GRU-Forecast-Residual & .361 & .927 & .954 & .543\\
+50/50 Persistence & .439 & .915 & .954 & .557\\
+50/50 GRU Forecast & .447 & .912 & .952 & .569\\
+Frozen-trunk weak Persistence & .439 & .915 & .955 & .557\\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Table~\ref{tab:gsl} shows a consistent but qualified new-site effect.
+Persistence lowers background event response relative to Shuffled by $.064$
+with either event or file weighting; the file-block paired 95\% interval is
+$[-.124,-.013]$. At the same time, file-equal event-stem response is $.009$
+lower ($[-.013,-.004]$), and off-event relative alteration $.016$ higher
+($[.007,.027]$). Forecast is effectively tied with Persistence here.
+Both causal arms suppress background detector response far more than Zero,
+but alter the off-center mixture by about $.54$ relative RMS, and
+$p(\hat N)=.361$ remains above the local annotation-negative floor of $.193$.
+The 50/50 and weakly adapted models do not give a clear Pareto improvement.
+Thus correct history transfers to the new site as a background-response
+advantage over wrong-file conditioning, while event retention and background
+preservation worsen. We do not interpret lower $p(\hat N)$ alone as robust
+real-stem separation.
+
 \section{Discussion and Conclusion}
 The preliminary 30-band FiLM model does not gain even from the true current
 30-band background. A successful full-waveform copy check and the fixed-head
@@ -801,11 +861,15 @@ event suppression and a small off-event increase. Thus proxy improvement
 does not establish a uniform real separation gain. Reuse of three test days,
 uncertain event labels, and unavailable isolated stems further limit inference.
 
-The existing 30-band FiLM frontend permits inspection and playback, but the
-new 128-group model has not been deployed there. Future work should preserve
-background during target adaptation, test more sites and target pools, and
-obtain stronger real-event references. Classifier restoration is a semantic
-proxy, not a waveform-fidelity measure.
+The one-shot GSL cohort tests a new recording site without tuning on its
+calls. Its lower background-stem detector response with correct history is
+encouraging, but the simultaneous loss in event-stem response and off-event
+preservation rules out a broad real-domain victory. These proxies depend on
+an imperfect cross-site detector and center-only annotations. The existing
+30-band FiLM frontend permits inspection and playback, but the 128-group
+model has not been deployed there. Future work requires stronger isolated
+real-event references and better background preservation during target
+adaptation. Classifier restoration does not measure waveform fidelity.
 
 \balance
 \bibliographystyle{IEEEtran}
