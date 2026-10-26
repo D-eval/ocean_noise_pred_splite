@@ -159,6 +159,7 @@ class InjectedUpcallDataset(Dataset):
         self, store: CausalFeatureStore, split: str, examples: int, seed: int,
         source_family: str | None = None, snr_range: tuple[float, float] = (-18.0, 12.0),
         spread_rows: bool = False, cache_waveforms: bool = False,
+        target_pool=None,
     ):
         self.store = store
         self.rows = store.indices(split, label=0)
@@ -171,6 +172,7 @@ class InjectedUpcallDataset(Dataset):
         self.snr_range = snr_range
         self.spread_rows = spread_rows
         self.cache_waveforms = cache_waveforms
+        self.target_pool = target_pool
         self._waveform_cache: dict[int, np.ndarray] = {}
 
     def __len__(self) -> int:
@@ -187,9 +189,14 @@ class InjectedUpcallDataset(Dataset):
             ocean = self.base[local]["waveform"].numpy()
             if self.cache_waveforms:
                 self._waveform_cache[local] = ocean
-        source, parameters = render_marine_training_target(
-            len(ocean), self.seed + item * 104729, source_family=self.source_family,
-        )
+        if self.target_pool is None:
+            source, parameters = render_marine_training_target(
+                len(ocean), self.seed + item * 104729, source_family=self.source_family,
+            )
+        else:
+            route = "empirical_procedural" if item % 2 == 0 else "pseudo_real"
+            source = self.target_pool.sample(self.seed + item * 104729, route)
+            parameters = {"family": route}
         rng = np.random.default_rng(self.seed + item * 130363)
         snr_db = float(rng.uniform(*self.snr_range))
         ocean_rms = float(np.sqrt(np.mean(np.square(ocean), dtype=np.float64)))

@@ -32,7 +32,13 @@ held-out days limit generalization; classifier tests on untouched calls do
 not establish real-event superiority. On the same 103 real calls, causal
 conditions preserve off-event audio better than wrong-day Shuffled, whereas
 Shuffled scores better on the classifier's two event-probability measures;
-the real-event ranking is therefore unresolved.
+the real-event ranking is therefore unresolved. Training-day empirical
+targets reduce equal-size real-to-target embedding distance from $.483$ to
+$.322$. Retraining with this 50/50 procedural/pseudo-real pool lowers
+$p(\hat N)$ from $.829$ to $.652$ for Persistence on the same real calls,
+while off-event change rises from $.037$ to $.058$ and old-synthetic SI-SDRi
+falls from 14.295 to 12.195 dB. Target realism improves a semantic proxy
+but introduces a measurable preservation and distribution tradeoff.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -600,62 +606,100 @@ embedding nor detector confidence establishes the physical cause of residual
 event responses without isolated real whale stems. Real background evolution
 since the preceding clean window also enters this embedding difference.
 
-\section{Discussion and Conclusion}
-The main-domain 30-band Oracle is a diagnostic of the existing interface: even when FiLM receives
-$E(N_t)$ from the exact current clean waveform, its held-out mean does not
-exceed the mixture-only BS-RoFormer, and its paired interval spans zero.
-The full-waveform copy check succeeds exactly, so the current negative result
-cannot be interpreted as evidence that the true background lacks useful
-information.  It leaves the relative roles of 30-band compression and FiLM
-injection unresolved.  The fixed-head ladder shows a clear representation
-bottleneck: even mixture-phase conditions retain a confirmed gain at 128
-equal-width frequency groups or 1-s full-bin temporal pooling, whereas 64
-equal-width groups and 30 geometric bands do not.  The original FiLM result
-cannot be assigned to this bottleneck alone because its interface differs.
-The trained 128-group Oracle-Residual-BSR gains $+7.136$ dB on matched
-held-out mixtures, showing that a high-resolution true background and
-explicit innovation can help the BSR backbone.  Replacing true current
-background with past-60-s persistence or a frozen GRU forecast retains large
-gains of $+4.664$ and $+4.720$ dB over BSR. The fixed-mean Zero and
-wrong-day Shuffled controls also gain $+2.525$ and $+2.313$ dB, respectively;
-therefore part of the BSR-to-causal gain comes from the expanded interface.
-Holding that interface fixed, Persistence gains $+2.138$ dB over Zero and
-$+2.351$ dB over Shuffled. Correctly timed history therefore provides useful
-information beyond a generic background map. The forecast adds a consistent
-but modest $+0.056$ dB over persistence on three test days; the remaining
-$2.416$ dB Oracle gap shows headroom for a better causal prior. The Zero
-control cannot distinguish parameter capacity from access to the mixture log
-spectrum in the innovation path. Synthetic-target supervision and only three
-held-out days also limit generalization.
-Zero-FiLM is effectively tied with BS-RoFormer, while Forecast is no better
-than either Zero or Shuffled.  The result does not isolate prediction error
-as the bottleneck; a five-second, 30-band static summary and its FiLM interface
-may be too coarse for the separator's time-frequency tokens.  FiLM remains the
-best interface on controlled spectral surrogates, and the secondary unlabeled
-WAV sweep shows weak-target gains, but neither establishes a main-domain gain.
-The new real-call audit has a mixed outcome: causal maps improve all three
-semantic/preservation measures against Zero, but Shuffled wins the two
-classifier event probabilities while losing markedly on off-event change.
-Forecast is not uniformly better than Persistence. Thus the real calls do
-not establish that correctly timed history improves semantic separation;
-they expose a preservation-versus-detection tradeoff under a surrogate
-classifier. The old 30-band FiLM real-call comparison remains preliminary.
-Only three held-out days and no isolated real stems limit this inference.
-The clean-control audit rules out a uniformly high classifier floor as the
-sole explanation of $p(\hat N)$, while the density-matched embedding audit
-finds a synthetic-to-real target coverage gap in classifier space. Better
-target sampling is a testable next step; the current evidence does not
-isolate this gap from separation artifacts or annotation uncertainty.
+\subsection{Training-day target calibration and acceptance}
+We next use only the three training dates to fit target morphology. Of 2,798
+annotated call windows, 2,616 have usable same-WAV clean windows before and
+after the call and sufficient acoustic excess. We interpolate their local
+background log spectra, take positive mixture-minus-background excess in the
+annotated time span and 40--950 Hz, apply a smooth mask, and invert with mixture
+phase to obtain a \emph{pseudo} whale stem. This is an approximate target,
+not an isolated reference. We estimate call duration, frequency limits and
+track, sweep slope and curvature, bandwidth, harmonic count and decay,
+amplitude envelope, jitter, pulse gap, and event count from these training
+calls. A calibrated procedural route perturbs a sampled whale profile while
+retaining the original tonal and cavitation vessel generators;
+the second route randomizes timing and phase of a pseudo-real stem. Each
+contributes half the new target pool, with vessel draws occupying $4/7$ of
+the procedural half to preserve the original overall whale/vessel ratio in expectation.
+The held-out classifier is not used
+to fit profiles or filter samples.
 
-The existing 30-band FiLM frontend is usable for inspection: on a CPU smoke test, one 5-s
-chunk ran at RTF 0.014 after history features were prepared; the interface
-displays forecasts and permits playback and download of both estimates.  This
-does not establish deployment of the new 128-group residual model or field use.
-Further work should improve prediction of event-relevant time-frequency
-structure rather than only mean log-magnitude MAE, cover more sites and
-seasons, and obtain isolated
-or stronger partial references for real events.  Classifier-based restoration
-is evidence of semantic transfer, not a replacement for waveform fidelity.
+Under the same 103-call, 32-repeat equal-size coverage protocol, with both
+new routes represented in every repeat, the median real-to-target nearest
+distance falls from $.483$ to $.322$;
+the median fraction above the real-to-real 95th-percentile threshold falls
+from $51.5\%$ to $3.4\%$. Distance improves in all 32 paired repeats,
+meeting our pretraining acceptance criterion. The frozen classifier's mean
+response to new mixtures rises from $.407$ to $.647$, but this is an external
+diagnostic, not an optimization target or proof of stem fidelity.
+
+\subsection{Separation after target-pool revision}
+We retrain Persistence and Forecast residual separators for 6,000 updates
+each, with the same transfer initialization and validation selection; the
+background GRU and event classifier remain frozen. Table~\ref{tab:empirical}
+compares them with their original counterparts. On the same real calls,
+Persistence lowers $p(\hat N)$ by $.1766$ (recording-day paired 95\% CI
+$[-.1920,-.1479]$) and raises $p(\hat s)$ by $.0668$
+($[.0414,.1166]$). Forecast changes these probabilities by $-.1129$
+and $+.0527$. Both gains coexist with greater off-event change:
+$+.0215$ for Persistence ($[.0151,.0324]$) and $+.0068$ for Forecast
+($[.0002,.0132]$). New Persistence extracts more event-like audio than new
+Forecast, but changes more audio outside the annotation. On the unchanged
+legacy synthetic test, SI-SDRi falls by $2.100$ and $2.620$ dB, respectively.
+The frozen GRU does not improve over persistence after target-pool revision.
+Retaining vessel draws prevents the severe tonal-vessel regression of an
+intermediate whale-only pool, yet does not preserve the old whale-proxy scores.
+Even the new $p(\hat N)$ values remain far above the matched clean floor
+of $.176$. Without isolated real stems, these findings support a target-domain
+effect on classifier response, not a full-reference real separation gain.
+
+\begin{table*}[t]
+\caption{Same frozen real-call evaluation after target-pool revision, and
+SI-SDRi on the unchanged old synthetic test. New training changes targets,
+not the 128-group residual interface or frozen background predictor.}
+\label{tab:empirical}\centering\footnotesize
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llrrrr}
+\toprule
+Condition & Training targets & Old-synth SI-SDRi (dB) & Real $p(\hat N)\downarrow$ & Real $p(\hat s)\uparrow$ & Off-event$\downarrow$\\
+\midrule
+Persistence & Original procedural &14.295&.829&.849&.037\\
+Persistence & 50/50 empirical &12.195&.652&.916&.058\\
+GRU Forecast & Original procedural &14.351&.838&.842&.036\\
+GRU Forecast & 50/50 empirical &11.731&.725&.895&.043\\
+\bottomrule
+\end{tabular}
+}%
+\end{table*}
+
+\section{Discussion and Conclusion}
+The preliminary 30-band FiLM model does not gain even from the true current
+30-band background. A successful full-waveform copy check and the fixed-head
+information ladder show why this negative result cannot rule out useful
+background information: compression and injection remain confounded.
+With a 128-group residual interface, Oracle gains $7.136$ dB over BSR;
+past-60-s Persistence and Forecast retain $4.664$ and $4.720$ dB. Zero and
+wrong-day Shuffled also gain $2.525$ and $2.313$ dB, so the expanded interface
+contributes. Within that interface, correct history adds $2.138$ dB over Zero
+and $2.351$ dB over Shuffled. The GRU adds only $.056$ dB over persistence on
+the original target distribution, with $2.416$ dB remaining to Oracle.
+
+On real calls, the original four-condition ranking differs between frozen
+classifier probabilities and off-event preservation. The clean-background
+floor does not explain the high $p(\hat N)$, and an equal-size embedding audit
+finds sparse synthetic coverage near real calls. Training-day empirical
+targets close much of that measured gap and improve both real-call event
+probabilities, while increasing off-event changes and lowering old-domain
+SI-SDRi. The frozen GRU does not beat persistence after this target revision.
+Thus neither proxy probability nor the new pool establishes a uniform real
+separation improvement. Three held-out days, uncertain event labels, and
+unavailable isolated stems further limit inference.
+
+The existing 30-band FiLM frontend permits inspection and playback, but the
+new 128-group model has not been deployed there. Future work should preserve
+background during target adaptation, test more sites and target pools, and
+obtain stronger real-event references. Classifier restoration is a semantic
+proxy, not a waveform-fidelity measure.
 
 \bibliographystyle{IEEEtran}
 \bibliography{reference}

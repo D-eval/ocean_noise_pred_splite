@@ -1,0 +1,96 @@
+{
+  "source": "DCLDE training days only; annotated event WAV plus flanking annotation-clean same-WAV windows",
+  "train_days": [
+    "2009-03-28",
+    "2009-03-29",
+    "2009-03-30"
+  ],
+  "candidate_events": 2798,
+  "accepted_events": 2616,
+  "skipped": {
+    "missing_flanks": 65,
+    "low_acoustic_excess": 117
+  },
+  "acoustic_parameters": {
+    "duration_seconds": {
+      "0.05": 0.8320000000000001,
+      "0.5": 1.92,
+      "0.95": 2.944
+    },
+    "f_min_hz": {
+      "0.05": 55.71467309598444,
+      "0.5": 97.52651499583251,
+      "0.95": 138.70268124993717
+    },
+    "f_max_hz": {
+      "0.05": 165.69868197314725,
+      "0.5": 420.2600824978093,
+      "0.95": 755.1125224535806
+    },
+    "delta_f_hz": {
+      "0.05": -444.180172411374,
+      "0.5": -13.923662368866374,
+      "0.95": 317.69274957048515
+    },
+    "slope_hz_per_second": {
+      "0.05": -283.3447299697261,
+      "0.5": -21.009736822689682,
+      "0.95": 137.36175786882066
+    },
+    "curvature_hz": {
+      "0.05": -718.4256978691172,
+      "0.5": 257.68839207567845,
+      "0.95": 1332.8585952501558
+    },
+    "bandwidth_hz": {
+      "0.05": 103.32483263470888,
+      "0.5": 189.71041834871372,
+      "0.95": 271.5290688157127
+    },
+    "harmonic_count": {
+      "0.05": 2.0,
+      "0.5": 5.0,
+      "0.95": 10.0
+    },
+    "harmonic_decay": {
+      "0.05": -0.8278057752768078,
+      "0.5": 0.5596211743619699,
+      "0.95": 1.9312191778894512
+    },
+    "envelope_rise_fraction": {
+      "0.05": 0.23809523809523808,
+      "0.5": 0.6666666666666666,
+      "0.95": 0.8888888888888888
+    },
+    "frequency_jitter_hz": {
+      "0.05": 7.518261914941978,
+      "0.5": 46.57839369574218,
+      "0.95": 92.38079578249514
+    },
+    "pulse_gap_seconds": {
+      "0.05": 0.0,
+      "0.5": 0.0,
+      "0.95": 1.064
+    },
+    "event_count": {
+      "0.05": 1.0,
+      "0.5": 1.0,
+      "0.95": 2.0
+    },
+    "contrast_db": {
+      "0.05": 7.854086215903093,
+      "0.5": 9.516255152223952,
+      "0.95": 18.557492050513734
+    }
+  },
+  "method": {
+    "event_manifest_sha256": "8aa8c1a9114a61b4ce96d8ea22d4fb1a30d5a48e159881642e220753414dee14",
+    "clean_manifest_sha256": "6b4e13375fb83da64b9f155a0c9004f5204313da38b0a43e08d88998fa9d8ca4",
+    "max_flank_seconds": 90.0,
+    "mask": "positive log-spectral excess above 2 dB, 40--950 Hz, label gated"
+  },
+  "pseudo_waveforms": "data\\dclde2013\\train_pseudo_whale_stems.f16.npy",
+  "empirical_profiles": "data\\dclde2013\\train_whale_morphology.npz",
+  "real_stem_gt": false,
+  "evaluation_classifier_used_in_selection": false
+}

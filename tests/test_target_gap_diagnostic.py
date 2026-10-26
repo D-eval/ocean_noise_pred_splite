@@ -4,10 +4,16 @@ import unittest
 
 import numpy as np
 
-from source.diagnose_target_gap import nearest_distance_audit
+from source.diagnose_target_gap import empirical_route, nearest_distance_audit
 
 
 class TargetGapDiagnosticTest(unittest.TestCase):
+    def test_each_equal_size_repeat_has_both_empirical_routes(self):
+        for draw in range(32):
+            procedural = sum(empirical_route(owner, draw) == "empirical_procedural"
+                             for owner in range(103))
+            self.assertIn(procedural, (51, 52))
+
     def test_equal_size_audit_uses_one_synthetic_per_real_event(self):
         # The first synthetic draw matches every real event exactly; the
         # second is shifted. Both repeats must appear in the equal-size audit.

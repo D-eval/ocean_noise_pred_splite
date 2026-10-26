@@ -24,6 +24,7 @@ from .dclde_causal_highres_experiment import HighResolutionStore
 from .dclde_real_residual_eval import CLASSIFIER_PATH, RealResidualEventDataset, file_sha256
 from .dclde_separation_experiment import CausalFeatureStore, render_marine_training_target
 from .event_classifier import EventClassifier, load_classifier
+from .empirical_target_pool import EmpiricalTargetPool, REPORT as EMPIRICAL_POOL_REPORT
 from .metrics import paired_bootstrap_interval
 
 
@@ -32,7 +33,13 @@ WHALE_FAMILIES = (
     "whale_pulse_packet",
 )
 OUTPUT = Path("results/dclde_target_gap_diagnostic.json")
+MIXED_OUTPUT = Path("results/dclde_empirical_target_gap_diagnostic.json")
 EVAL_SAMPLES = 9984  # 128-band BSR output length for a 10,000-sample input.
+
+
+def empirical_route(owner: int, draw: int) -> str:
+    """Balance both target routes within each equal-size 103-example draw."""
+    return "empirical_procedural" if (owner + draw) % 2 == 0 else "pseudo_real"
 
 
 @torch.inference_mode()
@@ -137,7 +144,13 @@ def nearest_distance_audit(real: np.ndarray, synthetic: np.ndarray,
 
 
 def run(device_name: str = "cuda", broad_clean_count: int = 4096,
-        synths_per_event: int = 32, batch_size: int = 64) -> dict:
+        synths_per_event: int = 32, batch_size: int = 64,
+        target_pool: str = "legacy") -> dict:
+    if target_pool not in {"legacy", "empirical_50_50"}:
+        raise ValueError("unknown diagnostic target pool")
+    if target_pool == "empirical_50_50" and synths_per_event % 2:
+        raise ValueError("50/50 pool requires an even draw count")
+    empirical = EmpiricalTargetPool() if target_pool == "empirical_50_50" else None
     device = torch.device(device_name)
     classifier, temperature = load_classifier(CLASSIFIER_PATH, device)
     classifier.eval()
@@ -186,7 +199,15 @@ def run(device_name: str = "cuda", broad_clean_count: int = 4096,
         for draw in range(synths_per_event):
             family = WHALE_FAMILIES[(item * synths_per_event + draw) % len(WHALE_FAMILIES)]
             seed = 20261026 + item * 100003 + draw * 101
-            source, _ = render_marine_training_target(len(ocean), seed, source_family=family)
+            if empirical is None:
+                source, _ = render_marine_training_target(len(ocean), seed, source_family=family)
+                route = "legacy_procedural"
+            else:
+                # Every equal-size repeat draws one target per real call; vary
+                # route by owner as well as draw so each repeat stays 50/50.
+                route = empirical_route(item, draw)
+                source = empirical.sample(seed, route)
+                family = route
             snr = float(np.random.default_rng(seed + 17).uniform(-18.0, 12.0))
             source *= ocean_rms * 10.0 ** (snr / 20.0)
             mixture = ocean + source
@@ -195,7 +216,7 @@ def run(device_name: str = "cuda", broad_clean_count: int = 4096,
                 mixture /= peak / .98
             mixtures.append(torch.from_numpy(mixture.astype(np.float32)))
             local_rows.append({"owner_real_example_id": real_ids[item], "day": days[item],
-                               "family": family, "snr_db": snr})
+                               "family": family, "route": route, "snr_db": snr})
         for first in range(0, len(mixtures), batch_size):
             batch = torch.stack(mixtures[first:first + batch_size])[..., :EVAL_SAMPLES].to(device)
             probability, embedding = classify_and_embed(classifier, batch, temperature)
@@ -238,13 +259,17 @@ def run(device_name: str = "cuda", broad_clean_count: int = 4096,
             "day_block_ci95": list(paired_bootstrap_interval(np.asarray(list(by_day.values())))),
             "by_day": by_day,
         }
+    output = MIXED_OUTPUT if empirical is not None else OUTPUT
     result = {
         "protocol": {
             "real_events": len(cohort), "same_WAV_clean_controls": len(cohort),
             "broad_test_clean_controls": len(broad_clean),
             "synthetic_whale_mixtures": len(synthetic_probability),
             "synthetic_draws_per_real_event": synths_per_event,
-            "synthetic_families": WHALE_FAMILIES,
+            "target_pool": target_pool,
+            "synthetic_families": (list(WHALE_FAMILIES) if empirical is None
+                                   else ["empirical_procedural", "pseudo_real"]),
+            "empirical_pool_report": (str(EMPIRICAL_POOL_REPORT) if empirical is not None else None),
             "synthetic_snr_db": [-18.0, 12.0],
             "synthetic_background": "immediately preceding annotation-clean 5-s WAV from the same recording as each real call",
             "real_whale_stem_gt": False,
@@ -269,15 +294,15 @@ def run(device_name: str = "cuda", broad_clean_count: int = 4096,
             "per_day_matched_clean_mean": {day: float(np.mean(matched_clean_probability[np.asarray(days) == day]))
                                            for day in sorted(set(days))},
             "per_family_synthetic_mean": {family: float(np.mean([r["probability"] for r in synthetic_rows if r["family"] == family]))
-                                          for family in WHALE_FAMILIES},
+                                          for family in sorted({r["family"] for r in synthetic_rows})},
             "synthetic_by_snr_bin": by_snr,
             "residual_background_minus_matched_clean": residual_minus_clean,
         },
         "coverage": coverage,
     }
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(json.dumps(result, indent=2), encoding="utf-8")
-    with OUTPUT.with_suffix(".csv").open("w", newline="", encoding="utf-8") as stream:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    with output.with_suffix(".csv").open("w", newline="", encoding="utf-8") as stream:
         fieldnames = ("example_id", "day", "real_event_probability",
                       "same_WAV_clean_probability", "real_to_synthetic_nn_distance",
                       "real_to_real_loo_nn_distance")
@@ -289,7 +314,7 @@ def run(device_name: str = "cuda", broad_clean_count: int = 4096,
                              "same_WAV_clean_probability": float(matched_clean_probability[item]),
                              "real_to_synthetic_nn_distance": coverage["per_real_nearest_synthetic"][item],
                              "real_to_real_loo_nn_distance": coverage["per_real_nearest_real_loo"][item]})
-    with Path("results/dclde_target_gap_synthetic_samples.csv").open(
+    with output.with_name(output.stem + "_synthetic_samples.csv").open(
             "w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(stream, fieldnames=list(synthetic_rows[0]))
         writer.writeheader()
@@ -303,9 +328,12 @@ def main() -> None:
     parser.add_argument("--broad-clean-count", type=int, default=4096)
     parser.add_argument("--synths-per-event", type=int, default=32)
     parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--target-pool", choices=("legacy", "empirical_50_50"),
+                        default="legacy")
     args = parser.parse_args()
     print(json.dumps(run(args.device, args.broad_clean_count,
-                         args.synths_per_event, args.batch_size), indent=2), flush=True)
+                         args.synths_per_event, args.batch_size,
+                         args.target_pool), indent=2), flush=True)
 
 
 if __name__ == "__main__":

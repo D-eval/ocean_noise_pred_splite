@@ -286,3 +286,37 @@ python -m source.diagnose_target_gap --device cuda --broad-clean-count 4096 --sy
 四路分离背景的平均事件概率 `.781–.891` 均明显高于同 WAV 干净背景；逐例相减的平均差为 Shuffled `.606`、Persistence `.653`、Forecast `.662`、Zero `.715`。因此分类器自身的非零底噪解释不了高响应，但没有真实隔离声轨，不能把这个概率差直接换算成鲸声残留能量；分离伪影和漏标也可能触发分类器。
 
 覆盖检查使用该分类器冻结的 64 维倒数第二层激活：每个有事件片段的激活减去同 WAV 配对干净片段的激活，按合成样本逐维标准化，再计算欧氏最近邻距离。真实事件彼此的留一最近邻中位距离为 `.233`。若直接用全部 3296 个合成样本，真实到合成的中位距离为 `.262`，只有 `3.9%` 超过真实最近邻距离的第 95 百分位；但候选数不匹配。每次只取 103 个合成样本、每个真实事件对应一个，并重复 32 次后，真实到合成的中位最近邻距离为 `.483`，是 `.233` 的 `2.08` 倍；超过真实第 95 百分位阈值的比例中位数为 `51.5%`。五类合成鲸声的平均分类器概率也相差很大：上扫 `.700`、下扫 `.134`、拱形 `.338`、S 形 `.699`、脉冲包 `.161`。这些结果表明当前合成分布在**等量、分类器表征**下较稀疏，支持 synthetic-to-real 覆盖不足的假设；但真实事件相对前一干净窗的背景变化也进入了嵌入差，且分类器表征并非孤立鲸声分布距离，因此不能证明覆盖缺口是分离失败的唯一原因。逐例数据见 [results/dclde_target_gap_diagnostic.csv](results/dclde_target_gap_diagnostic.csv)，全部诊断与抽样设置见 [results/dclde_target_gap_diagnostic.json](results/dclde_target_gap_diagnostic.json)，合成抽样明细见 [results/dclde_target_gap_synthetic_samples.csv](results/dclde_target_gap_synthetic_samples.csv)。
+
+### 训练日经验目标池与覆盖验收
+
+目标池只读取训练日 `2009-03-28` 至 `2009-03-30` 的真实标注鲸声和同一 WAV 内事件前后的标注干净背景。对当前事件的 STFT 幅度，估计前后干净窗的局部背景对数幅度插值，取事件标注内、40–950 Hz 的正超额能量，平滑生成 soft mask，并用当前混合相位逆变换得到伪鲸声。该声轨含参考背景估计误差，明确不是干净 GT。2798 个候选事件中有 2616 个通过前后干净窗与声学对比度检查；筛选完全不调用最终冻结分类器。
+
+同一批训练事件还提供时长、频率上下界、频移与斜率、曲率、带宽、谐波峰数与衰减、包络峰值位置、频率抖动、脉冲间隔和标注事件数的经验联合样本。程序合成路线抽取一个真实鲸声轮廓并轻微随机化音高、时长、抖动、相位、谐波幅度、间隔与起点，同时保留原有的船舶音调与空化噪声；它在目标池中占 50%，其中船噪占该路线的 $4/7$，使最终鲸声/船噪总体比例与旧七类训练池一致。另一半直接复用软掩码伪鲸声并随机化相位与时刻。真实测试日绝不参与参数拟合或伪声轨提取。
+
+```powershell
+python -m source.empirical_target_pool
+python -m source.diagnose_target_gap --device cuda --target-pool empirical_50_50
+python -m source.plot_empirical_target_acceptance
+```
+
+验收时冻结分类器仅用于**诊断**，没有参与合成器拟合或训练样本筛选。沿用同一 103 个真实事件、32 次每轮 103 个合成候选的协议；新池每轮也保持两路约 50/50。等量最近邻距离从旧目标池 `.483` 降至新目标池 `.322`；超出真实近邻第 95 百分位阈值的比例中位数从 `51.5%` 降至 `3.4%`，32 轮均改善。新池合成混合的平均事件概率为 `.647`，其中包含船噪的程序合成路线为 `.352`、伪真实为 `.942`；这只是冻结分类器的外部诊断，不能充当波形真值。逐事件形态参数见 [results/dclde_train_whale_morphology.csv](results/dclde_train_whale_morphology.csv)；完整分布与抽样明细见 [results/dclde_train_target_pool.json](results/dclde_train_target_pool.json)、[results/dclde_empirical_target_gap_diagnostic.json](results/dclde_empirical_target_gap_diagnostic.json) 和 [results/dclde_empirical_target_acceptance.json](results/dclde_empirical_target_acceptance.json)。另提供可放大的[覆盖验收矢量图](paper/figures/dclde_empirical_target_acceptance.pdf)。
+
+覆盖验收通过后才重训两种因果 128 频组残差分离器；历史 GRU 和冻结事件分类器均不重训。两路使用相同初始骨干、6000 更新、每 500 更新在相同 4096 个验证背景上选最佳权重。随后在原有、完全不变的 4096 个合成测试混合上审计旧目标分布的退化，再对相同 103 个真实鲸声做冻结分类器与区间外保留评估：
+
+```powershell
+python -m source.dclde_causal_highres_experiment persistence --device cuda --target-pool empirical_50_50
+python -m source.dclde_causal_highres_experiment forecast --device cuda --target-pool empirical_50_50
+python -m source.audit_empirical_separator
+python -m source.evaluate_empirical_residual --device cuda
+```
+
+| 条件与目标池 | 不变旧合成测试 SI-SDRi (dB) | 真实鲸声 $p(\hat N)\downarrow$ | $p(\hat s)\uparrow$ | 标注区间外相对改动$\downarrow$ |
+| --- | ---: | ---: | ---: | ---: |
+| Persistence，旧程序目标 | 14.295 | .829 | .849 | .037 |
+| Persistence，新 50/50 目标 | 12.195 | .652 | .916 | .058 |
+| Forecast，旧程序目标 | 14.351 | .838 | .842 | .036 |
+| Forecast，新 50/50 目标 | 11.731 | .725 | .895 | .043 |
+
+在同一 103 个真实鲸声上，新 Persistence 相对旧版的 $p(\hat N)$ 差为 `-.1766`（按三个录音日配对的 95% 区间 `[-.1920,-.1479]`），$p(\hat s)$ 差为 `+.0668`（`[.0414,.1166]`）；但区间外改动也增加 `+.0215`（`[.0151,.0324]`）。新 Forecast 对旧版相应为 `-.1129`、`+.0527` 和 `+.0068`。新 Persistence 的事件响应更强，新 Forecast 的区间外保留更好；分类器概率不等于真实隔离声轨质量。两种新模型在**旧合成分布**上的 SI-SDRi 分别下降 2.100 和 2.620 dB，说明目标域适配存在明显旧域退化。中间试过只用鲸声的经验池：Persistence 的真实事件概率同样改善，但旧船舶音调 SI-SDRi 降到 `-1.925 dB`；最终版本保留船噪后恢复为 `5.350 dB`。完整逐类受控审计见 [results/dclde_empirical_residual_legacy_test_audit.json](results/dclde_empirical_residual_legacy_test_audit.json)，真实逐例配对结果见 [results/dclde_empirical_residual_real_event_results.csv](results/dclde_empirical_residual_real_event_results.csv) 与 [results/dclde_empirical_residual_real_event_results.json](results/dclde_empirical_residual_real_event_results.json)。
+
+最终分离器检查点随仓库提供：[Persistence](models/empirical_persistence_residual_128.pt)、[Forecast](models/empirical_forecast_residual_128.pt)；冻结的 [128 频组 GRU](models/highres_gru_128.pt) 保持与旧实验同一文件。中间鲸声专用 [Persistence 检查点](models/empirical_whale_only_persistence_residual_128.pt)仅用于解释船噪退化，不作为通用版本。约 52 MB 的训练日伪声轨缓存位于忽略目录，可用前述 `source.empirical_target_pool` 命令重建；没有引入测试日真实事件到目标池。

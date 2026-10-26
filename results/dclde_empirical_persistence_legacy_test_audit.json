@@ -1,0 +1,48 @@
+{
+  "protocol": "unchanged 4,096 DCLDE test mixtures; original seven-family whale/vessel generator",
+  "training_target_pool": "50% procedural (calibrated whale or retained vessel), 50% train-day pseudo-real whale",
+  "arms": {
+    "persistence": {
+      "old_mean_si_sdri_db": 14.29477920604404,
+      "new_mean_si_sdri_db": 12.19461033638072,
+      "new_minus_old_mean_db": -2.100168869663321,
+      "families": {
+        "vessel_cavitation": {
+          "n": 602,
+          "old_mean_db": 10.096602060272051,
+          "new_mean_db": 9.663745761610741
+        },
+        "vessel_tonal": {
+          "n": 626,
+          "old_mean_db": 4.449914274886012,
+          "new_mean_db": 5.349977899426088
+        },
+        "whale_arch": {
+          "n": 579,
+          "old_mean_db": 18.465182050728014,
+          "new_mean_db": 14.040187318605051
+        },
+        "whale_downsweep": {
+          "n": 569,
+          "old_mean_db": 18.00092724798434,
+          "new_mean_db": 13.847541484346708
+        },
+        "whale_pulse_packet": {
+          "n": 543,
+          "old_mean_db": 15.27672346147604,
+          "new_mean_db": 14.576492420876225
+        },
+        "whale_s_curve": {
+          "n": 566,
+          "old_mean_db": 16.735177108340043,
+          "new_mean_db": 13.839155842474408
+        },
+        "whale_upsweep": {
+          "n": 611,
+          "old_mean_db": 17.98097505272898,
+          "new_mean_db": 14.772415173229335
+        }
+      }
+    }
+  }
+}

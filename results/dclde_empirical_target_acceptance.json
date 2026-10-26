@@ -1,0 +1,17 @@
+{
+  "real_event_count": 103,
+  "equal_size_candidates_per_repeat": 103,
+  "repeats": 32,
+  "old_equal_size_nn_median": 0.48344092324096954,
+  "new_equal_size_nn_median": 0.3216596529135999,
+  "paired_repeat_nn_delta_median": -0.16653707827674502,
+  "repeats_with_lower_nn_distance": 32,
+  "old_outside_p95_fraction_median": 0.5145631067961165,
+  "new_outside_p95_fraction_median": 0.03398058252427184,
+  "repeats_with_lower_outside_fraction": 32,
+  "old_synthetic_mean_classifier_probability": 0.4065552624878788,
+  "new_synthetic_mean_classifier_probability": 0.6470297445348832,
+  "classifier_used_for_pool_calibration_or_sample_selection": false,
+  "acceptance": "pass",
+  "limitations": "classifier-space proxy; no isolated real whale GT; preceding clean WAV is an imperfect current-background reference"
+}

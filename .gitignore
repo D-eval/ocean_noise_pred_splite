@@ -45,8 +45,12 @@ paper/*.pdf
 .DS_Store
 Thumbs.db
 
-# One compact, deployable checkpoint is intentionally versioned for the UI.
+# Keep selected inference checkpoints; exclude training snapshots and caches.
 !models/
 models/*
 !models/practical_film.pt
 !models/practical_real.pt
+!models/highres_gru_128.pt
+!models/empirical_persistence_residual_128.pt
+!models/empirical_forecast_residual_128.pt
+!models/empirical_whale_only_persistence_residual_128.pt

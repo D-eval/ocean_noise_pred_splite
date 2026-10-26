@@ -322,9 +322,9 @@ def prepare_forecasts(cache: HighResolutionStore, device_name: str = "cuda",
 class ConditionedInjectedDataset(InjectedUpcallDataset):
     def __init__(self, cache: HighResolutionStore, split: str, examples: int,
                  seed: int, condition: str, spread_rows: bool = False,
-                 cache_waveforms: bool = False):
+                 cache_waveforms: bool = False, target_pool=None):
         super().__init__(cache.store, split, examples, seed, spread_rows=spread_rows,
-                         cache_waveforms=cache_waveforms)
+                         cache_waveforms=cache_waveforms, target_pool=target_pool)
         if condition not in {"zero", "shuffled", "persistence", "forecast"}:
             raise ValueError("unknown residual condition")
         self.cache = cache
@@ -452,9 +452,23 @@ def separation_test_rows(model: CausalResidualBSR, loader: DataLoader,
 
 
 def train_separator(cache: HighResolutionStore, condition: str,
-                    device_name: str = "cuda", steps: int = 6000) -> dict:
+                    device_name: str = "cuda", steps: int = 6000,
+                    target_pool: str = "legacy") -> dict:
+    if target_pool not in {"legacy", "empirical_50_50"}:
+        raise ValueError("unknown residual training target pool")
+    if target_pool == "empirical_50_50" and condition not in {"persistence", "forecast"}:
+        raise ValueError("new target-pool training is scoped to causal residual arms")
+    if target_pool == "empirical_50_50":
+        from .empirical_target_pool import EmpiricalTargetPool
+        empirical = EmpiricalTargetPool()
+    else:
+        empirical = None
     reference = json.loads(BASELINE_RESULT.read_text(encoding="utf-8"))
     config = ExperimentConfig(device=device_name)
+    if empirical is not None:
+        # Keep all 4,096 validation examples but avoid repeatedly scoring them
+        # between updates; both empirical arms use this same checkpoint rule.
+        config.separation_validate_every = 500
     if (steps != reference["updates_run"] or config.seed != reference["config"]["seed"]
             or config.batch_size != reference["config"]["batch_size"]):
         raise ValueError("residual arm must use matched BSR updates, seed and batch")
@@ -463,10 +477,10 @@ def train_separator(cache: HighResolutionStore, condition: str,
     model = CausalResidualBSR(cache.store.bands, config.seed, device,
                               Path(config.transfer_checkpoint)).to(device)
     train = ConditionedInjectedDataset(cache, "train", config.train_examples,
-                                       config.seed, condition)
+                                       config.seed, condition, target_pool=empirical)
     validation = ConditionedInjectedDataset(cache, "validation", config.validation_examples,
                                             config.seed + 10_000_000, condition,
-                                            cache_waveforms=True)
+                                            cache_waveforms=True, target_pool=empirical)
     test = ConditionedInjectedDataset(cache, "test", config.validation_examples,
                                       config.seed + 20_000_000, condition, spread_rows=True)
     train_loader = DataLoader(train, batch_size=config.batch_size, shuffle=True,
@@ -486,7 +500,9 @@ def train_separator(cache: HighResolutionStore, condition: str,
         raise ValueError(f"unmatched backbone initialization: {initial_difference}")
     optimiser = torch.optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, config.separation_steps)
-    output = OUTPUT_ROOT / f"dclde_{condition}_residual_128"
+    directory = (f"dclde_{condition}_residual_128" if empirical is None
+                 else f"dclde_empirical_{condition}_residual_128")
+    output = OUTPUT_ROOT / directory
     output.mkdir(parents=True, exist_ok=True)
     training_rows, best, best_step = [], -math.inf, 0
     iterator = iter(train_loader)
@@ -513,7 +529,8 @@ def train_separator(cache: HighResolutionStore, condition: str,
                 if score > best + 1e-4:
                     best, best_step = score, step
                     torch.save({"model": model.state_dict(), "config": vars(config),
-                                "step": step, "interface": f"{condition}_residual_128"}, output / "best.pt")
+                                "step": step, "interface": f"{condition}_residual_128",
+                                "target_pool": target_pool}, output / "best.pt")
             training_rows.append(row)
             print(json.dumps({"stage": f"{condition}_separator", **row}), flush=True)
             (output / "training.json").write_text(json.dumps(training_rows, indent=2), encoding="utf-8")
@@ -529,7 +546,9 @@ def train_separator(cache: HighResolutionStore, condition: str,
     days = np.asarray([row["day"] for row in rows])
     delta = values - baseline
     day_means = np.asarray([delta[days == day].mean() for day in np.unique(days)])
-    result = {"condition": condition, "test_examples": len(rows),
+    result = {"condition": condition, "training_target_pool": target_pool,
+              "test_pool": "legacy procedural synthetic (unchanged held-out test mixtures)",
+              "test_examples": len(rows),
               "mean_si_sdri_db": float(values.mean()), "delta_vs_bsr_db": float(delta.mean()),
               "delta_vs_bsr_day_ci95_db": [float(x) for x in paired_bootstrap_interval(day_means)],
               "days": {str(day): float(delta[days == day].mean()) for day in np.unique(days)},
@@ -655,6 +674,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("stage", choices=("cache", "predictor", "forecasts", "zero", "shuffled", "persistence", "forecast", "summary"))
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--target-pool", choices=("legacy", "empirical_50_50"),
+                        default="legacy")
     args = parser.parse_args()
     if args.stage == "cache":
         result = prepare_cache(args.device)
@@ -666,7 +687,8 @@ def main() -> None:
         elif args.stage == "forecasts":
             result = prepare_forecasts(cache, args.device)
         elif args.stage in ("zero", "shuffled", "persistence", "forecast"):
-            result = train_separator(cache, args.stage, args.device)
+            result = train_separator(cache, args.stage, args.device,
+                                     target_pool=args.target_pool)
         else:
             result = summarize()
     print(json.dumps(result, indent=2), flush=True)

@@ -1,0 +1,22 @@
+{
+  "condition": "persistence",
+  "training_target_pool": "empirical_50_50",
+  "test_pool": "legacy procedural synthetic (unchanged held-out test mixtures)",
+  "test_examples": 4096,
+  "mean_si_sdri_db": 10.468716238196066,
+  "delta_vs_bsr_db": 0.8376937780049047,
+  "delta_vs_bsr_day_ci95_db": [
+    0.6159197151336098,
+    0.9771227673981026
+  ],
+  "days": {
+    "2009-04-01": 0.6159197151336098,
+    "2009-04-02": 0.8567781594790658,
+    "2009-04-03": 0.9771227673981027
+  },
+  "best_step": 5500,
+  "best_validation_si_sdri_db": 12.821690769895213,
+  "initial_waveform_max_difference": 0.0,
+  "checkpoint": "experiments\\dclde_empirical_persistence_residual_128\\best.pt",
+  "samples_csv": "experiments\\dclde_empirical_persistence_residual_128\\clean_synthetic_test.csv"
+}
