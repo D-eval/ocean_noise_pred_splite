@@ -1,0 +1,115 @@
+{
+  "protocol": {
+    "weak_checkpoint_selected_on_validation_only": true,
+    "train_detector_independent_of_evaluation_detector": true,
+    "real_test_events": 103,
+    "controlled_test_examples": 4096,
+    "test_days_used_to_change_training_or_checkpoint": false,
+    "real_clean_stem_gt": false,
+    "train_detector_sha256": "bc0586424fbcf979b9cd29614f22542a7e632a0b1e1dec144d03dc54f01a66ec",
+    "evaluation_detector_sha256": "18eef19ea7003a9060d7ec843eb0616ea037767533513e5b309b09da3536aca1",
+    "separator_sha256": "603f8992c7d3adcef3f003b72f4ca193b0151f6e5d3e4deba0dfccb350e4d003"
+  },
+  "selected_step": 250,
+  "controlled_test": {
+    "pretrained_si_sdri_db": 12.19461033638072,
+    "weak_finetuned_si_sdri_db": 10.323080677473627,
+    "weak_minus_pretrained_db": {
+      "mean": -1.871529658907093,
+      "day_means": {
+        "2009-04-01": -1.862772055017634,
+        "2009-04-02": -1.8755159071962673,
+        "2009-04-03": -1.8740379845812207
+      },
+      "day_bootstrap_ci95": [
+        -1.8755159071962673,
+        -1.8627720550176339
+      ]
+    }
+  },
+  "real_independent_evaluator": {
+    "background_event_probability": {
+      "pretrained_mean": 0.651897935829695,
+      "weak_finetuned_mean": 0.4083996475357743,
+      "weak_minus_pretrained": {
+        "mean": -0.24349828829392067,
+        "day_means": {
+          "2009-04-01": -0.28609968859114143,
+          "2009-04-02": -0.09300135166517326,
+          "2009-04-03": -0.365116273984313
+        },
+        "day_bootstrap_ci95": [
+          -0.365116273984313,
+          -0.09300135166517326
+        ]
+      }
+    },
+    "event_stem_probability": {
+      "pretrained_mean": 0.9158861482859526,
+      "weak_finetuned_mean": 0.9780167017168212,
+      "weak_minus_pretrained": {
+        "mean": 0.06213055343086858,
+        "day_means": {
+          "2009-04-01": 0.070963241012865,
+          "2009-04-02": 0.044093522003718785,
+          "2009-04-03": 0.0719856858253479
+        },
+        "day_bootstrap_ci95": [
+          0.04409352200371878,
+          0.0719856858253479
+        ]
+      }
+    },
+    "monotonic_fraction": {
+      "pretrained_mean": 0.9886731404123954,
+      "weak_finetuned_mean": 0.9854368943612553,
+      "weak_minus_pretrained": {
+        "mean": -0.003236246051140202,
+        "day_means": {
+          "2009-04-01": -1.568543283562911e-09,
+          "2009-04-02": -0.014285714285714285,
+          "2009-04-03": 0.005555557211240133
+        },
+        "day_bootstrap_ci95": [
+          -0.014285714285714285,
+          0.005555557211240133
+        ]
+      }
+    },
+    "off_event_relative_error": {
+      "pretrained_mean": 0.05835482537592716,
+      "weak_finetuned_mean": 0.06106135274003287,
+      "weak_minus_pretrained": {
+        "mean": 0.0027065273641057094,
+        "day_means": {
+          "2009-04-01": -0.004016075234271978,
+          "2009-04-02": 0.005327677088124412,
+          "2009-04-03": 0.008163815977362295
+        },
+        "day_bootstrap_ci95": [
+          -0.004016075234271978,
+          0.008163815977362295
+        ]
+      }
+    }
+  },
+  "matched_clean_mean_probability": 0.1756000940516157,
+  "clean_normalized_residue": {
+    "definition": "logit p(background stem)-logit p(immediately prior same-WAV clean 5-s background)",
+    "pretrained_mean": 3.606018400011878,
+    "weak_finetuned_mean": 1.3894017320571619,
+    "weak_minus_pretrained": {
+      "mean": -2.2166166679547157,
+      "day_means": {
+        "2009-04-01": -2.3614654403598356,
+        "2009-04-02": -1.3690365669243185,
+        "2009-04-03": -3.021985007443693
+      },
+      "day_bootstrap_ci95": [
+        -3.021985007443693,
+        -1.3690365669243185
+      ]
+    }
+  },
+  "real_rows": "results\\dclde_weak_real_persistence_event_results.csv"
+}

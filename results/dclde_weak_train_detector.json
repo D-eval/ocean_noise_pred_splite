@@ -1,0 +1,14 @@
+{
+  "best_epoch": 28,
+  "validation": {
+    "epoch": 28,
+    "train_loss": 0.6070401827720079,
+    "frame_ap": 0.9005763057349097,
+    "frame_auc": 0.9612204994925728,
+    "clip_ap": 0.9753285464897226,
+    "clip_auc": 0.9707267554012345,
+    "frame_positive_fraction": 0.20670270919799805
+  },
+  "evaluation_classifier_used": false,
+  "test_days_used": false
+}

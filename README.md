@@ -70,7 +70,7 @@ python -m source.web
 
 同规模、同训练量的无条件 BS-RoFormer 基线为 6.02 dB；旧加法频谱条件相对基线的配对差为 −0.28 dB（95% CI：−0.69 至 0.14）。该负结果推动了后续广分布条件注入消融；历史结果保留在 [results/practical_results.json](results/practical_results.json)，不再作为部署模型。
 
-论文提供英文 [main.tex](paper/main.tex) 与中文 [main_zh.tex](paper/main_zh.tex) 两份源文件，以及已渲染的[英文 PDF](output/pdf/forecast_conditioned_ocean_separation_en.pdf)和[中文 PDF（最新日期版）](output/pdf/forecast_conditioned_ocean_separation_zh_20261026.pdf)。
+论文提供英文 [main.tex](paper/main.tex) 与中文 [main_zh.tex](paper/main_zh.tex) 两份源文件，以及已渲染的[英文 PDF](output/pdf/forecast_conditioned_ocean_separation_en.pdf)和[中文 PDF](output/pdf/forecast_conditioned_ocean_separation_zh.pdf)。
 
 ## 广分布信号与散度实验
 
@@ -343,3 +343,18 @@ python -m source.refine_residual_separator test
 python -m source.evaluate_empirical_residual --only persistence --checkpoint models/refined_persistence_residual_128.pt --output results/dclde_refined_persistence_real_event_results.json
 python -m source.plot_refinement_learning
 ```
+
+### 真实标注事件弱监督微调（独立检测器）
+
+新增的逐帧训练检测器只用 DCLDE 训练日事件时间标注拟合，验证日逐帧 AP 为 `0.901`。它是扩张时序卷积网络，与原有冻结的整段**最终评估**分类器不同。弱监督分离器每步混合 2 个有真值的训练日 synthetic/pseudo-real 样本与 2 个真实标注事件；真实事件背景声轨由 `mixture − event stem` 定义，标注区间外另加保留约束。合格的真实事件为训练日 180 段、验证日 47 段；103 段测试日事件和最终评估分类器均不参与训练或选点。
+
+```powershell
+python -m source.weak_event_detector --epochs 30
+python -m source.weak_real_finetune --steps 3000 --validate-every 250
+python -m source.evaluate_weak_real
+python -m unittest discover -s tests -q
+```
+
+验证日按预先设定的事件响应、区间外改动和旧合成 SI-SDRi 约束选中第 250 步。**选定后只评估一次**的同批 103 段真实测试鲸声：独立分类器给出 `p(N̂) 0.652 → 0.408`、`p(ŝ) 0.916 → 0.978`、区间外相对改动 `0.058 → 0.061`。配对同 WAV 事件前干净背景的平均概率为 `0.176`；逐例干净归一化 logit 残留量从 `3.606` 降到 `1.389`。但是，不变的 4096 个旧合成测试混合 SI-SDRi 从 `12.195` 降到 `10.323 dB`。这说明真实事件弱监督改善了独立语义代理指标，尚未达到干净背景水平，也有明确的旧目标域损失；真实鲸声隔离声轨仍没有真值。
+
+复现文件：[训练检测器](models/weak_train_frame_detector.pt)、[选中的分离器](models/weak_real_persistence_residual_128.pt)、[训练检测器验证结果](results/dclde_weak_train_detector.json)、[验证日选点](results/dclde_weak_real_finetune_selection.json)、[全部验证轨迹](results/dclde_weak_real_finetune_training.json)、[封存测试审计](results/dclde_weak_real_persistence_audit.json)及[103 段逐例结果](results/dclde_weak_real_persistence_event_results.csv)。

@@ -1,0 +1,22 @@
+{
+  "best_step": 250,
+  "initial_validation": {
+    "real_bg_frame_probability": 0.15198551477032138,
+    "real_event_frame_probability": 0.8385277529187659,
+    "real_mixture_frame_probability": 0.8886908089068342,
+    "real_off_event_relative_error": 0.11575119732383718,
+    "synthetic_si_sdri_db": 10.463949190918356
+  },
+  "best_validation_background_probability": 0.07107683242437371,
+  "selection_thresholds": {
+    "min_event": 0.7885277529187659,
+    "max_off": 0.13575119732383717,
+    "min_synthetic_si_sdri": 9.463949190918356
+  },
+  "real_train_events": 180,
+  "real_validation_events": 47,
+  "train_history_imputed_windows": 2,
+  "validation_history_imputed_windows": 1,
+  "test_days_used_for_training_or_selection": false,
+  "evaluation_detector_used_for_training_or_selection": false
+}

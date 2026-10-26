@@ -38,7 +38,12 @@ $.322$. Retraining with this 50/50 procedural/pseudo-real pool lowers
 $p(\hat N)$ from $.829$ to $.652$ for Persistence on the same real calls,
 while off-event change rises from $.037$ to $.058$ and old-synthetic SI-SDRi
 falls from 14.295 to 12.195 dB. Target realism improves a semantic proxy
-but introduces a measurable preservation and distribution tradeoff.
+but introduces a measurable preservation and distribution tradeoff. A separate
+framewise detector enables train-day-only weak fine-tuning on annotated real
+calls: held-out $p(\hat N)$ falls further to $.408$ and $p(\hat s)$ reaches
+$.978$, while old-synthetic SI-SDRi declines to 10.323 dB. Independent
+evaluation and off-event checks support a partial real-domain gain, not
+full-reference whale-stem recovery.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -691,6 +696,7 @@ Condition & Training targets & Old-synth SI-SDRi (dB) & Real $p(\hat N)\downarro
 \midrule
 Persistence & Original procedural &14.295&.829&.849&.037\\
 Persistence & 50/50 empirical &12.195&.652&.916&.058\\
+Persistence & 50/50 + real weak &10.323&.408&.978&.061\\
 Persistence & Curriculum (25\% pseudo) &14.421&.819&.823&.037\\
 GRU Forecast & Original procedural &14.351&.838&.842&.036\\
 GRU Forecast & 50/50 empirical &11.731&.725&.895&.043\\
@@ -698,6 +704,41 @@ GRU Forecast & 50/50 empirical &11.731&.725&.895&.043\\
 \end{tabular}
 }%
 \end{table*}
+
+\subsection{Weak supervision from annotated real calls}
+We next fine-tune the empirical Persistence separator with two train-day
+synthetic/pseudo-real mixtures and two train-day annotated real calls per
+update. Only 180 real calls have eligible clean causal histories; 47
+validation-day calls select the checkpoint, and the 103 test calls remain
+untouched until selection. A separate temporal dilated CNN, trained from
+train-day onset/offset masks, supplies frozen framewise logits $C_A$; its
+validation-day frame average precision is $.901$. It differs in both
+architecture and training objective from the frozen clip-level test
+classifier $C_B$. Neither $C_B$ nor any test-day call enters fine-tuning or
+checkpoint selection.
+
+For real mixture $x$, we set $\hat N=x-\hat s$ exactly and penalize
+$C_A(\hat N)$ and $1-C_A(\hat s)$ within annotated frames. Outside the
+annotation we penalize the event-stem RMS relative to the mixture RMS.
+The supervised half retains the original multiresolution spectral loss.
+We give the weak term one-tenth weight because the unscaled detector loss
+rapidly degraded validation SI-SDRi. Selection minimizes validation-day
+background response subject to event response, off-event alteration, and
+old-synthetic SI-SDRi constraints fixed before opening the test set. The
+selected step is 250 of 3,000; later updates fail the SI-SDR constraint.
+
+On the independent $C_B$ and the same 103 calls, $p(\hat N)$ changes from
+$.652$ to $.408$ (recording-day paired 95\% CI for the difference
+$[-.365,-.093]$) and $p(\hat s)$ from $.916$ to $.978$
+($[.044,.072]$). Off-event relative change is $.058$ versus $.061$;
+its paired CI $[-.004,.008]$ includes zero. The mean matched-clean
+probability is $.176$. The per-call clean-normalized logit residue
+$\operatorname{logit}p(\hat N)-\operatorname{logit}p(N_{\rm clean,matched})$
+falls from $3.606$ to $1.389$. On the unchanged 4,096-mixture synthetic
+test, however, SI-SDRi falls from $12.195$ to $10.323$ dB. These
+independent-detector results support partial transfer from real event
+annotations, but do not reach the clean-background response or establish
+waveform-level recovery of an unobserved real stem.
 
 \section{Discussion and Conclusion}
 The preliminary 30-band FiLM model does not gain even from the true current
@@ -718,9 +759,12 @@ finds sparse synthetic coverage near real calls. Training-day empirical
 targets close much of that measured gap and improve both real-call event
 probabilities, while increasing off-event changes and lowering old-domain
 SI-SDRi. The frozen GRU does not beat persistence after this target revision.
-Thus neither proxy probability nor the new pool establishes a uniform real
-separation improvement. Three held-out days, uncertain event labels, and
-unavailable isolated stems further limit inference.
+Independent-detector weak fine-tuning lowers the background event proxy
+further while preserving the event-stem proxy and approximately maintaining
+off-event audio, but costs another $1.872$ dB on the unchanged synthetic
+test. Thus proxy improvement does not establish a uniform real separation
+gain. Three held-out days, uncertain event labels, and unavailable isolated
+stems further limit inference.
 
 The existing 30-band FiLM frontend permits inspection and playback, but the
 new 128-group model has not been deployed there. Future work should preserve
@@ -728,6 +772,7 @@ background during target adaptation, test more sites and target pools, and
 obtain stronger real-event references. Classifier restoration is a semantic
 proxy, not a waveform-fidelity measure.
 
+\balance
 \bibliographystyle{IEEEtran}
 \bibliography{reference}
 \end{document}
