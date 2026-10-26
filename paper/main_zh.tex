@@ -15,26 +15,24 @@
 \maketitle
 
 \begin{abstract}
-本文检验过去 60 秒海洋声景能否为未来 5 秒事件分离提供有效背景先验。
-DCLDE 混合采用标注干净的真实海洋背景与有精确声轨的合成事件。
-前期 30 频带 FiLM 连当前背景真值也未能有效利用；信息阶梯因此引出
-保留时间维的 128 频组背景图、显式“混合减背景”创新图及
-BS-RoFormer 残差适配器。在相同的 4,096 个留出混合上，三个分离器种子的
-平均目标 SI-SDRi 为：无条件 BSR 9.635 dB、固定均值 Zero 11.511 dB、
-错日 Shuffled 11.767 dB、过去 60 秒 Persistence 13.912 dB、GRU Forecast
-13.928 dB；单种子的当前背景 Oracle 为 16.767 dB。Persistence 比
-Zero 和 Shuffled 分别高 $2.400\pm.237$ 与 $2.145\pm.181$ dB
-（均值$\pm$种子标准差），九个种子与日期组合全部为正。
-GRU 相比 Persistence 仅高 $0.017\pm.036$ dB，跨种子并不同向。
-在此前未打开的圣劳伦斯湾新站点 373 个真实标注鲸声上，
-冻结的 Persistence 相比错文件 Shuffled 使背景声轨事件检测响应降低
-0.064，逐文件分块 95\% 区间为 $[-.124,-.013]$；但事件声轨响应和
-区间外背景保留略有恶化。由于真实鲸声没有隔离声轨，这些检测与保留指标
-只能说明部分迁移，不能证明真实事件已被完整分离。
+本文检验从过去海洋声景得到的因果背景先验能否改善下一段 5 秒事件分离。
+DCLDE 主实验把标注干净的真实海洋背景与合成目标混合，因而具有精确声轨真值。
+前期 30 频带 FiLM 未奏效；信息阶梯引出保留时间维的 128 频组背景图、
+显式“混合减背景”创新图及 BS-RoFormer 残差适配器。
+在 4,096 个匹配测试混合上，三个分离器种子的平均目标 SI-SDRi 为：
+过去 60 秒 Persistence 13.912 dB，固定均值 Zero 11.511 dB，
+错日 Shuffled 11.767 dB，普通 BS-RoFormer 9.635 dB。
+\textbf{Persistence 比 Zero 和 Shuffled 分别稳定提高
+$2.400\pm.237$ 与 $2.145\pm.181$ dB，九个种子与日期组合均为正；
+学习式 GRU 没有跨种子稳定优于 Persistence}（差值 $+.017\pm.036$ dB）。
+单种子的当前真实背景 Oracle 达 16.767 dB。
+在此前未使用的圣劳伦斯湾新站点 373 个真实标注鲸声上，正确历史比错文件背景
+降低了冻结检测器对背景声轨的事件响应，却轻微损害事件声轨响应与区间外背景保留。
+由于没有真实隔离鲸声，这些指标只能说明部分迁移。
 \end{abstract}
 
 \begin{IEEEkeywords}
-海洋声学，源分离，声景预测，BS-RoFormer，无参考评估
+海洋声学，源分离，因果背景先验，BS-RoFormer，无参考评估
 \end{IEEEkeywords}
 
 \section{引言}
@@ -42,7 +40,7 @@ GRU 相比 Persistence 仅高 $0.017\pm.036$ dB，跨种子并不同向。
 必须从同一观测中同时推断突发事件与变化背景。本文从历史声景提取严格因果的高分辨率先验：
 \begin{equation}
 \begin{aligned}
- &x_t=N_t+s_t,\qquad \widehat B_t=P_\psi(H_t),\\
+ &x_t=N_t+s_t,\qquad \widehat B_t=P(H_t),\\
  &\widehat R_t=\log|X_t|-\widehat B_t,\\
  &[X_t,\widehat B_t,\widehat R_t]
  \xrightarrow{\mathrm{Residual+BSR}}(\hat s_t,\hat N_t),
@@ -50,7 +48,8 @@ GRU 相比 Persistence 仅高 $0.017\pm.036$ dB，跨种子并不同向。
 \end{equation}
 其中 $H_t$ 屏蔽所有已标注事件及其保护区，$N_t$ 是真实、标注干净的当前 5 秒录音；模型只观察
 $x_t,H_t$，而 $N_t,s_t$ 提供精确监督。$X_t$ 为当前混合 STFT，
-$\widehat B_t$ 是预测背景的对数幅度图。旧 30 频带 FiLM 在留出集失效，
+$\widehat B_t$ 是因果背景对数幅度图，$P$ 可直接沿用上一窗，
+也可为学习式预测器。旧 30 频带 FiLM 在留出集失效，
 促使我们通过信息阶梯选择 128 个频率组和显式残差接口（图\ref{fig:architecture}）。
 
 时域分离器\cite{luo2019convtasnet,luo2020dprnn}、注意力模型
@@ -61,21 +60,22 @@ FiLM、交叉注意力与跨模态分离\cite{perez2018film,vaswani2017attention
 接口；递归、线性与分块预测模型则提供时间序列基线
 \cite{salinas2020deepar,oreshkin2020nbeats,zeng2023dlinear,nie2023patchtst}。
 
-本文贡献为：（1）保留时间维的 128 频组因果背景图、显式创新及残差 BSR 接口；
+本文贡献形成一条连续证据链：（1）信息阶梯解释粗条件的失败；
+（2）事件掩蔽的真实干净背景历史、128 频组显式创新与残差接口；
 \footnote{代码与复现实验说明：\url{https://github.com/D-eval/ocean_noise_pred_splite}。}
-（2）构造事件掩蔽的 60 秒历史和真实标注干净当前背景；
-（3）六路匹配对照，分辨适配器容量、错日背景、持续性预测、学习式预测及当前真值的作用；
-（4）用 30 频带 FiLM 的失败与频率信息阶梯解释方法选择。
-广分布信号与真实事件评估用于检查覆盖和迁移，不替代 DCLDE 全参考主实验。
+（3）Zero、Shuffled、Persistence、Forecast、Oracle 匹配对照及三个分离器种子；
+（4）未使用站点的冻结模型评估。真实事件适配实验用于分析迁移局限，
+不替代具有精确声轨的主实验。
 
 \section{方法}
 \subsection{高分辨率因果残差分离器}
 主历史 $H_t\in\mathbb R^{12\times79\times128}$ 包含严格早于当前的 12 张 5 秒对数幅度图。
 在 2 kHz 录音上以 512 点 Hann STFT 和 128 点帧移计算，每窗保留 79 帧、128 个等宽频组。
 标注事件窗被掩蔽，只在过去 60 秒内部用邻近干净窗填补。
-轻量残差 GRU 将每张图压缩成四个时间块，处理 12 步后预测完整的未来
-$79\times128$ 背景图 $\widehat B_t$；零初始化解码器以最后一张历史图为起点。
-预测器只在训练日干净背景上训练，按验证背景图 MAE 选点，并在分离训练前冻结。
+主因果参考是直接沿用最后一张图，即 $\widehat B_t=B_{t-1}$。
+比较分支使用轻量残差 GRU：每张图压成四个时间块，处理 12 步后预测未来
+$79\times128$ 图；零初始化解码器从 Persistence 起步。
+GRU 只在训练日干净背景上训练，按验证背景图 MAE 选点，并在分离器训练前冻结。
 
 在同一网格上计算 $\widehat R_t=\log|X_t|-\widehat B_t$。
 将 $[\widehat B_t,\widehat R_t]$ 对齐 BSR 帧网格，经零初始化的残差投影
@@ -87,40 +87,19 @@ $79\times128$ 背景图 $\widehat B_t$；零初始化解码器以最后一张历
 \begin{figure*}[t]
 \centering
 \includegraphics[width=.98\textwidth]{figures/architecture.pdf}
-\caption{128 频组因果残差主架构。事件掩蔽的过去 60 秒历史预测未来 5 秒背景图；
+\caption{128 频组因果残差主架构。事件掩蔽的过去 60 秒历史通过 Persistence 或 GRU
+提供未来 5 秒背景图；
 显式创新为 $\widehat R_t=\log|X_t|-\widehat B_t$。Zero、错日 Shuffled、Persistence、Forecast 和
 当前背景 Oracle 共用同一残差适配器。只有 Oracle 在输入端使用当前干净背景。}
 \label{fig:architecture}
 \end{figure*}
 
 \subsection{前期 30 频带 FiLM 设计}
-前期历史特征 $H_t\in\mathbb R^{12\times30}$ 由当前窗前 12 个 5 秒块计算得到 30 维对数频带功率；
-已标注事件及两侧 2 秒保护区被排除，归一化统计量只从训练集估计。
-残差 GRU 预测
-\begin{equation}
- z_t=\operatorname{LN}(\operatorname{GRU}(H_t)),\quad
- \widehat S_t=S_{t-1}+g_\psi(z_t).
-\end{equation}
-零初始化精确表示 persistence；只有验证 MAE 优于 persistence 时才保留学习式预测
-\cite{gneiting2011pointForecast}。
-
-BS-RoFormer 将混合 STFT 映射为子带 token $X_k$。在轴向 Transformer 前的相同位置比较
-\begin{align}
-\text{拼接：}\widetilde X_k&=X_k+f([X_k;P_k(\widehat S_t)]),\nonumber\\
-\text{FiLM：}\widetilde X_k&=(1+\tanh\gamma_k)\odot X_k+\beta_k,\label{eq:inject}\\
-\text{交叉注意力：}\widetilde X&=X+\operatorname{Attn}(X,E(\widehat S_t),E(\widehat S_t)).\nonumber
-\end{align}
-所有残差条件分支均从恒等映射开始。损失结合波形 $L_1$ 与多分辨率复数 STFT；仅 TOL 代理实验
-加入 $0.2\|\widehat S_t-S_t\|_1$。真实波形实验在训练分离器前冻结预测器。
-
-前期 30 频带信息审计固定骨干、混合样本、初始化和训练规则。真正无条件的 BS-RoFormer 绕过条件注入；
-Zero-FiLM 保留 FiLM 分支与同一冻结 GRU，但用 $c=0$ 替换其输出。Shuffled-FiLM 将同一划分内的干净时窗索引错开半个周期，
-取得另一时窗的 $E(N_j)$；留出测试中该窗来自另一录音日。
-Persistence-FiLM 使用最后一个历史频谱 $S_{t-1}$，Forecast-FiLM 使用冻结 GRU 的预测。
-Oracle-FiLM 使用 $S_t^{\mathrm{oracle}}=E(N_t)$，其中 $N_t$ 是当前样本实际采用的干净背景波形，
-包含极少数混合峰值归一化后的幅度。本文明确称之为“30 频带 Oracle-FiLM”：
-$E$ 丢失时间结构与相位，因此这一路既不是完整背景条件的上限，也不能限制更丰富表示下完美预测的价值。
-该条件仅在受控实验中可用。
+前期模型将当前窗之前的 12 个干净 5 秒片段各压成 30 个对数功率频带，
+用残差 GRU 预测下一窗摘要，再以 FiLM 缩放、平移 BS-RoFormer 子带特征。
+匹配对照把预测替换为零、错日摘要、上一窗摘要或当前真实背景的 $E(N_t)$。
+最后一种称为\emph{30 频带 Oracle-FiLM}，但 $E$ 已丢失窗内时间结构和相位，
+不能作为丰富背景表示的上界。本文只保留它解释后文的信息阶梯。
 
 \subsection{海洋感知合成信号分布}
 广分布生成器包含 13 类：谐波、线性啁啾、非谐波、脉冲列、调频音、带限噪声、鲸声上扫、下扫、拱形、
@@ -179,72 +158,34 @@ FiLM 在五类鲸声代理上的增益依次为 0.869、0.835、0.919、0.906 �
 尽管相对增益为 0.320 dB，条件模型的绝对 SI-SDRi 仍为 $-8.295$ dB。总体增益与 JS 的相关性
 很弱（$r=-.057$），与频谱熵也仅为 $r=.122$；因此提高散度能扩大覆盖，却不能预测先验何时有用。
 
-\subsection{前期 30 频带 FiLM 的 DCLDE 审计}
-原 FC-BSR 使用 FiLM+5 秒+GRU+BS-RoFormer，以及上述事件掩蔽历史与标注干净的真实当前背景；训练集有 37.3 小时可用干净背景。
-旧两路结果把零条件 FiLM 检查点误称为无条件 BS-RoFormer；本实验将它按实际结构重新标注，
-在附上同一冻结 GRU 后确认波形输出完全一致，另行训练真正跳过条件注入的 BS-RoFormer。
-表\ref{tab:cleanmain}中的六路共用相同混合样本、骨干迁移初始化、优化预算、验证选点，
-并在三个留出录音日的 4,096 个样本上逐例核对 ID、SNR 与混合基准分数。
-图\ref{fig:cleanstrength}展示这些样本按注入 SNR 分组后的曲线。
-
-结构效应 Zero−BS-RoFormer 为 $-0.0002$ dB（95\% 区间 $[-0.0068,0.0088]$）。
-Forecast−BS-RoFormer 为 $-0.134$ dB（$[-0.327,0.125]$），
-Oracle−BS-RoFormer 为 $-0.096$ dB（$[-0.238,0.034]$）；
-Oracle−Forecast 仅为 $+0.039$ dB（$[-0.090,0.155]$）。
-错时与 persistence 条件相对 Zero 也没有显示正的平均收益。
-Oracle 的验证 SI-SDRi 比 BS-RoFormer 高（11.372 对 10.946 dB），但没有形成明确的留出优势。
-三个测试录音日使小效应仍未确定；30 频带 Oracle 拥有更丰富的真实信息，然而独立优化的 FiLM 模型
-不必按信息量形成性能排序。
-
-\begin{table*}[t]
-\caption{前期 30 频带 FiLM 审计：4,096 个匹配的标注干净 5 秒背景与合成事件。数值为目标 SI-SDRi（dB）；
-方括号是按留出录音日配对 bootstrap 的 95\% 区间。只有 30 频带 Oracle 使用 $E(N_t)$。}
-\label{tab:cleanmain}\centering\footnotesize
-\begin{tabular}{lrrrr}
-\toprule
-模型 & 验证 & 测试 & 相对 BSR $\Delta$ [95\% 区间] & 相对 Zero $\Delta$ [95\% 区间]\\
-\midrule
-BS-RoFormer &10.946&9.631&0&$+0.0002\;[-0.009,0.007]$\\
-Zero-condition FiLM &10.967&9.631&$-0.0002\;[-0.007,0.009]$&0\\
-Shuffled-condition FiLM &10.609&9.526&$-0.105\;[-0.247,0.020]$&$-0.105\;[-0.256,0.026]$\\
-Persistence-condition FiLM &11.205&9.524&$-0.107\;[-0.239,0.083]$&$-0.107\;[-0.232,0.084]$\\
-GRU-Forecast FiLM (FC-BSR) &11.213&9.497&$-0.134\;[-0.327,0.125]$&$-0.134\;[-0.320,0.125]$\\
-30 频带 Oracle-FiLM, $E(N_t)$ &11.372&9.535&$-0.096\;[-0.238,0.034]$&$-0.095\;[-0.231,0.035]$\\
-\bottomrule
-\end{tabular}
-\end{table*}
-
-\paragraph{全波形 Oracle 的抄答案校验。}
-为检验 $E$ 的信息损失能否解释 30 频带结果，我们冻结同一已训练 BS-RoFormer，
-在 8,192 个训练混合上拟合逐采样点三系数融合头：
-\begin{equation}
-\hat s_t=w_b\hat s_{\rm BSR}(x_t)+w_xx_t+w_cc_t.
-\end{equation}
-初始系数 $(1,0,0)$ 精确复现 BSR，用最小二乘求波形均方误差的全局最优解。
-同一结构分别输入全零、错时背景及真实当前背景波形；验证与测试各用 4,096 个样本。
-测试 ID、SNR、混合 SI-SDR 及冻结 BSR 输出均与表\ref{tab:cleanmain}逐例核对。
-当 $c_t=N_t$ 时，学得系数数值上等于 $(0,1,-1)$，即精确抄得 $x_t-N_t=s_t$。
-测试波形最大绝对误差为 $5.96\times10^{-8}$；80.755 dB 的有限 SI-SDRi
-由指标数值底噪限制。零条件与错时条件均未改善 SI-SDRi（表\ref{tab:copy}）。
-此处是有意使用非因果真值、且接口不同的信息量和答案通路校验；它不是匹配架构的 FiLM 消融，
-也不证明 30 频带历史预测可以恢复相位对齐的当前背景波形。
+\subsection{前期 30 频带诊断}
+我们纠正前期误将 Zero-FiLM 标成无条件 BSR 的问题，保留原检查点作为
+Zero-FiLM，并另训真正绕过注入器的 BS-RoFormer。六路 30 频带模型共用
+相同混合、骨干初值、训练与选点规则，在三个留出日的 4,096 个混合上比较。
+没有一路优于 BSR（表\ref{tab:cleanmain}）；当前背景 Oracle 也只看到压缩后的
+$E(N_t)$，得 9.535 dB，对比 BSR 的 9.631 dB。GRU 虽在验证集把频谱
+MAE 从 persistence 的 2.111 降至 1.926 dB，仍未带来分离收益。
 
 \begin{table}[t]
-\caption{与主实验相同的 4,096 个 DCLDE 测试混合上的全波形抄答案校验。
-目标 SI-SDRi 及相对冻结 BSR 按日期配对的差值（dB）。}
-\label{tab:copy}\centering\footnotesize
-\begin{tabular}{lrr}
+\caption{前期 30 频带 FiLM 审计：同一 4,096 个 DCLDE 混合上的测试
+目标 SI-SDRi（dB）；Oracle 只读取 $E(N_t)$。}
+\label{tab:cleanmain}\centering\footnotesize
+\begin{tabular}{lr}
 \toprule
-冻结 BSR + 拟合融合头 & SI-SDRi & $\Delta$ [95\% 区间]\\
+条件 & 测试 SI-SDRi\\
 \midrule
-BSR；初始 $(1,0,0)$ & 9.631 & 0\\
-全零波形 & 9.231 & $-0.400\;[-0.483,-0.269]$\\
-错时背景波形 & 9.231 & $-0.400\;[-0.483,-0.269]$\\
-当前实际 $N_t$ 波形 & 80.755 & $+71.124\;[69.945,72.081]$\\
-解析式 $x_t-N_t$ & 80.755 & $+71.124\;[69.945,72.081]$\\
+BS-RoFormer / Zero-FiLM & 9.631 / 9.631\\
+Shuffled / Persistence-FiLM & 9.526 / 9.524\\
+GRU-Forecast / Oracle-FiLM & 9.497 / 9.535\\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\paragraph{全波形抄答案校验。}
+冻结同一 BSR，在它的输出、混合及条件波形上拟合三系数融合头。
+当条件为实际 $N_t$，学得 $\hat s_t=x_t-N_t$，测试 SI-SDRi 达到
+数值精度限制的 80.755 dB；零波形和错时波形均为 9.231 dB。
+这是非因果的答案通路校验，不能证明 30 频带 FiLM 或因果预测有效。
 
 \paragraph{Oracle 信息阶梯。}
 我们固定冻结 BSR、三系数融合头、训练样本及 4,096 个匹配的测试混合，逐层压缩\emph{当前}背景 $N_t$。
@@ -345,13 +286,43 @@ Persistence 仅提高 $+0.056$ dB（$[0.036,0.074]$），三个测试日同向�
 该种子上的 Forecast 恢复了 Oracle 相对 BSR 增益的 66.1\%，与 Oracle 仍差 $2.416$ dB
 （$[2.114,2.640]$）。
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{figures/clean_background_strength.pdf}
-\caption{标注干净 DCLDE 背景上的前期 30 频带 FiLM 审计：六路匹配模型按 3-dB 输入 SNR 分组的
-目标 SI-SDRi 均值。总体平均的日期分块区间见表\ref{tab:cleanmain}。}
-\label{fig:cleanstrength}
-\end{figure}
+\subsection{固定混合上的三个分离器随机种子}
+原有结果作为第一个种子，再以两个新种子分别重训 BSR、Zero、Shuffled、
+Persistence 与 Forecast。五路模型在每个种子下采用相同的骨干迁移初始化、
+训练混合、6,000 次更新、4,096 个验证混合、每 100 步验证一次和最佳验证选点规则。
+所有模型最后测试同一批固定的 4,096 个混合；比较前逐例检查编号、强度与混合 SI-SDR
+完全匹配。背景 GRU 始终使用先前选定并冻结的同一个检查点，因此本实验估计的是
+\emph{分离器}训练种子敏感性，不涵盖预测器重新训练的方差。
+
+\begin{table*}[t]
+\caption{同一批 4,096 个 DCLDE 混合上的三个分离器种子。前五行是目标
+SI-SDRi（dB），后三行是逐样本配对差（dB）；末列为跨种子均值$\pm$样本标准差。
+Oracle 只有原始单种子上界 16.767 dB，未参与重复训练。}
+\label{tab:seeds}\centering\footnotesize
+\begin{tabular}{lrrrr}
+\toprule
+方法或配对差 & 种子 1 & 种子 2 & 种子 3 & 均值$\pm$标准差\\
+\midrule
+BS-RoFormer & 9.631 & 9.662 & 9.613 & $9.635\pm.025$\\
+Zero-Residual & 12.156 & 10.824 & 11.553 & $11.511\pm.667$\\
+Shuffled-Residual & 11.944 & 11.355 & 12.002 & $11.767\pm.358$\\
+Persistence-Residual & 14.295 & 13.425 & 14.015 & $13.912\pm.444$\\
+GRU-Forecast-Residual & 14.351 & 13.431 & 14.002 & $13.928\pm.465$\\
+\midrule
+Persistence $-$ Zero & +2.138 & +2.601 & +2.461 & $+2.400\pm.237$\\
+Persistence $-$ Shuffled & +2.351 & +2.070 & +2.013 & $+2.145\pm.181$\\
+Forecast $-$ Persistence & +.056 & +.005 & $-.012$ & $+.017\pm.036$\\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+正确历史在三个种子及每个种子的三个测试日上都高于两种匹配对照。
+它相比 Zero 高 $2.400\pm.237$ dB，相比错日 Shuffled 高
+$2.145\pm.181$ dB，因此历史信息的主结论跨分离器初始化仍成立。
+Forecast 只在三个种子中的两个高于 Persistence，平均差为
+$+.017\pm.036$ dB，不能支持学习式 GRU 稳定提高分离性能。
+原种子按日期配对的正区间只描述该已训练模型的条件结果，
+不能代表跨训练种子的误差范围。
 
 \subsection{次级消融：预测时间尺度与未标注背景强度}
 以下实验来自 SanctSound 或未标注连续 WAV，不是干净背景主实验。时间尺度诊断固定相同留出样本；
@@ -403,7 +374,12 @@ Persistence 仅提高 $+0.056$ dB（$[0.036,0.074]$），三个测试日同向�
 \label{fig:example}
 \end{figure*}
 
-\subsection{没有分离真值的真实事件}
+\section{探索性真实事件诊断}
+以下实验用于检查外推与失败模式，不能代替有精确声轨的 DCLDE 主测试。
+后续目标校准与弱监督变体反复使用同一批 103 个真实鲸声，
+因此其比较属于探索性分析；独立新站点检验见第\ref{sec:holdout}节。
+
+\subsection{冻结模型的代理指标}
 参考学习式无参考指标\cite{kilgour2019fad,grais2019referenceless}和语义音频嵌入
 \cite{wu2023clap,xiao2024clapscore}，我们训练、校准并冻结二分类器；测试 AUROC、AP 与 F1
 分别为 .9723、.9755、.9275。混合一致性要求 $\hat N=x-\hat s$。将 $\hat s$ 按
@@ -593,45 +569,7 @@ $.25$--$.30$ 的背景事件概率，也未接近干净背景的 $.176$ 响应�
 由于同一测试事件队列已用于上一轮报告，本次复核属于后续探索性比较，
 不能视作新封存测试。
 
-\section{独立留出检验}
-\subsection{固定混合上的三个分离器随机种子}
-原有结果作为第一个种子，再以两个新种子分别重训 BSR、Zero、Shuffled、
-Persistence 与 Forecast。五路模型在每个种子下采用相同的骨干迁移初始化、
-训练混合、6,000 次更新、4,096 个验证混合、每 100 步验证一次和最佳验证选点规则。
-所有模型最后测试同一批固定的 4,096 个混合；比较前逐例检查编号、强度与混合 SI-SDR
-完全匹配。背景 GRU 始终使用先前选定并冻结的同一个检查点，因此本实验估计的是
-\emph{分离器}训练种子敏感性，不涵盖预测器重新训练的方差。
-
-\begin{table*}[t]
-\caption{同一批 4,096 个 DCLDE 混合上的三个分离器种子。前五行是目标
-SI-SDRi（dB），后三行是逐样本配对差（dB）；末列为跨种子均值$\pm$样本标准差。
-Oracle 只有原始单种子上界 16.767 dB，未参与重复训练。}
-\label{tab:seeds}\centering\footnotesize
-\begin{tabular}{lrrrr}
-\toprule
-方法或配对差 & 种子 1 & 种子 2 & 种子 3 & 均值$\pm$标准差\\
-\midrule
-BS-RoFormer & 9.631 & 9.662 & 9.613 & $9.635\pm.025$\\
-Zero-Residual & 12.156 & 10.824 & 11.553 & $11.511\pm.667$\\
-Shuffled-Residual & 11.944 & 11.355 & 12.002 & $11.767\pm.358$\\
-Persistence-Residual & 14.295 & 13.425 & 14.015 & $13.912\pm.444$\\
-GRU-Forecast-Residual & 14.351 & 13.431 & 14.002 & $13.928\pm.465$\\
-\midrule
-Persistence $-$ Zero & +2.138 & +2.601 & +2.461 & $+2.400\pm.237$\\
-Persistence $-$ Shuffled & +2.351 & +2.070 & +2.013 & $+2.145\pm.181$\\
-Forecast $-$ Persistence & +.056 & +.005 & $-.012$ & $+.017\pm.036$\\
-\bottomrule
-\end{tabular}
-\end{table*}
-
-正确历史在三个种子及每个种子的三个测试日上都高于两种匹配对照。
-它相比 Zero 高 $2.400\pm.237$ dB，相比错日 Shuffled 高
-$2.145\pm.181$ dB，因此历史信息的主结论跨分离器初始化仍成立。
-Forecast 只在三个种子中的两个高于 Persistence，平均差为
-$+.017\pm.036$ dB，不能支持学习式 GRU 稳定提高分离性能。
-原种子按日期配对的正区间只描述该已训练模型的条件结果，
-不能代表跨训练种子的误差范围。
-
+\section{独立新站点检验}\label{sec:holdout}
 \subsection{新站点真实事件的一次性评估}
 在打开新测试数据之前，我们冻结原始种子的 BSR、四个原始残差条件模型、
 两个 50/50 目标池模型、仅微调适配器的弱监督模型、背景 GRU 和评价检测器。

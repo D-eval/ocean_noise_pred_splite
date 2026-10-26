@@ -10,29 +10,28 @@
 \maketitle
 
 \begin{abstract}
-We ask whether a strictly past ocean soundscape provides useful background
-information for separating an event in the next five seconds. DCLDE mixtures
-have real annotation-clean ocean backgrounds and synthetic events with exact
-stems. A 30-band FiLM precursor fails to exploit even an oracle background;
-an information ladder instead motivates a time-resolved 128-group map and
-explicit mixture-minus-background innovation injected through a residual
-BS-RoFormer adapter. On the same 4,096 held-out mixtures, three separator
-seeds average 9.635 dB target SI-SDRi for BS-RoFormer, 11.511 for fixed-mean
-Zero, 11.767 for wrong-day Shuffled, 13.912 for past-60-s Persistence, and
-13.928 for GRU Forecast; a single-seed current-background Oracle reaches
-16.767 dB. Persistence exceeds Zero and Shuffled by $2.400\pm.237$ and
-$2.145\pm.181$ dB (mean $\pm$ seed SD), positive on all nine seed-day
-pairs. The GRU adds $0.017\pm.036$ dB over Persistence and changes sign
-across seeds. On a previously untouched Gulf of St. Lawrence cohort of 373
-real annotated calls, frozen Persistence reduces the background-stem event
-detector response relative to wrong-file Shuffled by 0.064 (file-block 95\%
-CI $[-.124,-.013]$), but event-stem response and off-event preservation
-worsen slightly. Without isolated real stems, these detector and preservation
-measures indicate partial transfer, not established real-event separation.
+We test whether a causal background prior from the preceding ocean soundscape
+improves separation of an event in the next five seconds. DCLDE mixtures pair
+real annotation-clean backgrounds with synthetic targets, providing exact
+stems for controlled evaluation. A failed 30-band FiLM precursor motivates
+an information ladder and a time-resolved 128-group background map. We inject
+this map and an explicit mixture-minus-background innovation through a
+residual BS-RoFormer adapter. On 4,096 matched test mixtures, three separator
+seeds average 13.912 dB target SI-SDRi with past-60-s Persistence, versus
+11.511 for fixed-mean Zero, 11.767 for wrong-day Shuffled, and 9.635 for
+ordinary BS-RoFormer. \emph{Persistence improves over Zero and Shuffled by
+$2.400\pm.237$ and $2.145\pm.181$ dB, respectively, on all nine seed-day
+pairs; a learned GRU does not consistently improve on Persistence}
+($+.017\pm.036$ dB across seeds). A single-seed true-current-background
+Oracle reaches 16.767 dB. On 373 previously unseen Gulf of St. Lawrence
+calls, correct history lowers the frozen detector's background-stem response
+relative to wrong-file conditioning, but slightly worsens event retention
+and off-event preservation. These real-event proxies indicate partial
+transfer; isolated whale stems are unavailable.
 \end{abstract}
 
 \begin{IEEEkeywords}
-ocean acoustics, source separation, soundscape forecasting, BS-RoFormer,
+ocean acoustics, source separation, causal background prior, BS-RoFormer,
 weak-reference evaluation
 \end{IEEEkeywords}
 
@@ -44,7 +43,7 @@ instead ask whether the preceding soundscape can supply a causal prior.  Our
 supervised data tuple and main model are
 \begin{equation}
 \begin{aligned}
- &x_t=N_t+s_t,\qquad \widehat B_t=P_\psi(H_t),\\
+ &x_t=N_t+s_t,\qquad \widehat B_t=P(H_t),\\
  &\widehat R_t=\log|X_t|-\widehat B_t,\\
  &[X_t,\widehat B_t,\widehat R_t]
  \xrightarrow{\mathrm{Residual+BSR}}(\hat s_t,\hat N_t),
@@ -53,7 +52,8 @@ supervised data tuple and main model are
 where $H_t$ excludes annotated call intervals and $N_t$ is a real current
 no-call segment.  Training has exact stems, while the separator never receives
 $N_t$ or $s_t$ as input.  Here $X_t$ denotes the current mixture STFT and
-$\widehat B_t$ its predicted background log-magnitude map.  The 30-band FiLM
+$\widehat B_t$ is a causal background log-magnitude map; $P$ is either
+last-map Persistence or a learned predictor. The 30-band FiLM
 precursor failed on held-out audio, motivating an information ladder and the
 128-group residual interface in Fig.~\ref{fig:architecture}.
 
@@ -67,15 +67,14 @@ upcoming background.  FiLM, cross-attention, and cross-modal separation
 interfaces.  Forecasting baselines range from recurrent to linear and
 patch-based models \cite{salinas2020deepar,oreshkin2020nbeats,zeng2023dlinear,nie2023patchtst}.
 
-Our contributions are: (1) a 128-group time-resolved causal background map
-with an explicit innovation and residual BSR interface;\footnote{Code and
+Our contributions follow one chain: (1) an information ladder explaining the
+failed coarse condition; (2) annotation-clean real backgrounds and masked
+histories feeding a 128-group residual interface;\footnote{Code and
 reproduction instructions: \url{https://github.com/D-eval/ocean_noise_pred_splite}.}
-(2) an annotation-aware construction of real clean ocean backgrounds and
-event-masked 60-s histories; (3) a six-way matched test separating adapter
-capacity, wrong-day background, persistence, learned forecast, and current
-Oracle information; and (4) a diagnostic chain from failed 30-band FiLM to
-the frequency-resolution ladder.  Broad source and real-event studies assess
-coverage and transfer; they are secondary to the full-reference DCLDE test.
+(3) matched Zero, Shuffled, Persistence, Forecast, and Oracle controls with
+three separator seeds; and (4) a frozen-model test at an untouched recording
+site. Real-event adaptation studies diagnose transfer limits and are
+secondary to the full-reference result.
 
 \section{Method}
 \subsection{High-resolution causal residual separator}
@@ -83,11 +82,12 @@ The main history $H_t\in\mathbb R^{12\times79\times128}$ contains twelve
 strictly prior 5-s, 128-group log-magnitude maps.  A 512-point Hann STFT
 with 128-point hop gives 79 frames per window at 2 kHz.  Annotated event
 windows are masked and filled only with nearby clean windows within the past
-60 s.  A small residual GRU compresses each map into four temporal chunks,
-processes the twelve steps, and predicts the next full $79\times128$ map
-$\widehat B_t$; its zero-initialized decoder starts at last-map persistence.
-The forecaster is trained on clean training days, selected by validation map
-MAE, and frozen before separation.
+60 s. The main causal reference is last-map Persistence,
+$\widehat B_t=B_{t-1}$. A comparison arm uses a residual GRU to compress
+each map into four temporal chunks and predict the next full
+$79\times128$ map; its zero-initialized decoder starts at Persistence.
+The GRU is trained on clean training days, selected by validation map MAE,
+and frozen before separator training.
 
 We form $\widehat R_t=\log|X_t|-\widehat B_t$ on the same grid.  The
 time-aligned pair $[\widehat B_t,\widehat R_t]$ is projected into
@@ -100,8 +100,9 @@ Figure~\ref{fig:architecture} shows the data and inference paths.
 \begin{figure*}[t]
 \centering
 \includegraphics[width=.98\textwidth]{figures/architecture.pdf}
-\caption{Main 128-group causal residual architecture.  The event-masked
-60-s history predicts a full future 5-s background map; the explicit
+\caption{Main 128-group causal residual architecture. The event-masked
+60-s history supplies a future 5-s background map by Persistence or GRU;
+the explicit
 innovation is $\widehat R_t=\log|X_t|-\widehat B_t$.  The same residual
 adapter is used for Zero, wrong-day Shuffled, Persistence, Forecast, and
 current-background Oracle conditions.  Only the Oracle sees current clean
@@ -110,40 +111,14 @@ background as an input.}
 \end{figure*}
 
 \subsection{Preliminary 30-band FiLM design}
-The precursor history $H_t\in\mathbb R^{12\times30}$ contains 30-band log-power
-features computed on twelve preceding 5-s windows; annotated calls and their
-2-s guards are excluded.  Features are normalized using training data only.
-A residual GRU predicts
-\begin{equation}
- z_t=\operatorname{LN}(\operatorname{GRU}(H_t)),\quad
- \widehat S_t=S_{t-1}+g_\psi(z_t).
-\end{equation}
-Residual initialization represents persistence exactly; a learned predictor is
-retained only if validation MAE improves upon persistence
-\cite{gneiting2011pointForecast}.
-
-The precursor FC-BSR maps the mixture STFT to band tokens $X_k$ and applies FiLM
-before the axial Transformer:
-\begin{align}
-\widetilde X_k&=(1+\tanh\gamma_k)\odot X_k+\beta_k.\label{eq:inject}
-\end{align}
-The separator predicts an event stem; the ocean stem is the mixture residual.
-Training combines waveform $L_1$ and multi-resolution complex-STFT losses.
-Concatenation and cross-attention were also tested as preliminary interfaces.
-
-The preliminary 30-band audit holds the separator backbone, mixtures,
-initialization, and training rule fixed.  A true BS-RoFormer bypasses the
-condition injector; Zero-FiLM retains the FiLM branch and the same frozen GRU,
-but replaces its output by $c=0$.  Shuffled-FiLM uses
-$E(N_j)$ from a deterministic half-cycle offset in the clean-window index of
-the same split ($j\ne t$); on the held-out test, this selects a different day.
-Persistence-FiLM
-uses $S_{t-1}$, and Forecast-FiLM uses the frozen GRU output.  Oracle-FiLM
-receives $S_t^{\mathrm{oracle}}=E(N_t)$ computed from the actual current clean
-background after any shared mixture scaling.  We call this the \emph{30-band
-Oracle-FiLM}: $E$ removes temporal structure and phase, so this row bounds
-neither a full-background condition nor the value of perfect forecasting with
-a richer representation.  It is available only in the controlled experiment.
+The precursor summarized each of twelve preceding 5-s clean windows into
+30 log-power bands and used a residual GRU to predict the next summary.
+FiLM scaled and shifted BS-RoFormer band tokens using this prediction.
+Matched controls replaced it with zero, a wrong-day summary, persistence,
+or the true current $E(N_t)$. This \emph{30-band Oracle-FiLM} still discards
+within-window time structure and phase; it is not an upper bound for a richer
+background representation. We retain this failed design only to motivate
+the information ladder below.
 
 \subsection{Marine-aware source distribution}
 The broad generator contains 13 families: harmonic, linear chirp, inharmonic,
@@ -223,90 +198,37 @@ SI-SDRi is $-8.295$ dB, despite a 0.320-dB relative gain.  Overall gain has
 weak correlation with JS ($r=-.057$) and entropy ($r=.122$), so increasing
 divergence broadens support but does not predict usefulness.
 
-\subsection{Preliminary 30-band FiLM audit on DCLDE}
-The original FC-BSR receives twelve event-masked preceding 5-s features and a current clean
-5-s DCLDE segment; the seven-family event is added only after the clean background
-is selected.  The model therefore sees $x_t$ and $H_t$, while the exact $N_t$
-and $s_t$ are supervision.  The training split contains 37.3 h of
-eligible clean current audio.  The 12-step GRU forecasts the next 5-s band
-spectrum; validation MAE is 1.926 dB versus 2.111 dB for persistence (8.8\%
-lower).
-The older two-row comparison labeled a Zero-FiLM checkpoint as
-``BS-RoFormer.''  We retain its exact trained waveform mapping as the Zero
-control, attach the same frozen GRU in a bypassed branch, and train a true
-injector-bypassed BS-RoFormer.  All six rows in Table~\ref{tab:cleanmain} use
-the same mixtures, transferred backbone initialization, optimizer budget,
-validation selection, and 4,096 test examples from three held-out days.
-Figure~\ref{fig:cleanstrength} stratifies these same samples by input SNR.
-
-The architecture effect, Zero minus BS-RoFormer, is $-0.0002$ dB (95\% CI
-$[-0.0068,0.0088]$).  Forecast minus BS-RoFormer is $-0.134$ dB
-($[-0.327,0.125]$); Oracle minus BS-RoFormer is $-0.096$ dB
-($[-0.238,0.034]$).  Oracle minus Forecast is only $+0.039$ dB
-($[-0.090,0.155]$).  Shuffling and persistence also fail to show a positive
-average over Zero.  Thus the matched controls do not establish that temporal
-forecast information improves this separator.  Oracle's higher validation
-score (11.372 versus 10.946 dB for BS-RoFormer) does not transfer to a clear
-held-out gain.  With only three test days, the intervals leave small effects
-unresolved; the 30-band oracle supplies more information, but separately optimized
-FiLM models do not form a guaranteed performance ordering.
-
-\begin{table*}[t]
-\caption{Preliminary 30-band FiLM audit on 4,096 matched annotation-clean 5-s backgrounds plus
-synthetic events.  Values are target SI-SDRi (dB); brackets are paired 95\%
-bootstrap intervals over held-out recording days.  The 30-band Oracle alone sees $E(N_t)$.}
-\label{tab:cleanmain}\centering\footnotesize
-\begin{tabular}{lrrrr}
-\toprule
-Model & Validation & Test & $\Delta$ vs. BSR [95\% CI] & $\Delta$ vs. Zero [95\% CI]\\
-\midrule
-BS-RoFormer &10.946&9.631&0&$+0.0002\;[-0.009,0.007]$\\
-Zero-condition FiLM &10.967&9.631&$-0.0002\;[-0.007,0.009]$&0\\
-Shuffled-condition FiLM &10.609&9.526&$-0.105\;[-0.247,0.020]$&$-0.105\;[-0.256,0.026]$\\
-Persistence-condition FiLM &11.205&9.524&$-0.107\;[-0.239,0.083]$&$-0.107\;[-0.232,0.084]$\\
-GRU-Forecast FiLM (FC-BSR) &11.213&9.497&$-0.134\;[-0.327,0.125]$&$-0.134\;[-0.320,0.125]$\\
-30-band Oracle-FiLM, $E(N_t)$ &11.372&9.535&$-0.096\;[-0.238,0.034]$&$-0.095\;[-0.231,0.035]$\\
-\bottomrule
-\end{tabular}
-\end{table*}
-
-\paragraph{Full-waveform oracle copy check.}
-To test whether losing information in $E$ explains the negative 30-band result,
-we freeze the same trained BS-RoFormer and fit a pointwise, three-coefficient
-head on 8,192 training mixtures:
-\begin{equation}
-\hat s_t=w_b\hat s_{\rm BSR}(x_t)+w_xx_t+w_cc_t.
-\end{equation}
-The head starts at $(1,0,0)$, exactly reproducing BSR, and its waveform-MSE
-global optimum is solved by least squares.  We fit the \emph{same} head with
-zero, wrong-time, and actual current background waveforms; validation and
-testing use 4,096 examples each, with the test IDs, SNRs, mixture scores, and
-frozen BSR outputs checked against Table~\ref{tab:cleanmain}.
-For $c_t=N_t$, the learned weights are $(0,1,-1)$ to numerical precision:
-the head copies the exact answer $x_t-N_t=s_t$.  The maximum test waveform
-error is $5.96\times10^{-8}$; the finite SI-SDRi of 80.755 dB is limited by
-the metric's numerical floor.  Zero and wrong-time heads receive no useful
-background identity and do not improve SI-SDRi (Table~\ref{tab:copy}).  This
-is an intentionally noncausal information/path sanity check with a different
-interface, not an architecture-matched FiLM ablation or evidence that the
-30-band forecast can recover a phase-aligned background waveform.
+\subsection{Preliminary 30-band diagnosis}
+We repaired an earlier baseline label by training a truly injector-bypassed
+BS-RoFormer and retaining the mislabeled checkpoint as Zero-FiLM. All six
+30-band conditions use matched DCLDE mixtures, initialization, training and
+selection rules, and 4,096 examples from three held-out days. None improves
+on BSR (Table~\ref{tab:cleanmain}); even the current-background Oracle sees
+only the compressed $E(N_t)$ and scores 9.535 versus 9.631 dB. The GRU
+forecast's lower validation MAE (1.926 versus 2.111 dB for persistence)
+therefore does not establish a separation gain.
 
 \begin{table}[t]
-\caption{Full-waveform oracle copy check on the same 4,096 DCLDE test mixtures.
-Target SI-SDRi and paired day-block $\Delta$ against the frozen BSR (dB).}
-\label{tab:copy}\centering\footnotesize
-\begin{tabular}{lrr}
+\caption{Preliminary 30-band FiLM audit. Test target SI-SDRi (dB) on the
+same 4,096 DCLDE mixtures; the Oracle sees only $E(N_t)$.}
+\label{tab:cleanmain}\centering\footnotesize
+\begin{tabular}{lr}
 \toprule
-Frozen BSR + fitted head & SI-SDRi & $\Delta$ [95\% CI]\\
+Condition & Test SI-SDRi\\
 \midrule
-BSR; initial $(1,0,0)$ & 9.631 & 0\\
-Zero waveform & 9.231 & $-0.400\;[-0.483,-0.269]$\\
-Wrong-time waveform & 9.231 & $-0.400\;[-0.483,-0.269]$\\
-Actual $N_t$ waveform & 80.755 & $+71.124\;[69.945,72.081]$\\
-Analytic $x_t-N_t$ & 80.755 & $+71.124\;[69.945,72.081]$\\
+BS-RoFormer / Zero-FiLM & 9.631 / 9.631\\
+Shuffled / Persistence-FiLM & 9.526 / 9.524\\
+GRU-Forecast / Oracle-FiLM & 9.497 / 9.535\\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\paragraph{Full-waveform copy sanity check.}
+With the same BSR frozen, a fitted three-coefficient head receives BSR output,
+mixture, and a condition waveform. When given the actual $N_t$, it learns
+$\hat s_t=x_t-N_t$ to numerical precision (80.755 dB SI-SDRi); zero and
+wrong-time waveforms score 9.231 dB. This noncausal check verifies an answer
+path, not the value of 30-band FiLM or a causal predictor.
 
 \paragraph{Oracle information ladder.}
 We next reduce the information in the \emph{current} $N_t$ while keeping the
@@ -437,14 +359,49 @@ shows that this small GRU advantage is not stable across training seeds.
 This seed's Forecast retains 66.1\% of the Oracle gain over BSR, with a
 $2.416$ dB Oracle gap ($[2.114,2.640]$).
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{figures/clean_background_strength.pdf}
-\caption{Preliminary 30-band FiLM audit on annotation-clean DCLDE backgrounds:
-mean target SI-SDRi in 3-dB input-SNR bins for all six matched methods.
-Table~\ref{tab:cleanmain} gives day-block uncertainty for their overall means.}
-\label{fig:cleanstrength}
-\end{figure}
+\subsection{Three separator seeds on fixed mixtures}
+We reuse the original run as seed one and independently retrain BSR, Zero,
+Shuffled, Persistence, and Forecast with two further seeds. All five arms
+receive the same per-seed transferred backbone initialization, training
+mixtures, 6,000 updates, 4,096-example validation draw, 100-step validation
+cadence, and best-validation checkpoint rule. A fixed 4,096-mixture test draw
+is identical across every arm and seed; sample IDs, SNRs, and mixture SI-SDR
+are checked before comparison. The background GRU remains the previously
+selected frozen checkpoint across seeds, so this experiment measures
+\emph{separator} seed sensitivity, not predictor-training variation.
+
+\begin{table*}[t]
+\caption{Three separator seeds on the identical 4,096-mixture DCLDE test.
+Entries are target SI-SDRi (dB); contrast rows are paired differences (dB).
+The last column is mean $\pm$ sample standard deviation across seeds.
+Oracle is a single-seed upper bound (16.767 dB) and was not retrained.}
+\label{tab:seeds}\centering\footnotesize
+\begin{tabular}{lrrrr}
+\toprule
+Method or paired contrast & Seed 1 & Seed 2 & Seed 3 & Mean $\pm$ SD\\
+\midrule
+BS-RoFormer & 9.631 & 9.662 & 9.613 & $9.635\pm.025$\\
+Zero-Residual & 12.156 & 10.824 & 11.553 & $11.511\pm.667$\\
+Shuffled-Residual & 11.944 & 11.355 & 12.002 & $11.767\pm.358$\\
+Persistence-Residual & 14.295 & 13.425 & 14.015 & $13.912\pm.444$\\
+GRU-Forecast-Residual & 14.351 & 13.431 & 14.002 & $13.928\pm.465$\\
+\midrule
+Persistence $-$ Zero & +2.138 & +2.601 & +2.461 & $+2.400\pm.237$\\
+Persistence $-$ Shuffled & +2.351 & +2.070 & +2.013 & $+2.145\pm.181$\\
+Forecast $-$ Persistence & +.056 & +.005 & $-.012$ & $+.017\pm.036$\\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Correct history exceeds both matched controls for all three seeds and on
+each of their three held-out recording days. Its advantage over Zero is
+$2.400\pm.237$ dB and over wrong-day Shuffled $2.145\pm.181$ dB. Thus the
+main historical-information result survives separator initialization
+variation. Forecast exceeds Persistence in only two of three seeds; its
+$+.017\pm.036$ dB average contrast does not support a reliable learned-GRU
+separation advantage. The original seed's positive day-block interval
+conditions on that one trained model and should not be interpreted as
+uncertainty across training seeds.
 
 \subsection{Secondary ablations: time scale and target strength}
 The time-resolution diagnostic in Table~\ref{tab:windows} is an ablation on
@@ -509,7 +466,13 @@ controlled synthetic leakage, not real-whale stem fidelity.}
 \label{fig:example}
 \end{figure*}
 
-\subsection{Real events without separated ground truth}
+\section{Exploratory Real-Event Diagnostics}
+The following experiments probe external validity and failure modes; they do
+not replace the exact-stem DCLDE test. Later target and weak-supervision
+variants reuse the same 103 real calls, so their comparisons are exploratory.
+The independent new-site check appears in Section~\ref{sec:holdout}.
+
+\subsection{Frozen-model proxy evaluation}
 Following learned reference-free metrics \cite{kilgour2019fad,grais2019referenceless}
 and semantic audio embeddings \cite{wu2023clap,xiao2024clapscore}, we train,
 calibrate, and freeze a binary event classifier (test AUROC .9723, AP .9755,
@@ -757,51 +720,7 @@ matched-clean response of $.176$. Because this cohort was already reported
 for the preceding model, this follow-up comparison is exploratory rather
 than a fresh blind test.
 
-\section{Independent Holdout Checks}
-\subsection{Three separator seeds on fixed mixtures}
-We reuse the original run as seed one and independently retrain BSR, Zero,
-Shuffled, Persistence, and Forecast with two further seeds. All five arms
-receive the same per-seed transferred backbone initialization, training
-mixtures, 6,000 updates, 4,096-example validation draw, 100-step validation
-cadence, and best-validation checkpoint rule. A fixed 4,096-mixture test draw
-is identical across every arm and seed; sample IDs, SNRs, and mixture SI-SDR
-are checked before comparison. The background GRU remains the previously
-selected frozen checkpoint across seeds, so this experiment measures
-\emph{separator} seed sensitivity, not predictor-training variation.
-
-\begin{table*}[t]
-\caption{Three separator seeds on the identical 4,096-mixture DCLDE test.
-Entries are target SI-SDRi (dB); contrast rows are paired differences (dB).
-The last column is mean $\pm$ sample standard deviation across seeds.
-Oracle is a single-seed upper bound (16.767 dB) and was not retrained.}
-\label{tab:seeds}\centering\footnotesize
-\begin{tabular}{lrrrr}
-\toprule
-Method or paired contrast & Seed 1 & Seed 2 & Seed 3 & Mean $\pm$ SD\\
-\midrule
-BS-RoFormer & 9.631 & 9.662 & 9.613 & $9.635\pm.025$\\
-Zero-Residual & 12.156 & 10.824 & 11.553 & $11.511\pm.667$\\
-Shuffled-Residual & 11.944 & 11.355 & 12.002 & $11.767\pm.358$\\
-Persistence-Residual & 14.295 & 13.425 & 14.015 & $13.912\pm.444$\\
-GRU-Forecast-Residual & 14.351 & 13.431 & 14.002 & $13.928\pm.465$\\
-\midrule
-Persistence $-$ Zero & +2.138 & +2.601 & +2.461 & $+2.400\pm.237$\\
-Persistence $-$ Shuffled & +2.351 & +2.070 & +2.013 & $+2.145\pm.181$\\
-Forecast $-$ Persistence & +.056 & +.005 & $-.012$ & $+.017\pm.036$\\
-\bottomrule
-\end{tabular}
-\end{table*}
-
-Correct history exceeds both matched controls for all three seeds and on
-each of their three held-out recording days. Its advantage over Zero is
-$2.400\pm.237$ dB and over wrong-day Shuffled $2.145\pm.181$ dB. Thus the
-main historical-information result survives separator initialization
-variation. Forecast exceeds Persistence in only two of three seeds; its
-$+.017\pm.036$ dB average contrast does not support a reliable learned-GRU
-separation advantage. The original seed's positive day-block interval
-conditions on that one trained model and should not be interpreted as
-uncertainty across training seeds.
-
+\section{Independent New-Site Evaluation}\label{sec:holdout}
 \subsection{One-shot real-event test at a new site}
 We froze the original-seed BSR, four original residual arms, both
 50/50-target residual arms, the adapter-only weak checkpoint, the background

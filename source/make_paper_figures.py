@@ -75,7 +75,7 @@ def architecture_figure(path: Path) -> None:
               color=COLORS["muted"])
 
     box(0.25, 4.05, 2.15, 0.94, r"$H_t$", COLORS["cyan"], "12 clean maps")
-    box(2.85, 4.05, 2.05, 0.94, "GRU / copy", COLORS["cyan"], "or persistence")
+    box(2.85, 4.05, 2.05, 0.94, "Persistence / GRU", COLORS["cyan"], "causal prior")
     box(5.35, 4.05, 2.15, 0.94, r"$\hat B_t$", COLORS["cyan"], "79 × 128 log map")
     arrow((2.42, 4.52), (2.84, 4.52), COLORS["cyan"])
     arrow((4.92, 4.52), (5.33, 4.52), COLORS["cyan"])
