@@ -407,7 +407,6 @@ $-.0606$（$[-.0731,-.0404]$）。Persistence 的区间外改动则显著更小�
 \caption{同一批 103 个真实鲸声上的冻结 128 频组残差模型比较。
 四路使用相同混合声音；没有真实分离声轨。区间外指标为标注外背景相对改动。}
 \label{tab:events}\centering\footnotesize
-\resizebox{\textwidth}{!}{%
 \begin{tabular}{lrrrrr}
 \toprule
 方法 &$p(x)$&$p(\hat N)\downarrow$&$p(\hat s)\uparrow$&单调率$\uparrow$&区间外$\downarrow$\\
@@ -418,7 +417,6 @@ Persistence-Residual&.909&.829&.849&.992&.037\\
 GRU-Forecast-Residual&.909&.838&.842&.989&.036\\
 \bottomrule
 \end{tabular}
-}%
 \end{table*}
 
 \begin{figure*}[t]
@@ -505,7 +503,6 @@ $.652/.916$。因此延长训练能提高小集拟合并避免旧域遗忘，却
 \caption{目标池修订后同一批真实事件上的冻结评估，以及完全不变的旧合成测试 SI-SDRi。
 课程阶段按两套独立验证集选点；128 频组接口与背景预测器均固定。}
 \label{tab:empirical}\centering\footnotesize
-\resizebox{\textwidth}{!}{%
 \begin{tabular}{llrrrr}
 \toprule
 条件 & 训练目标 & 旧合成 SI-SDRi (dB) & 真实 $p(\hat N)\downarrow$ & 真实 $p(\hat s)\uparrow$ & 区间外$\downarrow$\\
@@ -519,7 +516,6 @@ GRU Forecast & 原程序目标 &14.351&.838&.842&.036\\
 GRU Forecast & 50/50 经验目标 &11.731&.725&.895&.043\\
 \bottomrule
 \end{tabular}
-}%
 \end{table*}
 
 \subsection{真实标注鲸声的弱监督微调}

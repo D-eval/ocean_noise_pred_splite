@@ -510,7 +510,6 @@ conditions. Isolated real-event stems remain unavailable.
 models see the same mixture; real separated stems are unavailable.
 Off-event is relative background change outside annotated calls.}
 \label{tab:events}\centering\footnotesize
-\resizebox{\textwidth}{!}{%
 \begin{tabular}{lrrrrr}
 \toprule
 Method &$p(x)$&$p(\hat N)\downarrow$&$p(\hat s)\uparrow$&Mono.$\uparrow$&Off-event$\downarrow$\\
@@ -521,7 +520,6 @@ Persistence-Residual&.909&.829&.849&.992&.037\\
 GRU-Forecast-Residual&.909&.838&.842&.989&.036\\
 \bottomrule
 \end{tabular}
-}%
 \end{table*}
 
 \begin{figure*}[t]
@@ -639,7 +637,6 @@ controlled leakage audit.
 SI-SDRi on the unchanged old synthetic test. Curriculum selects on two
 separate validation suites; the 128-group interface and predictor are fixed.}
 \label{tab:empirical}\centering\footnotesize
-\resizebox{\textwidth}{!}{%
 \begin{tabular}{llrrrr}
 \toprule
 Condition & Training targets & Old-synth SI-SDRi (dB) & Real $p(\hat N)\downarrow$ & Real $p(\hat s)\uparrow$ & Off-event$\downarrow$\\
@@ -653,7 +650,6 @@ GRU Forecast & Original procedural &14.351&.838&.842&.036\\
 GRU Forecast & 50/50 empirical &11.731&.725&.895&.043\\
 \bottomrule
 \end{tabular}
-}%
 \end{table*}
 
 \subsection{Weak supervision from annotated real calls}
