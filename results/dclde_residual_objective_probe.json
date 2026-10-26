@@ -1,0 +1,134 @@
+{
+  "protocol": "same 128 fixed training mixtures, same 20k checkpoint, data order, 2e-5 learning rate and updates; training diagnostic only",
+  "steps": 2000,
+  "arms": {
+    "original": {
+      "si_sdr_weight": 0.0,
+      "history": [
+        {
+          "step": 0,
+          "examples": 128,
+          "si_sdri_db": 15.561769627034664,
+          "loss": 0.005576820753049105,
+          "median_absent_event_to_ocean_db": -60.684465408325195,
+          "si_sdri_by_source_family_db": {
+            "empirical_procedural": 13.559438213706017,
+            "pseudo_real": 17.56410104036331
+          }
+        },
+        {
+          "step": 500,
+          "objective_loss": 0.004527389071881771,
+          "examples": 128,
+          "si_sdri_db": 15.449165642261505,
+          "loss": 0.00563754397444427,
+          "median_absent_event_to_ocean_db": -59.50341796875,
+          "si_sdri_by_source_family_db": {
+            "empirical_procedural": 13.376885026693344,
+            "pseudo_real": 17.521446257829666
+          }
+        },
+        {
+          "step": 1000,
+          "objective_loss": 0.00492356950417161,
+          "examples": 128,
+          "si_sdri_db": 15.605935141444206,
+          "loss": 0.005595358496066183,
+          "median_absent_event_to_ocean_db": -60.4224967956543,
+          "si_sdri_by_source_family_db": {
+            "empirical_procedural": 13.6186783015728,
+            "pseudo_real": 17.593191981315613
+          }
+        },
+        {
+          "step": 1500,
+          "objective_loss": 0.006824367679655552,
+          "examples": 128,
+          "si_sdri_db": 15.723571691662073,
+          "loss": 0.005532049457542598,
+          "median_absent_event_to_ocean_db": -61.890689849853516,
+          "si_sdri_by_source_family_db": {
+            "empirical_procedural": 13.826452411711216,
+            "pseudo_real": 17.62069097161293
+          }
+        },
+        {
+          "step": 2000,
+          "objective_loss": 0.010184656828641891,
+          "examples": 128,
+          "si_sdri_db": 15.709030356258154,
+          "loss": 0.0055349195608869195,
+          "median_absent_event_to_ocean_db": -61.41219711303711,
+          "si_sdri_by_source_family_db": {
+            "empirical_procedural": 13.753578804433346,
+            "pseudo_real": 17.664481908082962
+          }
+        }
+      ]
+    },
+    "si_sdr_aux": {
+      "si_sdr_weight": 0.0001,
+      "history": [
+        {
+          "step": 0,
+          "examples": 128,
+          "si_sdri_db": 15.561769627034664,
+          "loss": 0.005576820753049105,
+          "median_absent_event_to_ocean_db": -60.684471130371094,
+          "si_sdri_by_source_family_db": {
+            "empirical_procedural": 13.559438213706017,
+            "pseudo_real": 17.56410104036331
+          }
+        },
+        {
+          "step": 500,
+          "objective_loss": 0.003202492371201515,
+          "examples": 128,
+          "si_sdri_db": 15.934851117432117,
+          "loss": 0.005593479843810201,
+          "median_absent_event_to_ocean_db": -59.47129440307617,
+          "si_sdri_by_source_family_db": {
+            "empirical_procedural": 14.203207269310951,
+            "pseudo_real": 17.666494965553284
+          }
+        },
+        {
+          "step": 1000,
+          "objective_loss": 0.004728497471660376,
+          "examples": 128,
+          "si_sdri_db": 15.959075301885605,
+          "loss": 0.005556285614147782,
+          "median_absent_event_to_ocean_db": -60.2833194732666,
+          "si_sdri_by_source_family_db": {
+            "empirical_procedural": 14.23247218132019,
+            "pseudo_real": 17.68567842245102
+          }
+        },
+        {
+          "step": 1500,
+          "objective_loss": 0.005830257199704647,
+          "examples": 128,
+          "si_sdri_db": 16.101367957890034,
+          "loss": 0.005540980200748891,
+          "median_absent_event_to_ocean_db": -61.29984474182129,
+          "si_sdri_by_source_family_db": {
+            "empirical_procedural": 14.526159957051277,
+            "pseudo_real": 17.67657595872879
+          }
+        },
+        {
+          "step": 2000,
+          "objective_loss": 0.008870117366313934,
+          "examples": 128,
+          "si_sdri_db": 16.113407358527184,
+          "loss": 0.005544810614082962,
+          "median_absent_event_to_ocean_db": -60.5351676940918,
+          "si_sdri_by_source_family_db": {
+            "empirical_procedural": 14.470125809311867,
+            "pseudo_real": 17.7566889077425
+          }
+        }
+      ]
+    }
+  }
+}

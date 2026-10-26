@@ -836,11 +836,11 @@ def main() -> None:
     if args.real_results.exists() and args.real_checkpoint.exists():
         real_ablation_figure(args.output_dir / "real_audio_ablation.png", args.real_results)
         strength_sweep_figure(args.output_dir / "real_strength_sweep.pdf", args.real_results)
-    if args.main_checkpoint.exists() and args.clean_baseline_checkpoint.exists() and CLEAN_OCEAN_FEATURE_CACHE.exists():
-        clean_main_signal_figure(
-            args.output_dir / "real_audio_visualization.png", args.main_checkpoint,
-            args.clean_baseline_checkpoint, args.device,
-        )
+    if (Path("models/empirical_persistence_residual_128.pt").exists()
+            and Path("models/empirical_forecast_residual_128.pt").exists()
+            and args.clean_baseline_checkpoint.exists() and CLEAN_OCEAN_FEATURE_CACHE.exists()):
+        from .plot_residual_qualitative import run as plot_residual_qualitative
+        plot_residual_qualitative(args.output_dir / "real_audio_visualization.pdf", args.device)
     print(f"wrote figures to {args.output_dir}")
 
 

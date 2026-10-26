@@ -1,0 +1,39 @@
+{
+  "example_id": "2009-04-01:NOPP6_EST_20090401_000000_CH10:605.0",
+  "sample_index": 53,
+  "selection": "nearest to joint median SI-SDRi among 96 fixed test examples",
+  "si_sdri_db": {
+    "BSR": 4.4997944831848145,
+    "persistence": 9.262263774871826,
+    "forecast": 7.371521949768066
+  },
+  "median_event_to_ocean_db_where_gt_below_ocean_minus_20db": {
+    "GT": -94.1047134399414,
+    "BSR": -1.338402271270752,
+    "persistence": -31.248762130737305,
+    "forecast": -37.11225509643555
+  },
+  "p90_event_to_ocean_db_where_gt_below_ocean_minus_20db": {
+    "GT": -78.67891693115234,
+    "BSR": -0.10975845158100128,
+    "persistence": -12.048800468444824,
+    "forecast": -21.113792419433594
+  },
+  "fraction_above_minus10db_where_gt_below_ocean_minus_20db": {
+    "GT": 0.0,
+    "BSR": 0.8121777648682013,
+    "persistence": 0.07439546873865369,
+    "forecast": 0.026650206956648027
+  },
+  "cohort_96_median_absent_event_to_ocean_db": {
+    "GT": -91.82056427001953,
+    "BSR": -1.3651192784309387,
+    "persistence": -31.43761444091797,
+    "forecast": -36.46233940124512
+  },
+  "figure": "paper\\figures\\real_audio_visualization.pdf",
+  "checkpoint_paths": [
+    "models\\empirical_persistence_residual_128.pt",
+    "models\\empirical_forecast_residual_128.pt"
+  ]
+}

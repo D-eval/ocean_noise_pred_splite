@@ -1,0 +1,77 @@
+{
+  "protocol": "fixed 256 train mixtures, warm-start empirical Persistence; no test data",
+  "steps": 2000,
+  "history": [
+    {
+      "step": 0,
+      "examples": 256,
+      "si_sdri_db": 9.527293079299852,
+      "loss": 0.015182748407823965,
+      "median_absent_event_to_ocean_db": -32.014299392700195
+    },
+    {
+      "step": 250,
+      "batch_loss": 0.00990468543022871,
+      "examples": 256,
+      "si_sdri_db": 9.661184285767376,
+      "loss": 0.014380658743903041,
+      "median_absent_event_to_ocean_db": -35.16838836669922
+    },
+    {
+      "step": 500,
+      "batch_loss": 0.00925202015787363,
+      "examples": 256,
+      "si_sdri_db": 9.329596282914281,
+      "loss": 0.01404371633543633,
+      "median_absent_event_to_ocean_db": -36.96998596191406
+    },
+    {
+      "step": 750,
+      "batch_loss": 0.014381079003214836,
+      "examples": 256,
+      "si_sdri_db": 10.013237450271845,
+      "loss": 0.013892650866182521,
+      "median_absent_event_to_ocean_db": -36.23389434814453
+    },
+    {
+      "step": 1000,
+      "batch_loss": 0.015944013372063637,
+      "examples": 256,
+      "si_sdri_db": 9.835804239846766,
+      "loss": 0.01360883453162387,
+      "median_absent_event_to_ocean_db": -38.28508186340332
+    },
+    {
+      "step": 1250,
+      "batch_loss": 0.00615009106695652,
+      "examples": 256,
+      "si_sdri_db": 9.866587977856398,
+      "loss": 0.013447439559968188,
+      "median_absent_event_to_ocean_db": -38.700178146362305
+    },
+    {
+      "step": 1500,
+      "batch_loss": 0.01853713020682335,
+      "examples": 256,
+      "si_sdri_db": 10.22418901976198,
+      "loss": 0.013296929857460782,
+      "median_absent_event_to_ocean_db": -39.22997856140137
+    },
+    {
+      "step": 1750,
+      "batch_loss": 0.007999463938176632,
+      "examples": 256,
+      "si_sdri_db": 10.16118949931115,
+      "loss": 0.013115138077409938,
+      "median_absent_event_to_ocean_db": -40.15920639038086
+    },
+    {
+      "step": 2000,
+      "batch_loss": 0.015520429238677025,
+      "examples": 256,
+      "si_sdri_db": 10.539173404686153,
+      "loss": 0.013240197411505505,
+      "median_absent_event_to_ocean_db": -37.59342384338379
+    }
+  ]
+}

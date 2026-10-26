@@ -1,0 +1,333 @@
+{
+  "protocol": "fixed 128 train mixtures; warm start models/empirical_persistence_residual_128.pt; no test data",
+  "steps": 10000,
+  "history": [
+    {
+      "step": 0,
+      "examples": 128,
+      "si_sdri_db": 10.573034123983234,
+      "loss": 0.008829416474327445,
+      "median_absent_event_to_ocean_db": -32.852312088012695
+    },
+    {
+      "step": 250,
+      "batch_loss": 0.008512401022017002,
+      "examples": 128,
+      "si_sdri_db": 11.000537056475878,
+      "loss": 0.008266286517027766,
+      "median_absent_event_to_ocean_db": -33.62123680114746
+    },
+    {
+      "step": 500,
+      "batch_loss": 0.009259858168661594,
+      "examples": 128,
+      "si_sdri_db": 12.105951322242618,
+      "loss": 0.008125271124299616,
+      "median_absent_event_to_ocean_db": -32.94468307495117
+    },
+    {
+      "step": 750,
+      "batch_loss": 0.006400539074093103,
+      "examples": 128,
+      "si_sdri_db": 11.81491931527853,
+      "loss": 0.0077501104096882045,
+      "median_absent_event_to_ocean_db": -38.024513244628906
+    },
+    {
+      "step": 1000,
+      "batch_loss": 0.005032342858612537,
+      "examples": 128,
+      "si_sdri_db": 11.700724810361862,
+      "loss": 0.007661051640752703,
+      "median_absent_event_to_ocean_db": -40.12766647338867
+    },
+    {
+      "step": 1250,
+      "batch_loss": 0.005536678712815046,
+      "examples": 128,
+      "si_sdri_db": 11.823577208444476,
+      "loss": 0.007542422506958246,
+      "median_absent_event_to_ocean_db": -39.880937576293945
+    },
+    {
+      "step": 1500,
+      "batch_loss": 0.011447100900113583,
+      "examples": 128,
+      "si_sdri_db": 11.847327526658773,
+      "loss": 0.0074388893553987145,
+      "median_absent_event_to_ocean_db": -41.2103328704834
+    },
+    {
+      "step": 1750,
+      "batch_loss": 0.004604356829077005,
+      "examples": 128,
+      "si_sdri_db": 11.899244522675872,
+      "loss": 0.007383582182228565,
+      "median_absent_event_to_ocean_db": -42.51030349731445
+    },
+    {
+      "step": 2000,
+      "batch_loss": 0.005867214873433113,
+      "examples": 128,
+      "si_sdri_db": 11.993654733523726,
+      "loss": 0.007279445126187056,
+      "median_absent_event_to_ocean_db": -42.817026138305664
+    },
+    {
+      "step": 2250,
+      "batch_loss": 0.006674865260720253,
+      "examples": 128,
+      "si_sdri_db": 11.95896540209651,
+      "loss": 0.007234864111524075,
+      "median_absent_event_to_ocean_db": -44.09335517883301
+    },
+    {
+      "step": 2500,
+      "batch_loss": 0.004417181946337223,
+      "examples": 128,
+      "si_sdri_db": 12.022758457809687,
+      "loss": 0.007274602190591395,
+      "median_absent_event_to_ocean_db": -42.060537338256836
+    },
+    {
+      "step": 2750,
+      "batch_loss": 0.005739504471421242,
+      "examples": 128,
+      "si_sdri_db": 12.138647552579641,
+      "loss": 0.007099247013684362,
+      "median_absent_event_to_ocean_db": -45.22483825683594
+    },
+    {
+      "step": 3000,
+      "batch_loss": 0.003728227224200964,
+      "examples": 128,
+      "si_sdri_db": 12.259998040273786,
+      "loss": 0.007012981513980776,
+      "median_absent_event_to_ocean_db": -43.77169227600098
+    },
+    {
+      "step": 3250,
+      "batch_loss": 0.006125611253082752,
+      "examples": 128,
+      "si_sdri_db": 12.357815958559513,
+      "loss": 0.006995792442467064,
+      "median_absent_event_to_ocean_db": -45.79755973815918
+    },
+    {
+      "step": 3500,
+      "batch_loss": 0.0086677810177207,
+      "examples": 128,
+      "si_sdri_db": 12.55081007257104,
+      "loss": 0.006876562547404319,
+      "median_absent_event_to_ocean_db": -44.94828224182129
+    },
+    {
+      "step": 3750,
+      "batch_loss": 0.00651388568803668,
+      "examples": 128,
+      "si_sdri_db": 12.760697668418288,
+      "loss": 0.006885936250910163,
+      "median_absent_event_to_ocean_db": -44.97599220275879
+    },
+    {
+      "step": 4000,
+      "batch_loss": 0.007628174033015966,
+      "examples": 128,
+      "si_sdri_db": 12.597637414932251,
+      "loss": 0.006727651576511562,
+      "median_absent_event_to_ocean_db": -46.86334800720215
+    },
+    {
+      "step": 4250,
+      "batch_loss": 0.004344007465988398,
+      "examples": 128,
+      "si_sdri_db": 13.172354359179735,
+      "loss": 0.007185893715359271,
+      "median_absent_event_to_ocean_db": -39.095767974853516
+    },
+    {
+      "step": 4500,
+      "batch_loss": 0.004008242394775152,
+      "examples": 128,
+      "si_sdri_db": 12.862633623182774,
+      "loss": 0.006632118369452655,
+      "median_absent_event_to_ocean_db": -47.2764778137207
+    },
+    {
+      "step": 4750,
+      "batch_loss": 0.005283352918922901,
+      "examples": 128,
+      "si_sdri_db": 13.173781666904688,
+      "loss": 0.006634586781729013,
+      "median_absent_event_to_ocean_db": -44.755889892578125
+    },
+    {
+      "step": 5000,
+      "batch_loss": 0.00678433571010828,
+      "examples": 128,
+      "si_sdri_db": 12.726037744432688,
+      "loss": 0.006547664932440966,
+      "median_absent_event_to_ocean_db": -48.77694892883301
+    },
+    {
+      "step": 5250,
+      "batch_loss": 0.002991669811308384,
+      "examples": 128,
+      "si_sdri_db": 13.553307943046093,
+      "loss": 0.006581049936357886,
+      "median_absent_event_to_ocean_db": -46.65555191040039
+    },
+    {
+      "step": 5500,
+      "batch_loss": 0.010328905656933784,
+      "examples": 128,
+      "si_sdri_db": 12.880693670362234,
+      "loss": 0.006475488131400198,
+      "median_absent_event_to_ocean_db": -49.24794387817383
+    },
+    {
+      "step": 5750,
+      "batch_loss": 0.007077659945935011,
+      "examples": 128,
+      "si_sdri_db": 13.545903790742159,
+      "loss": 0.006442966929171234,
+      "median_absent_event_to_ocean_db": -48.27458381652832
+    },
+    {
+      "step": 6000,
+      "batch_loss": 0.0044263629242777824,
+      "examples": 128,
+      "si_sdri_db": 13.612352572381496,
+      "loss": 0.006351324438583106,
+      "median_absent_event_to_ocean_db": -49.02376937866211
+    },
+    {
+      "step": 6250,
+      "batch_loss": 0.005270788446068764,
+      "examples": 128,
+      "si_sdri_db": 13.599913001060486,
+      "loss": 0.0063066662405617535,
+      "median_absent_event_to_ocean_db": -49.79392623901367
+    },
+    {
+      "step": 6500,
+      "batch_loss": 0.006902339402586222,
+      "examples": 128,
+      "si_sdri_db": 13.684201542288065,
+      "loss": 0.006304078677203506,
+      "median_absent_event_to_ocean_db": -51.424842834472656
+    },
+    {
+      "step": 6750,
+      "batch_loss": 0.008266961202025414,
+      "examples": 128,
+      "si_sdri_db": 13.865411654114723,
+      "loss": 0.006416105723474175,
+      "median_absent_event_to_ocean_db": -46.97529411315918
+    },
+    {
+      "step": 7000,
+      "batch_loss": 0.005225962493568659,
+      "examples": 128,
+      "si_sdri_db": 14.044055197387934,
+      "loss": 0.006267196673434228,
+      "median_absent_event_to_ocean_db": -51.04173469543457
+    },
+    {
+      "step": 7250,
+      "batch_loss": 0.004866544157266617,
+      "examples": 128,
+      "si_sdri_db": 13.57236660271883,
+      "loss": 0.006283372524194419,
+      "median_absent_event_to_ocean_db": -52.25760841369629
+    },
+    {
+      "step": 7500,
+      "batch_loss": 0.006674869451671839,
+      "examples": 128,
+      "si_sdri_db": 13.957515373826027,
+      "loss": 0.006223004311323166,
+      "median_absent_event_to_ocean_db": -50.32150077819824
+    },
+    {
+      "step": 7750,
+      "batch_loss": 0.002854281570762396,
+      "examples": 128,
+      "si_sdri_db": 14.07413686811924,
+      "loss": 0.006161700701341033,
+      "median_absent_event_to_ocean_db": -52.78852653503418
+    },
+    {
+      "step": 8000,
+      "batch_loss": 0.004236919805407524,
+      "examples": 128,
+      "si_sdri_db": 13.59245628491044,
+      "loss": 0.006241217604838312,
+      "median_absent_event_to_ocean_db": -53.535932540893555
+    },
+    {
+      "step": 8250,
+      "batch_loss": 0.004548696801066399,
+      "examples": 128,
+      "si_sdri_db": 14.319307509809732,
+      "loss": 0.006102431158069521,
+      "median_absent_event_to_ocean_db": -51.56343650817871
+    },
+    {
+      "step": 8500,
+      "batch_loss": 0.0028868974186480045,
+      "examples": 128,
+      "si_sdri_db": 14.051997680217028,
+      "loss": 0.006128259003162384,
+      "median_absent_event_to_ocean_db": -53.805198669433594
+    },
+    {
+      "step": 8750,
+      "batch_loss": 0.006151209119707346,
+      "examples": 128,
+      "si_sdri_db": 14.143858682364225,
+      "loss": 0.006085742264986038,
+      "median_absent_event_to_ocean_db": -54.026153564453125
+    },
+    {
+      "step": 9000,
+      "batch_loss": 0.006849110126495361,
+      "examples": 128,
+      "si_sdri_db": 14.448796015232801,
+      "loss": 0.0060263717896305025,
+      "median_absent_event_to_ocean_db": -53.104318618774414
+    },
+    {
+      "step": 9250,
+      "batch_loss": 0.005837003234773874,
+      "examples": 128,
+      "si_sdri_db": 14.455143965780735,
+      "loss": 0.006078251695726067,
+      "median_absent_event_to_ocean_db": -51.02377510070801
+    },
+    {
+      "step": 9500,
+      "batch_loss": 0.0049841576255857944,
+      "examples": 128,
+      "si_sdri_db": 14.402470488101244,
+      "loss": 0.006017553678248078,
+      "median_absent_event_to_ocean_db": -54.817726135253906
+    },
+    {
+      "step": 9750,
+      "batch_loss": 0.0038731324020773172,
+      "examples": 128,
+      "si_sdri_db": 14.363083384931087,
+      "loss": 0.0059784637414850295,
+      "median_absent_event_to_ocean_db": -55.406185150146484
+    },
+    {
+      "step": 10000,
+      "batch_loss": 0.004759029019623995,
+      "examples": 128,
+      "si_sdri_db": 14.755929835140705,
+      "loss": 0.00596383394440636,
+      "median_absent_event_to_ocean_db": -53.9097785949707
+    }
+  ]
+}

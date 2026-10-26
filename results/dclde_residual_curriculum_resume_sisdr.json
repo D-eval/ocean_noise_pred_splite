@@ -1,0 +1,290 @@
+{
+  "protocol": "resume from curriculum-selected 25% pseudo checkpoint; 50% stage, 80/20 disjoint train-day pseudo split; no test selection",
+  "initial_checkpoint_step": 6500,
+  "max_steps": 4000,
+  "si_sdr_auxiliary_weight": 0.0001,
+  "steps_run": 4000,
+  "best_step_in_resume": 0,
+  "best_joint_si_sdri_db": 14.139787051768508,
+  "checkpoint": "experiments\\dclde_residual_refinement\\resume_sisdr_best.pt",
+  "history": [
+    {
+      "step": 0,
+      "phase": "pseudo_0.50_resume",
+      "old": {
+        "examples": 512,
+        "si_sdri_db": 16.443459892296232,
+        "loss": 0.01684328210963444,
+        "median_absent_event_to_ocean_db": -27.763081550598145,
+        "si_sdri_by_source_family_db": {
+          "whale_downsweep": 20.52957080711018,
+          "vessel_tonal": 8.244497184893664,
+          "whale_s_curve": 18.597429087528816,
+          "whale_pulse_packet": 17.53383770253923,
+          "vessel_cavitation": 12.410383512103369,
+          "whale_upsweep": 18.15512768733196,
+          "whale_arch": 20.05689493385521
+        }
+      },
+      "empirical": {
+        "examples": 512,
+        "si_sdri_db": 11.836114211240783,
+        "loss": 0.022382693365216255,
+        "median_absent_event_to_ocean_db": -29.85624599456787,
+        "si_sdri_by_source_family_db": {
+          "empirical_procedural": 8.811983367893845,
+          "pseudo_real": 14.860245054587722
+        }
+      },
+      "joint_si_sdri_db": 14.139787051768508
+    },
+    {
+      "step": 500,
+      "phase": "pseudo_0.50_resume",
+      "old": {
+        "examples": 512,
+        "si_sdri_db": 16.33029768022243,
+        "loss": 0.016893430739979853,
+        "median_absent_event_to_ocean_db": -27.642081260681152,
+        "si_sdri_by_source_family_db": {
+          "whale_downsweep": 20.457243041558698,
+          "vessel_tonal": 7.867018843398375,
+          "whale_s_curve": 18.540277513173912,
+          "whale_pulse_packet": 17.495985567569733,
+          "vessel_cavitation": 12.408101596529521,
+          "whale_upsweep": 18.09566790323991,
+          "whale_arch": 19.93514235599621
+        }
+      },
+      "empirical": {
+        "examples": 512,
+        "si_sdri_db": 11.862251368584111,
+        "loss": 0.022412233393300663,
+        "median_absent_event_to_ocean_db": -30.069580078125,
+        "si_sdri_by_source_family_db": {
+          "empirical_procedural": 8.678531244862825,
+          "pseudo_real": 15.045971492305398
+        }
+      },
+      "joint_si_sdri_db": 14.09627452440327,
+      "batch_loss": 0.011462317779660225
+    },
+    {
+      "step": 1000,
+      "phase": "pseudo_0.50_resume",
+      "old": {
+        "examples": 512,
+        "si_sdri_db": 16.220328677329235,
+        "loss": 0.017205636652017183,
+        "median_absent_event_to_ocean_db": -26.057249069213867,
+        "si_sdri_by_source_family_db": {
+          "whale_downsweep": 20.27551208301024,
+          "vessel_tonal": 7.857506554968217,
+          "whale_s_curve": 18.38973977932563,
+          "whale_pulse_packet": 17.46051386329863,
+          "vessel_cavitation": 12.362991264888219,
+          "whale_upsweep": 17.894835551579792,
+          "whale_arch": 19.791703688131797
+        }
+      },
+      "empirical": {
+        "examples": 512,
+        "si_sdri_db": 11.96543504926376,
+        "loss": 0.022637352686036716,
+        "median_absent_event_to_ocean_db": -28.230283737182617,
+        "si_sdri_by_source_family_db": {
+          "empirical_procedural": 8.620953149627894,
+          "pseudo_real": 15.309916948899627
+        }
+      },
+      "joint_si_sdri_db": 14.092881863296498,
+      "batch_loss": 0.016758520156145096
+    },
+    {
+      "step": 1500,
+      "phase": "pseudo_0.50_resume",
+      "old": {
+        "examples": 512,
+        "si_sdri_db": 16.38090046646539,
+        "loss": 0.01639502728357911,
+        "median_absent_event_to_ocean_db": -29.408658027648926,
+        "si_sdri_by_source_family_db": {
+          "whale_downsweep": 20.546782623637807,
+          "vessel_tonal": 7.737016922586104,
+          "whale_s_curve": 18.664428775127117,
+          "whale_pulse_packet": 17.587499611907536,
+          "vessel_cavitation": 12.168847326248411,
+          "whale_upsweep": 18.297526439030964,
+          "whale_arch": 20.142743477950226
+        }
+      },
+      "empirical": {
+        "examples": 512,
+        "si_sdri_db": 11.776509682182223,
+        "loss": 0.022051188883117655,
+        "median_absent_event_to_ocean_db": -31.38637351989746,
+        "si_sdri_by_source_family_db": {
+          "empirical_procedural": 8.574844035319984,
+          "pseudo_real": 14.978175329044461
+        }
+      },
+      "joint_si_sdri_db": 14.078705074323807,
+      "batch_loss": 0.008912735618650913
+    },
+    {
+      "step": 2000,
+      "phase": "pseudo_0.50_resume",
+      "old": {
+        "examples": 512,
+        "si_sdri_db": 16.360286241746508,
+        "loss": 0.016467272642661224,
+        "median_absent_event_to_ocean_db": -29.5203218460083,
+        "si_sdri_by_source_family_db": {
+          "whale_downsweep": 20.490123103965413,
+          "vessel_tonal": 7.7219408420955435,
+          "whale_s_curve": 18.597535848617554,
+          "whale_pulse_packet": 17.61756894985835,
+          "vessel_cavitation": 12.269712357293992,
+          "whale_upsweep": 18.236975385592533,
+          "whale_arch": 20.08051302626326
+        }
+      },
+      "empirical": {
+        "examples": 512,
+        "si_sdri_db": 11.85438080667518,
+        "loss": 0.02205687045881694,
+        "median_absent_event_to_ocean_db": -31.53443717956543,
+        "si_sdri_by_source_family_db": {
+          "empirical_procedural": 8.569573513697833,
+          "pseudo_real": 15.139188099652529
+        }
+      },
+      "joint_si_sdri_db": 14.107333524210844,
+      "batch_loss": 0.013432065024971962
+    },
+    {
+      "step": 2500,
+      "phase": "pseudo_0.50_resume",
+      "old": {
+        "examples": 512,
+        "si_sdri_db": 16.33204649144318,
+        "loss": 0.016386561180380257,
+        "median_absent_event_to_ocean_db": -29.86715793609619,
+        "si_sdri_by_source_family_db": {
+          "whale_downsweep": 20.475735111670062,
+          "vessel_tonal": 7.678783017747542,
+          "whale_s_curve": 18.578880461362694,
+          "whale_pulse_packet": 17.595211532380844,
+          "vessel_cavitation": 12.183334850129627,
+          "whale_upsweep": 18.233489336111607,
+          "whale_arch": 20.063882151165522
+        }
+      },
+      "empirical": {
+        "examples": 512,
+        "si_sdri_db": 11.86289626499638,
+        "loss": 0.02201620074497028,
+        "median_absent_event_to_ocean_db": -31.852516174316406,
+        "si_sdri_by_source_family_db": {
+          "empirical_procedural": 8.55664215516299,
+          "pseudo_real": 15.16915037482977
+        }
+      },
+      "joint_si_sdri_db": 14.09747137821978,
+      "batch_loss": 0.013966246508061886
+    },
+    {
+      "step": 3000,
+      "phase": "pseudo_0.50_resume",
+      "old": {
+        "examples": 512,
+        "si_sdri_db": 16.301795843108266,
+        "loss": 0.016417938919568605,
+        "median_absent_event_to_ocean_db": -30.065425872802734,
+        "si_sdri_by_source_family_db": {
+          "whale_downsweep": 20.443997952071104,
+          "vessel_tonal": 7.628463265781893,
+          "whale_s_curve": 18.56331453415064,
+          "whale_pulse_packet": 17.548301292790306,
+          "vessel_cavitation": 12.19445542683677,
+          "whale_upsweep": 18.196482627819744,
+          "whale_arch": 20.036241737571924
+        }
+      },
+      "empirical": {
+        "examples": 512,
+        "si_sdri_db": 11.878935310989618,
+        "loss": 0.02203433723612265,
+        "median_absent_event_to_ocean_db": -31.91227149963379,
+        "si_sdri_by_source_family_db": {
+          "empirical_procedural": 8.522580733522773,
+          "pseudo_real": 15.235289888456464
+        }
+      },
+      "joint_si_sdri_db": 14.090365577048942,
+      "batch_loss": 0.010012923739850521
+    },
+    {
+      "step": 3500,
+      "phase": "pseudo_0.50_resume",
+      "old": {
+        "examples": 512,
+        "si_sdri_db": 16.339870268304367,
+        "loss": 0.016311545178971508,
+        "median_absent_event_to_ocean_db": -30.01095676422119,
+        "si_sdri_by_source_family_db": {
+          "whale_downsweep": 20.51669724962928,
+          "vessel_tonal": 7.5278918283827165,
+          "whale_s_curve": 18.625689309376938,
+          "whale_pulse_packet": 17.634449740250904,
+          "vessel_cavitation": 12.146816503433953,
+          "whale_upsweep": 18.312913766274086,
+          "whale_arch": 20.118925339466816
+        }
+      },
+      "empirical": {
+        "examples": 512,
+        "si_sdri_db": 11.829905727645382,
+        "loss": 0.021961012728173624,
+        "median_absent_event_to_ocean_db": -32.00914764404297,
+        "si_sdri_by_source_family_db": {
+          "empirical_procedural": 8.46836282638833,
+          "pseudo_real": 15.191448628902435
+        }
+      },
+      "joint_si_sdri_db": 14.084887997974874,
+      "batch_loss": 0.012037977576255798
+    },
+    {
+      "step": 4000,
+      "phase": "pseudo_0.50_resume",
+      "old": {
+        "examples": 512,
+        "si_sdri_db": 16.253769368340727,
+        "loss": 0.016042605169456114,
+        "median_absent_event_to_ocean_db": -31.87572479248047,
+        "si_sdri_by_source_family_db": {
+          "whale_downsweep": 20.4011660434983,
+          "vessel_tonal": 7.340839621249367,
+          "whale_s_curve": 18.58187464108834,
+          "whale_pulse_packet": 17.586468319098156,
+          "vessel_cavitation": 11.9428454732138,
+          "whale_upsweep": 18.296848939015316,
+          "whale_arch": 20.143503440392983
+        }
+      },
+      "empirical": {
+        "examples": 512,
+        "si_sdri_db": 11.6978019264061,
+        "loss": 0.021756517277522522,
+        "median_absent_event_to_ocean_db": -33.59072685241699,
+        "si_sdri_by_source_family_db": {
+          "empirical_procedural": 8.401540119666606,
+          "pseudo_real": 14.994063733145595
+        }
+      },
+      "joint_si_sdri_db": 13.975785647373414,
+      "batch_loss": 0.01651560701429844
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "protocol": "fixed 128 training mixtures; diagnostic only",
+  "steps": 20000,
+  "before": {
+    "examples": 128,
+    "si_sdri_db": 10.573034127708524,
+    "loss": 0.008829416474327445,
+    "median_absent_event_to_ocean_db": -32.852312088012695,
+    "si_sdri_by_source_family_db": {
+      "empirical_procedural": 8.195910069160163,
+      "pseudo_real": 12.950158186256886
+    }
+  },
+  "after": {
+    "examples": 128,
+    "si_sdri_db": 15.561769619584084,
+    "loss": 0.005576820753049105,
+    "median_absent_event_to_ocean_db": -60.684465408325195,
+    "si_sdri_by_source_family_db": {
+      "empirical_procedural": 13.559438169002533,
+      "pseudo_real": 17.564101070165634
+    }
+  }
+}

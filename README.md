@@ -70,7 +70,7 @@ python -m source.web
 
 同规模、同训练量的无条件 BS-RoFormer 基线为 6.02 dB；旧加法频谱条件相对基线的配对差为 −0.28 dB（95% CI：−0.69 至 0.14）。该负结果推动了后续广分布条件注入消融；历史结果保留在 [results/practical_results.json](results/practical_results.json)，不再作为部署模型。
 
-论文提供英文 [main.tex](paper/main.tex) 与中文 [main_zh.tex](paper/main_zh.tex) 两份源文件，以及已渲染的[英文 PDF](output/pdf/forecast_conditioned_ocean_separation_en.pdf)和[中文 PDF](output/pdf/forecast_conditioned_ocean_separation_zh.pdf)。
+论文提供英文 [main.tex](paper/main.tex) 与中文 [main_zh.tex](paper/main_zh.tex) 两份源文件，以及已渲染的[英文 PDF](output/pdf/forecast_conditioned_ocean_separation_en.pdf)和[中文 PDF（最新日期版）](output/pdf/forecast_conditioned_ocean_separation_zh_20261026.pdf)。
 
 ## 广分布信号与散度实验
 
@@ -320,3 +320,26 @@ python -m source.evaluate_empirical_residual --device cuda
 在同一 103 个真实鲸声上，新 Persistence 相对旧版的 $p(\hat N)$ 差为 `-.1766`（按三个录音日配对的 95% 区间 `[-.1920,-.1479]`），$p(\hat s)$ 差为 `+.0668`（`[.0414,.1166]`）；但区间外改动也增加 `+.0215`（`[.0151,.0324]`）。新 Forecast 对旧版相应为 `-.1129`、`+.0527` 和 `+.0068`。新 Persistence 的事件响应更强，新 Forecast 的区间外保留更好；分类器概率不等于真实隔离声轨质量。两种新模型在**旧合成分布**上的 SI-SDRi 分别下降 2.100 和 2.620 dB，说明目标域适配存在明显旧域退化。中间试过只用鲸声的经验池：Persistence 的真实事件概率同样改善，但旧船舶音调 SI-SDRi 降到 `-1.925 dB`；最终版本保留船噪后恢复为 `5.350 dB`。完整逐类受控审计见 [results/dclde_empirical_residual_legacy_test_audit.json](results/dclde_empirical_residual_legacy_test_audit.json)，真实逐例配对结果见 [results/dclde_empirical_residual_real_event_results.csv](results/dclde_empirical_residual_real_event_results.csv) 与 [results/dclde_empirical_residual_real_event_results.json](results/dclde_empirical_residual_real_event_results.json)。
 
 最终分离器检查点随仓库提供：[Persistence](models/empirical_persistence_residual_128.pt)、[Forecast](models/empirical_forecast_residual_128.pt)；冻结的 [128 频组 GRU](models/highres_gru_128.pt) 保持与旧实验同一文件。中间鲸声专用 [Persistence 检查点](models/empirical_whale_only_persistence_residual_128.pt)仅用于解释船噪退化，不作为通用版本。约 52 MB 的训练日伪声轨缓存位于忽略目录，可用前述 `source.empirical_target_pool` 命令重建；没有引入测试日真实事件到目标池。
+
+### 当前残差模型的分离图与训练充分性检查
+
+论文 Fig. 5 已改成**当前 128 频组残差模型**，同时显示无条件 BSR、经验目标池训练的 Persistence/Forecast 与同一个合成目标真值。图从固定的 96 个 $-12$ dB 留出测试样本中按三模型 SI-SDRi 的联合中位数选例，不选最好看的样本。真值目标低于海洋背景 20 dB 的时频格点里，96 例的事件声轨/海洋背景对比度中位数依次为 BSR `-1.37`、Persistence `-31.44`、Forecast `-36.46` dB；所选样本中，仍有局部竖向伪影。见[可放大 PDF](paper/figures/real_audio_visualization.pdf)、[PNG 预览](paper/figures/real_audio_visualization_preview.png)和[数值及选样规则](paper/figures/real_audio_visualization.json)。这个受控合成图不能证明真实鲸声的隔离质量。
+
+小集过拟合对照保持样本和混合确定：128 个旧程序目标训练 3000 步，训练 SI-SDRi 从 `13.85` 升至 `17.20` dB；128 个经验目标训练 20000 步，从 `10.57` 升至 `15.56` dB，最后几千步增幅已明显放缓，而非目标区对比度中位数从 `-32.85` 降至 `-60.68` dB。经验目标中的校准程序路线从 `8.20` 升至 `13.56` dB，伪真实路线从 `12.95` 升至 `17.56` dB。模型确实继续学习复杂目标，但剩余训练误差已不能简单归因于背景泄漏；波形损失与 SI-SDRi 也不完全同步。详见[小集审计](results/dclde_residual_overfit_empirical_audit.json)。
+
+从旧程序 Persistence 强权重做 `0% → 25% → 50%` 伪真实课程微调，学习率由 `5e-5` 降至 `5e-6`。训练日的伪鲸声分成互不重叠的 80% 拟合集与 20% 验证集；另保留固定旧程序验证集，各 512 个样本。联合 SI-SDRi 选中第 6500 步（25% 伪真实）：两套验证集从 `16.26/11.12` 升至 `16.44/11.84` dB。独立追加的 50/50 阶段跑满早停前的 4000 步，虽然更压低非目标区能量，联合 SI-SDRi 未继续提高，因此未用真实测试鲸声选点。选中模型在不变旧合成测试上得到 `14.421` dB，高于原 Persistence 的 `14.295` dB；103 个真实事件的 $p(\hat N)/p(\hat s)$ 为 `.819/.823`，仍明显不及直接 50/50 训练的 `.652/.916`，所以课程微调没有同时解决旧域与真实语义指标。相同小集上增加少量 SI-SDR 损失可多得 `0.40 dB`，但对应的完整数据 50/50 阶段再训 4000 步并未超过同一验证起点，故未选用。旧 Fig. 5 的大片 0 dB 泄漏在新模型中已消失，且更强的背景抑制伴随 SI-SDRi 下降；本轮暂不增加额外泄漏损失，以免把这一已观察到的取舍推得更远。完整结果见[课程轨迹](results/dclde_residual_curriculum.json)、[50/50 追加轨迹](results/dclde_residual_curriculum_resume.json)、[损失对照](results/dclde_residual_objective_probe.json)、[完整数据损失对照](results/dclde_residual_curriculum_resume_sisdr.json)、[不变测试](results/dclde_refined_persistence_legacy_test.json)、[真实事件评估](results/dclde_refined_persistence_real_event_results.json)、[选中模型](models/refined_persistence_residual_128.pt)及[收敛矢量图](paper/figures/residual_training_diagnostic.pdf)。诊断没有重训 GRU 或分类器，也没有新增数据下载。
+
+```powershell
+python -m source.plot_residual_qualitative
+python -m source.refine_residual_separator overfit --pool legacy --examples 128 --steps 3000
+python -m source.refine_residual_separator overfit --pool empirical --examples 128 --steps 10000
+python -m source.refine_residual_separator continue-overfit --pool empirical --examples 128 --steps 10000
+python -m source.refine_residual_separator audit-overfit --pool empirical --examples 128
+python -m source.refine_residual_separator curriculum --steps 20000
+python -m source.refine_residual_separator resume --steps 12000
+python -m source.refine_residual_separator objective-probe --pool empirical --examples 128 --steps 2000
+python -m source.refine_residual_separator resume-sisdr --steps 4000
+python -m source.refine_residual_separator test
+python -m source.evaluate_empirical_residual --only persistence --checkpoint models/refined_persistence_residual_128.pt --output results/dclde_refined_persistence_real_event_results.json
+python -m source.plot_refinement_learning
+```

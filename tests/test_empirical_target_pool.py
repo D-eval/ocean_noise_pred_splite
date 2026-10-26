@@ -4,11 +4,17 @@ import unittest
 
 import numpy as np
 
-from source.empirical_target_pool import (SAMPLE_RATE, SAMPLES,
+from source.empirical_target_pool import (EmpiricalTargetPool, SAMPLE_RATE, SAMPLES,
                                           extract_pseudo_and_profile)
 
 
 class EmpiricalTargetPoolTest(unittest.TestCase):
+    def test_curriculum_fit_and_validation_events_are_disjoint(self):
+        fit = EmpiricalTargetPool("fit")
+        validation = EmpiricalTargetPool("validation")
+        self.assertEqual(len(fit.indices)+len(validation.indices), len(fit.waveforms))
+        self.assertEqual(len(np.intersect1d(fit.indices, validation.indices)), 0)
+
     def test_soft_mask_keeps_annotated_upcall_and_suppresses_outside_audio(self):
         rng = np.random.default_rng(11)
         time = np.arange(SAMPLES) / SAMPLE_RATE

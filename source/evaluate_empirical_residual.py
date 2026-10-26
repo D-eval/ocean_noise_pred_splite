@@ -53,7 +53,9 @@ def paired_new_conditions(rows: list[dict], metric: str) -> dict:
 
 @torch.inference_mode()
 def evaluate(device_name: str = "cuda", batch_size: int = 8,
-             names: tuple[str, ...] = NAMES) -> dict:
+             names: tuple[str, ...] = NAMES,
+             checkpoint_overrides: dict[str, Path] | None = None,
+             output_override: Path | None = None) -> dict:
     if not names or any(name not in NAMES for name in names):
         raise ValueError("choose persistence and/or forecast")
     device = torch.device(device_name)
@@ -68,17 +70,21 @@ def evaluate(device_name: str = "cuda", batch_size: int = 8,
     forecaster.eval()
     models = {}
     checkpoint_paths = {}
+    training_protocols = {}
     for name in names:
-        path = Path(f"models/empirical_{name}_residual_128.pt")
+        path = (checkpoint_overrides or {}).get(
+            name, Path(f"models/empirical_{name}_residual_128.pt"))
         checkpoint = torch.load(path, map_location=device, weights_only=False)
-        if (checkpoint.get("target_pool") != "empirical_50_50"
-                or checkpoint.get("interface") != f"{name}_residual_128"):
+        if checkpoint.get("interface") != f"{name}_residual_128":
+            raise ValueError(f"{name} checkpoint has the wrong residual interface")
+        if checkpoint_overrides is None and checkpoint.get("target_pool") != "empirical_50_50":
             raise ValueError(f"{name} checkpoint does not match the empirical protocol")
         model = CausalResidualBSR(clean_store.bands, 20261022, device,
                                   Path("models/practical_real.pt")).to(device)
         model.load_state_dict(checkpoint["model"], strict=True)
         models[name] = model.eval()
         checkpoint_paths[name] = path
+        training_protocols[name] = checkpoint.get("training_target_pool", checkpoint.get("target_pool"))
     classifier, temperature = load_classifier(CLASSIFIER_PATH, device)
     classifier.eval()
     with OLD_CSV.open(newline="", encoding="utf-8") as stream:
@@ -112,7 +118,8 @@ def evaluate(device_name: str = "cuda", batch_size: int = 8,
     result = {
         "protocol": {"real_event_examples": len(rows),
                      "days": sorted({row["day"] for row in rows}),
-                     "target_pool": "50% calibrated procedural, 50% train-day pseudo-real",
+                     "target_pool": ("50% calibrated procedural, 50% train-day pseudo-real"
+                                     if checkpoint_overrides is None else training_protocols),
                      "condition_predictor_retrained": False,
                      "classifier_retrained": False,
                      "real_stem_gt": False,
@@ -131,7 +138,7 @@ def evaluate(device_name: str = "cuda", batch_size: int = 8,
     if names == NAMES:
         result["paired_new_forecast_minus_persistence"] = {
             metric: paired_new_conditions(rows, metric) for metric in METRICS}
-    output = (OUTPUT if names == NAMES else OUTPUT.with_name(
+    output = output_override or (OUTPUT if names == NAMES else OUTPUT.with_name(
         "dclde_empirical_" + "_".join(names) + "_real_event_results.json"))
     output.parent.mkdir(exist_ok=True)
     output.write_text(json.dumps(result, indent=2), encoding="utf-8")
@@ -146,9 +153,15 @@ def main() -> None:
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--only", choices=NAMES)
+    parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
+    if args.checkpoint is not None and args.only is None:
+        parser.error("--checkpoint requires --only")
     result = evaluate(args.device, args.batch_size,
-                      (args.only,) if args.only else NAMES)
+                      (args.only,) if args.only else NAMES,
+                      {args.only: args.checkpoint} if args.checkpoint else None,
+                      args.output)
     print(json.dumps(result, indent=2), flush=True)
 
 

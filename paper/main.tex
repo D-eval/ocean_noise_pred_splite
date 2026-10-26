@@ -504,13 +504,16 @@ sweep.  Lines show the four conditions; shaded bands are paired 95\% intervals.}
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=.91\textwidth,trim=0 0 0 23,clip]{figures/real_audio_visualization.pdf}
-\caption{Preliminary 30-band FiLM illustration: median-selected $-12$ dB synthetic whale pulse packet in an
-annotation-clean 5-s DCLDE recording.  The ocean and mixture share an absolute
-magnitude scale; the lower row shows each event stem relative to the actual
-ocean magnitude on a common dB scale. This example does not show the new
-128-group residual model. Neither estimate fully removes background texture;
-aggregate preliminary results are in Fig.~\ref{fig:cleanstrength}.}
+\includegraphics[width=.97\textwidth]{figures/real_audio_visualization.pdf}
+\caption{Current 128-group residual separators on an unchanged held-out
+$-12$ dB procedural whale pulse packet, selected by joint median SI-SDRi
+among 96 fixed examples. The ocean and mixture share an absolute magnitude
+scale; event stems share a dB scale relative to the true ocean. Compared with
+BSR, causal Persistence and Forecast suppress much of the off-target ocean,
+though isolated vertical artifacts remain. Across all 96 examples, the median
+event/ocean contrast in ground-truth-absent TF bins is $-1.37$, $-31.44$, and
+$-36.46$ dB for BSR, Persistence, and Forecast. These contrasts measure
+controlled synthetic leakage, not real-whale stem fidelity.}
 \label{fig:example}
 \end{figure*}
 
@@ -653,10 +656,33 @@ Even the new $p(\hat N)$ values remain far above the matched clean floor
 of $.176$. Without isolated real stems, these findings support a target-domain
 effect on classifier response, not a full-reference real separation gain.
 
+To check optimization separately, we train fixed small sets. With the same
+loss and backbone, 128 old procedural mixtures rise from $13.85$ to $17.20$ dB
+train SI-SDRi in 3,000 updates; 128 empirical mixtures rise from $10.57$ to
+$15.56$ dB in 20,000 updates, with little further SI-SDRi gain near the end.
+Their target-absent event/ocean contrast nevertheless falls from $-32.85$ to
+$-60.68$ dB. This distinguishes remaining target reconstruction error from
+simple background leakage on these controlled mixtures. We then fine-tune the
+original strong Persistence checkpoint through $0\%$, $25\%$, and $50\%$
+pseudo-real stages at one-tenth the original learning rate. Disjoint 80/20
+training-day pseudo profiles and fixed old/empirical validation suites select
+step 6,500 in the $25\%$ stage: validation SI-SDRi changes from
+$16.26/11.12$ to $16.44/11.84$ dB. Four additional thousand $50\%$-stage
+updates further suppress target-absent energy but reduce joint SI-SDRi. The
+selected checkpoint scores $14.421$ dB on the untouched old-synthetic test,
+yet its real-event $p(\hat N)/p(\hat s)=.819/.823$ fails to retain the
+$50/50$ model's $.652/.916$. Thus more training helps a fixed set and avoids
+old-domain forgetting, but alone does not resolve the real-target tradeoff.
+A matched SI-SDR auxiliary term gains $.40$ dB on a fixed 128-mixture training
+probe, yet four thousand full-data $50\%$-stage updates do not exceed the
+same dual-validation starting point. We therefore keep the original loss;
+adding further target-absent suppression is also unsupported by the current
+controlled leakage audit.
+
 \begin{table*}[t]
 \caption{Same frozen real-call evaluation after target-pool revision, and
-SI-SDRi on the unchanged old synthetic test. New training changes targets,
-not the 128-group residual interface or frozen background predictor.}
+SI-SDRi on the unchanged old synthetic test. Curriculum selects on two
+separate validation suites; the 128-group interface and predictor are fixed.}
 \label{tab:empirical}\centering\footnotesize
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{llrrrr}
@@ -665,6 +691,7 @@ Condition & Training targets & Old-synth SI-SDRi (dB) & Real $p(\hat N)\downarro
 \midrule
 Persistence & Original procedural &14.295&.829&.849&.037\\
 Persistence & 50/50 empirical &12.195&.652&.916&.058\\
+Persistence & Curriculum (25\% pseudo) &14.421&.819&.823&.037\\
 GRU Forecast & Original procedural &14.351&.838&.842&.036\\
 GRU Forecast & 50/50 empirical &11.731&.725&.895&.043\\
 \bottomrule

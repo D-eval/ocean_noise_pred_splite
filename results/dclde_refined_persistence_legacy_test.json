@@ -1,0 +1,11 @@
+{
+  "protocol": "one-shot unchanged 4096-mixture legacy test after dual-validation selection",
+  "selected_step": 6500,
+  "selected_phase": "pseudo_0.25",
+  "mean_si_sdri_db": 14.421398091632,
+  "original_persistence_si_sdri_db": 14.29477920604404,
+  "bsr_si_sdri_db": 9.631022460191161,
+  "delta_vs_original_persistence_db": 0.12661888558795908,
+  "delta_vs_bsr_db": 4.790375631440838,
+  "csv": "results\\dclde_refined_persistence_legacy_test.csv"
+}

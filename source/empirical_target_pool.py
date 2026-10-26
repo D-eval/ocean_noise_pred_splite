@@ -249,7 +249,7 @@ def export_scalar_profiles() -> Path:
 
 
 class EmpiricalTargetPool:
-    def __init__(self):
+    def __init__(self, subset: str = "all"):
         report = json.loads(REPORT.read_text(encoding="utf-8"))
         manifest = pd.read_csv(MANIFEST)
         train_days = set(manifest.loc[manifest.split.eq("train"), "day"])
@@ -259,6 +259,14 @@ class EmpiricalTargetPool:
         self.profiles = np.load(PROFILES)
         if len(self.waveforms) != report["accepted_events"]:
             raise ValueError("pseudo waveform count does not match profile count")
+        if subset not in {"all", "fit", "validation"}:
+            raise ValueError("unknown empirical event subset")
+        permutation = np.random.default_rng(20261026).permutation(len(self.waveforms))
+        cutoff = int(round(.8 * len(permutation)))
+        self.indices = {"all": np.arange(len(self.waveforms)),
+                        "fit": permutation[:cutoff],
+                        "validation": permutation[cutoff:]}[subset]
+        self.subset = subset
 
     def procedural(self, seed: int) -> np.ndarray:
         """Render calibrated whale or retained vessel proxy with exact stem."""
@@ -271,7 +279,7 @@ class EmpiricalTargetPool:
             parameters = draw_injection(seed, snr_range=(0.0, 0.0),
                                         profile="marine", family=family)
             return render_injection(parameters, SAMPLE_RATE, SAMPLES)
-        index = int(rng.integers(len(self.waveforms)))
+        index = int(self.indices[int(rng.integers(len(self.indices)))])
         profile = self.profiles
         track = profile["track_hz"][index].astype(np.float64)
         envelope = profile["envelope"][index].astype(np.float64)
@@ -316,7 +324,7 @@ class EmpiricalTargetPool:
     def pseudo_real(self, seed: int) -> np.ndarray:
         """Reuse an extracted train-day call with independent timing and phase."""
         rng = np.random.default_rng(seed)
-        index = int(rng.integers(len(self.waveforms)))
+        index = int(self.indices[int(rng.integers(len(self.indices)))])
         source = self.waveforms[index].astype(np.float32)
         angle = float(rng.uniform(-np.pi, np.pi))
         source = (np.cos(angle)*source + np.sin(angle)*np.imag(hilbert(source))).astype(np.float32)

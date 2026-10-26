@@ -54,3 +54,4 @@ models/*
 !models/empirical_persistence_residual_128.pt
 !models/empirical_forecast_residual_128.pt
 !models/empirical_whale_only_persistence_residual_128.pt
+!models/refined_persistence_residual_128.pt
