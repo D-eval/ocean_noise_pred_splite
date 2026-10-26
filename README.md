@@ -358,3 +358,20 @@ python -m unittest discover -s tests -q
 验证日按预先设定的事件响应、区间外改动和旧合成 SI-SDRi 约束选中第 250 步。**选定后只评估一次**的同批 103 段真实测试鲸声：独立分类器给出 `p(N̂) 0.652 → 0.408`、`p(ŝ) 0.916 → 0.978`、区间外相对改动 `0.058 → 0.061`。配对同 WAV 事件前干净背景的平均概率为 `0.176`；逐例干净归一化 logit 残留量从 `3.606` 降到 `1.389`。但是，不变的 4096 个旧合成测试混合 SI-SDRi 从 `12.195` 降到 `10.323 dB`。这说明真实事件弱监督改善了独立语义代理指标，尚未达到干净背景水平，也有明确的旧目标域损失；真实鲸声隔离声轨仍没有真值。
 
 复现文件：[训练检测器](models/weak_train_frame_detector.pt)、[选中的分离器](models/weak_real_persistence_residual_128.pt)、[训练检测器验证结果](results/dclde_weak_train_detector.json)、[验证日选点](results/dclde_weak_real_finetune_selection.json)、[全部验证轨迹](results/dclde_weak_real_finetune_training.json)、[封存测试审计](results/dclde_weak_real_persistence_audit.json)及[103 段逐例结果](results/dclde_weak_real_persistence_event_results.csv)。
+
+### 冻结分离表示的 Persistence 弱监督
+
+后续实验从同一个 50/50 Persistence 权重开始，冻结频带编码与注意力表示，只更新 128 频组残差投影和 mask 输出头。训练检测器的背景目标改为**同一 WAV 中紧邻事件之前的标注干净 5 秒窗**的逐帧响应；有 GT 的一半样本保持原分离损失，并用冻结 50/50 模型的两声轨输出加教师一致性约束。验证日决定第 900 步；241 个被冻结的状态张量与教师完全相同。此轮没有训练 Forecast。
+
+```powershell
+python -m source.adapter_weak_finetune --steps 3000 --validate-every 100 --lambda-real 0.01 --lambda-distill 0.1
+python -m source.evaluate_weak_real --checkpoint models/adapter_weak_persistence_residual_128.pt --selection results/dclde_adapter_weak_persistence_selection.json --output results/dclde_adapter_weak_persistence_audit.json --previously-reported-test
+```
+
+| Persistence 训练 | 不变旧合成 SI-SDRi ↑ | 真实 $p(\hat N)$ ↓ | 真实 $p(\hat s)$ ↑ | 区间外改动 ↓ |
+| --- | ---: | ---: | ---: | ---: |
+| 50/50 有 GT 预训练 | 12.195 dB | 0.652 | 0.916 | 0.058 |
+| 全网真实弱监督 | 10.323 dB | 0.408 | 0.978 | 0.061 |
+| 冻结表示 + 教师一致性 | **12.156 dB** | **0.461** | **0.960** | 0.064 |
+
+这一版把旧合成域损失从 1.872 dB 缩至 0.038 dB，同时真实事件响应仍比预训练低，但未达到期待的 `0.25–0.30`，区间外改动略有恶化。干净背景的最终评估分类器平均响应为 `0.176`。测试日已在上一轮报告中使用，所以本轮 103 段结果是**探索性复核**；权重仍只依据验证日选定。更强教师权重的另一组只在验证日比较，未进入真实测试。[选点与冻结审计](results/dclde_adapter_weak_persistence_selection.json)、[验证轨迹](results/dclde_adapter_weak_persistence_training.json)、[验证配置比较](results/dclde_adapter_weak_validation_comparison.json)、[测试审计](results/dclde_adapter_weak_persistence_audit.json)、[检查点](models/adapter_weak_persistence_residual_128.pt)。

@@ -43,7 +43,10 @@ framewise detector enables train-day-only weak fine-tuning on annotated real
 calls: held-out $p(\hat N)$ falls further to $.408$ and $p(\hat s)$ reaches
 $.978$, while old-synthetic SI-SDRi declines to 10.323 dB. Independent
 evaluation and off-event checks support a partial real-domain gain, not
-full-reference whale-stem recovery.
+full-reference whale-stem recovery. Freezing the separator representation and
+distilling from the 50/50 teacher retains 12.156 dB on the old synthetic test,
+with real $p(\hat N)/p(\hat s)=.461/.960$; the stronger real suppression and
+near-preserved controlled separation remain a tradeoff.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -697,6 +700,7 @@ Condition & Training targets & Old-synth SI-SDRi (dB) & Real $p(\hat N)\downarro
 Persistence & Original procedural &14.295&.829&.849&.037\\
 Persistence & 50/50 empirical &12.195&.652&.916&.058\\
 Persistence & 50/50 + real weak &10.323&.408&.978&.061\\
+Persistence & Frozen trunk + clean-match teacher &12.156&.461&.960&.064\\
 Persistence & Curriculum (25\% pseudo) &14.421&.819&.823&.037\\
 GRU Forecast & Original procedural &14.351&.838&.842&.036\\
 GRU Forecast & 50/50 empirical &11.731&.725&.895&.043\\
@@ -740,6 +744,35 @@ independent-detector results support partial transfer from real event
 annotations, but do not reach the clean-background response or establish
 waveform-level recovery of an unobserved real stem.
 
+To limit forgetting, we freeze all band encoding and attention layers and
+train only the residual projection and mask output head. The original 50/50
+Persistence model is a frozen teacher. The new objective retains supervised
+synthetic/pseudo-real loss, adds two-stem $L_1$ teacher consistency, and
+matches $C_A(\hat N)$ to $C_A$ on the immediately preceding annotation-clean
+5-s window from the same WAV. Event retention and off-event preservation
+remain in the real loss. Specifically,
+$L=L_{\rm GT}+.01L_{\rm real}+.1L_{\rm teacher}$, where
+$L_{\rm real}=.25L_{\rm match}+.1L_{\rm event}+2L_{\rm off}$;
+$L_{\rm match}$ is a frame-masked smooth-$L_1$ loss on training-detector
+logits. Of 414,658 parameters, 99,774 representation
+parameters stay frozen; all 241 frozen state tensors are bit-identical to
+the teacher in the selected checkpoint. Validation-day constraints select
+step 900. A stronger teacher-weight trial does not materially improve the
+validation clean-response gap, so it is not promoted to test.
+
+On the reused 103-call test cohort, independent $C_B$ gives
+$p(\hat N)/p(\hat s)=.461/.960$, versus $.652/.916$ before weak tuning and
+$.408/.978$ after full-network weak tuning. Off-event change is $.064$,
+versus $.058$ before tuning; its paired increase is positive across the
+three dates. Crucially, unchanged old-synthetic SI-SDRi is $12.156$ dB,
+only $.038$ dB below the 50/50 teacher and $1.833$ dB above full-network
+weak tuning. The clean-normalized logit residue is $1.917$ (teacher:
+$3.606$; full weak: $1.389$). This is a more conservative Pareto point,
+but it does not reach $.25$--$.30$ background event probability or the
+matched-clean response of $.176$. Because this cohort was already reported
+for the preceding model, this follow-up comparison is exploratory rather
+than a fresh blind test.
+
 \section{Discussion and Conclusion}
 The preliminary 30-band FiLM model does not gain even from the true current
 30-band background. A successful full-waveform copy check and the fixed-head
@@ -762,9 +795,11 @@ SI-SDRi. The frozen GRU does not beat persistence after this target revision.
 Independent-detector weak fine-tuning lowers the background event proxy
 further while preserving the event-stem proxy and approximately maintaining
 off-event audio, but costs another $1.872$ dB on the unchanged synthetic
-test. Thus proxy improvement does not establish a uniform real separation
-gain. Three held-out days, uncertain event labels, and unavailable isolated
-stems further limit inference.
+test. Freezing the separator representation and adding teacher consistency
+nearly eliminates that controlled-domain loss, at the expense of weaker real
+event suppression and a small off-event increase. Thus proxy improvement
+does not establish a uniform real separation gain. Reuse of three test days,
+uncertain event labels, and unavailable isolated stems further limit inference.
 
 The existing 30-band FiLM frontend permits inspection and playback, but the
 new 128-group model has not been deployed there. Future work should preserve

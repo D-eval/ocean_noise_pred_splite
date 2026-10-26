@@ -1,0 +1,28 @@
+{
+  "selection_split": "DCLDE validation day only",
+  "selected": "dclde_adapter_weak_persistence",
+  "reason": "The stronger-teacher trial improves the absolute matched-clean logit gap by only 0.00053, while validation SI-SDRi, event response, and off-event preservation are all weaker.",
+  "test_day_scores_used_for_selection": false,
+  "candidates": [
+    {
+      "run": "dclde_adapter_weak_persistence",
+      "step": 900,
+      "lambda_real": 0.01,
+      "lambda_distill": 0.1,
+      "validation_absolute_clean_gap": 1.3948748720453141,
+      "validation_synthetic_si_sdri_db": 10.376707621850073,
+      "validation_event_probability": 0.8116306325698153,
+      "validation_off_event_error": 0.12191013083297839
+    },
+    {
+      "run": "dclde_adapter_weak_persistence_mid",
+      "step": 1500,
+      "lambda_real": 0.03,
+      "lambda_distill": 0.5,
+      "validation_absolute_clean_gap": 1.3943403604182791,
+      "validation_synthetic_si_sdri_db": 10.350698569789529,
+      "validation_event_probability": 0.8086939859897533,
+      "validation_off_event_error": 0.12239238596025934
+    }
+  ]
+}

@@ -42,9 +42,13 @@ def paired(values: np.ndarray, days: np.ndarray) -> dict:
             "day_bootstrap_ci95": list(paired_bootstrap_interval(np.asarray(list(by_day.values()))))}
 
 
-def audit(device_name: str = "cuda") -> dict:
-    checkpoint_path = FIT_OUT / "best.pt"
-    selected = json.loads((FIT_OUT / "result.json").read_text(encoding="utf-8"))
+def audit(device_name: str = "cuda", checkpoint_path: Path | None = None,
+          selection_path: Path | None = None, output_path: Path | None = None,
+          previously_reported_test: bool = False) -> dict:
+    checkpoint_path = checkpoint_path or FIT_OUT / "best.pt"
+    selection_path = selection_path or FIT_OUT / "result.json"
+    output_path = output_path or OUT
+    selected = json.loads(selection_path.read_text(encoding="utf-8"))
     if selected["best_step"] == 0:
         raise ValueError("no weakly supervised checkpoint met validation constraints")
     device = torch.device(device_name)
@@ -64,7 +68,8 @@ def audit(device_name: str = "cuda") -> dict:
     synth_days = np.asarray([r["day"] for r in synthetic_rows])
     new_si = np.asarray([float(r["persistence_si_sdri_db"]) for r in synthetic_rows])
     old_si = np.asarray([float(r["persistence_si_sdri_db"]) for r in prior_synth])
-    real_path = OUT.with_name("dclde_weak_real_persistence_event_results.json")
+    real_path = output_path.with_name(output_path.stem.replace("_audit", "")
+                                      + "_event_results.json")
     real_evaluate(device_name, names=("persistence",),
                   checkpoint_overrides={"persistence": checkpoint_path},
                   output_override=real_path)
@@ -95,6 +100,7 @@ def audit(device_name: str = "cuda") -> dict:
                      "train_detector_independent_of_evaluation_detector": True,
                      "real_test_events": len(weak), "controlled_test_examples": len(synthetic_rows),
                      "test_days_used_to_change_training_or_checkpoint": False,
+                     "test_cohort_previously_reported": previously_reported_test,
                      "real_clean_stem_gt": False,
                      "train_detector_sha256": file_sha256(Path("models/weak_train_frame_detector.pt")),
                      "evaluation_detector_sha256": file_sha256(CLASSIFIER_PATH),
@@ -112,12 +118,17 @@ def audit(device_name: str = "cuda") -> dict:
             "weak_minus_pretrained": paired(new_residue-old_residue, real_days)},
         "real_rows": str(real_path.with_suffix(".csv")),
     }
-    OUT.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    output_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
     return result
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument("--selection", type=Path)
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--previously-reported-test", action="store_true")
     args = parser.parse_args()
-    print(json.dumps(audit(args.device), indent=2))
+    print(json.dumps(audit(args.device, args.checkpoint, args.selection,
+                           args.output, args.previously_reported_test), indent=2))

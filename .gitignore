@@ -57,3 +57,4 @@ models/*
 !models/refined_persistence_residual_128.pt
 !models/weak_real_persistence_residual_128.pt
 !models/weak_train_frame_detector.pt
+!models/adapter_weak_persistence_residual_128.pt

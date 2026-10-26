@@ -1,0 +1,146 @@
+{
+  "protocol": {
+    "real_event_examples": 103,
+    "days": [
+      "2009-04-01",
+      "2009-04-02",
+      "2009-04-03"
+    ],
+    "target_pool": {
+      "persistence": "50% synthetic/pseudo-real + 50% train-day real annotated"
+    },
+    "condition_predictor_retrained": false,
+    "classifier_retrained": false,
+    "real_stem_gt": false,
+    "same_cohort_as_old": true,
+    "predictor_checkpoint_sha256": "b814adefa00465e84e60a8386edbe46ccd57eceb84c8eed63c8055ae10d55378",
+    "classifier_checkpoint_sha256": "18eef19ea7003a9060d7ec843eb0616ea037767533513e5b309b09da3536aca1",
+    "separator_checkpoint_sha256": {
+      "persistence": "e55ad60a85dd4e63049aa9e579f68bd49a8ffe9288893142c5903e5854ba3db1"
+    }
+  },
+  "means": {
+    "persistence": {
+      "old": {
+        "background_event_probability": 0.8285115071870748,
+        "event_stem_probability": 0.8491058089200733,
+        "monotonic_fraction": 0.9919093858848498,
+        "off_event_relative_error": 0.03688061738260163,
+        "removal_logit": 1.7537310263842742,
+        "restoration_auc": 0.23788704961827659,
+        "leakage_outside_event": 0.3963330004118989,
+        "reconstruction_relative_error": 7.079400543671496e-09
+      },
+      "new": {
+        "background_event_probability": 0.46094842322026064,
+        "event_stem_probability": 0.9598820371896897,
+        "monotonic_fraction": 0.9854368949399411,
+        "off_event_relative_error": 0.0643007413244544,
+        "removal_logit": 5.673077889727157,
+        "restoration_auc": 0.2672794243519746,
+        "leakage_outside_event": 0.3372372533884171,
+        "reconstruction_relative_error": 8.718680718058305e-09
+      }
+    }
+  },
+  "paired_new_minus_old": {
+    "persistence": {
+      "background_event_probability": {
+        "mean": -0.3675630839668142,
+        "day_block_ci95": [
+          -0.4285576002051433,
+          -0.2718765192798206
+        ],
+        "by_day": {
+          "2009-04-01": -0.40754188072720643,
+          "2009-04-02": -0.2718765192798206,
+          "2009-04-03": -0.4285576002051433
+        }
+      },
+      "event_stem_probability": {
+        "mean": 0.11077622826961638,
+        "day_block_ci95": [
+          0.07260082449231829,
+          0.1826075285673142
+        ],
+        "by_day": {
+          "2009-04-01": 0.08922886309262953,
+          "2009-04-02": 0.07260082449231829,
+          "2009-04-03": 0.18260752856731416
+        }
+      },
+      "monotonic_fraction": {
+        "mean": -0.006472490944908661,
+        "day_block_ci95": [
+          -0.008771929301713643,
+          -0.004761903626578194
+        ],
+        "by_day": {
+          "2009-04-01": -0.008771929301713643,
+          "2009-04-02": -0.004761903626578194,
+          "2009-04-03": -0.005555554231007894
+        }
+      },
+      "off_event_relative_error": {
+        "mean": 0.027420123941852774,
+        "day_block_ci95": [
+          0.02102092984908571,
+          0.03699894674048808
+        ],
+        "by_day": {
+          "2009-04-01": 0.03699894674048808,
+          "2009-04-02": 0.022505282697134785,
+          "2009-04-03": 0.02102092984908571
+        }
+      },
+      "removal_logit": {
+        "mean": 3.919346863342883,
+        "day_block_ci95": [
+          3.3117174544837327,
+          4.322883224408877
+        ],
+        "by_day": {
+          "2009-04-01": 4.322883224408877,
+          "2009-04-02": 3.3117174544837327,
+          "2009-04-03": 4.117101782994966
+        }
+      },
+      "restoration_auc": {
+        "mean": 0.02939237473369802,
+        "day_block_ci95": [
+          -0.08317689895629883,
+          0.11794281025466165
+        ],
+        "by_day": {
+          "2009-04-01": 0.11794281025466166,
+          "2009-04-02": -0.08317689895629883,
+          "2009-04-03": 0.04855930904547374
+        }
+      },
+      "leakage_outside_event": {
+        "mean": -0.059095747023481804,
+        "day_block_ci95": [
+          -0.08950570370070636,
+          -0.038874151728980774
+        ],
+        "by_day": {
+          "2009-04-01": -0.05371304004955547,
+          "2009-04-02": -0.038874151728980774,
+          "2009-04-03": -0.08950570370070636
+        }
+      },
+      "reconstruction_relative_error": {
+        "mean": 1.6392801743868083e-09,
+        "day_block_ci95": [
+          1.3503273645442067e-09,
+          2.0886663842922815e-09
+        ],
+        "by_day": {
+          "2009-04-01": 1.3503273645442067e-09,
+          "2009-04-02": 1.5678121880112275e-09,
+          "2009-04-03": 2.0886663842922815e-09
+        }
+      }
+    }
+  }
+}
