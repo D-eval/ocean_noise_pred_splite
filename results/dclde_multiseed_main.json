@@ -1,0 +1,198 @@
+{
+  "seeds": [
+    20261022,
+    20261023,
+    20261024
+  ],
+  "arms": [
+    "bsr",
+    "zero",
+    "shuffled",
+    "persistence",
+    "forecast"
+  ],
+  "test_seed": 40261022,
+  "test_examples": 4096,
+  "per_seed": {
+    "20261022": {
+      "bsr": 9.631022460191161,
+      "zero": 12.156408750277478,
+      "shuffled": 11.943879551166901,
+      "persistence": 14.29477920604404,
+      "forecast": 14.35113365892903
+    },
+    "20261023": {
+      "bsr": 9.662203532490821,
+      "zero": 10.824441540615226,
+      "shuffled": 11.35505563551851,
+      "persistence": 13.425263259909116,
+      "forecast": 13.430676257281448
+    },
+    "20261024": {
+      "bsr": 9.61298009607708,
+      "zero": 11.55320834244776,
+      "shuffled": 12.001706386137812,
+      "persistence": 14.01451697779703,
+      "forecast": 14.002428715175483
+    }
+  },
+  "contrasts": {
+    "persistence_minus_zero": {
+      "20261022": 2.1383704557665624,
+      "20261023": 2.60082171929389,
+      "20261024": 2.461308635349269
+    },
+    "persistence_minus_shuffled": {
+      "20261022": 2.3508996548771393,
+      "20261023": 2.070207624390605,
+      "20261024": 2.0128105916592176
+    },
+    "forecast_minus_persistence": {
+      "20261022": 0.05635445288498886,
+      "20261023": 0.005412997372332029,
+      "20261024": -0.012088262621546164
+    }
+  },
+  "contrast_by_seed_day": {
+    "persistence_minus_zero": {
+      "20261022": {
+        "2009-04-01": 1.774721432988152,
+        "2009-04-02": 2.3768076864404035,
+        "2009-04-03": 2.174914551440967
+      },
+      "20261023": {
+        "2009-04-01": 2.0810164069176587,
+        "2009-04-02": 2.6809901890657084,
+        "2009-04-03": 2.8947617990783434
+      },
+      "20261024": {
+        "2009-04-01": 1.605835592281158,
+        "2009-04-02": 2.6396477671235408,
+        "2009-04-03": 2.902035232216235
+      }
+    },
+    "persistence_minus_shuffled": {
+      "20261022": {
+        "2009-04-01": 1.5712706788251012,
+        "2009-04-02": 2.611936293650964,
+        "2009-04-03": 2.6612070590986403
+      },
+      "20261023": {
+        "2009-04-01": 1.3004078940301458,
+        "2009-04-02": 2.25058860529801,
+        "2009-04-03": 2.4483418004776674
+      },
+      "20261024": {
+        "2009-04-01": 1.3515645298602688,
+        "2009-04-02": 2.222731529963174,
+        "2009-04-03": 2.2866431797831828
+      }
+    },
+    "forecast_minus_persistence": {
+      "20261022": {
+        "2009-04-01": 0.06231647854388356,
+        "2009-04-02": 0.07391149785930626,
+        "2009-04-03": 0.03585001784095126
+      },
+      "20261023": {
+        "2009-04-01": 0.01701847549788417,
+        "2009-04-02": 0.02411423889321639,
+        "2009-04-03": -0.02015078669962889
+      },
+      "20261024": {
+        "2009-04-01": -0.0037074680224426435,
+        "2009-04-02": -0.013942795855398397,
+        "2009-04-03": -0.016306327269957947
+      }
+    }
+  },
+  "checkpoint_sha256": {
+    "20261022": {
+      "bsr": "af6366df2913eba6b9c816227ad2cd473e5a3063ee45ce18b3fe3e578eccdf4e",
+      "zero": "9fa3c06eb7f5e4ce7f9cae51aad6a73c5f4939a5f526b34a13528f6d090f4217",
+      "shuffled": "613109889922da698cad0bc81cc994bd50852426b0f4f4fc447cae4d97ad497b",
+      "persistence": "78cb0b4a69cdb3b264db8c274d412ddedfbf049ec97ffd0f1e1bba8f70f37562",
+      "forecast": "8d81c868e116500d2b7d4b024e92a78e41b6c790aa071e01b76d31217562a1a7"
+    },
+    "20261023": {
+      "bsr": "fe4ab127fbeff7a3053949a04ba92b328bde95703b17bad5cd73524eb73ec681",
+      "zero": "e9b8215fca832e9176f0c0130e3bb6f5995650a7cfe512f28f3ff4f73ca56f17",
+      "shuffled": "22b75c89284b426445e1e0eeb18bda90abfd30951e5c201bf7cca1513bd66284",
+      "persistence": "95787bde7ff1d786bc0bc6665fee3538a0c60e55399c719797f168d5db1ace91",
+      "forecast": "288848cf3e96175e85aed33882e6a16ce62f56caea15abd5b984060b95673f1c"
+    },
+    "20261024": {
+      "bsr": "794b1c93bbb2ae990388dce3975622c0f5c648c1572d99e9e5d1a5699e4bbe5a",
+      "zero": "08f34bfc5c48450cc0439b48e1cd323db6f3ff0c97b0e49f1a93931f41890bec",
+      "shuffled": "c96b68f5d9708de1d03719582bd0fb251eb29a3080d6b3ed99c9aca0da14772b",
+      "persistence": "5d5a7f2436a2efac9712a4d16a6b1640ac267eaaaefe51190c2d03aa06d951c3",
+      "forecast": "1b0057c4b86c4f5c7f424433e2b480f24515e9c33519c09a899f3d5e76251b1c"
+    }
+  },
+  "fixed_test_csv_sha256": {
+    "20261022": {
+      "bsr": "9d57182ab10ffd92db79cee1c10d5e1e197b37ed6dd494b433286c9765cea3c2",
+      "zero": "aabd2ae8a26732faf40ef3d01f5741565fb876581698c86bc2da002418155949",
+      "shuffled": "0c8f0bf2f0f8d65c6e9f88f6b94a1383406d62c4472d1fbdea9b0baa69289b76",
+      "persistence": "acd2a8bd807423bb897d2571f5f25eb5dc7bf56bd6d4122294518bbdc2d4a341",
+      "forecast": "60d81f750287252fadaf57c32a5d2a95cdaea73d08af4dea1de440c65a3e152b"
+    },
+    "20261023": {
+      "bsr": "cb5da257a5737836317addc37e2da2ae2ae13f379b63a4626619aa12694d7bae",
+      "zero": "615e1e8635a8d12a7328846fd4f994717853b88ea069fbca17400513da898a1b",
+      "shuffled": "01e17d0aff6e9644a4e28905254c4dda6a502357894b02220ad4a3a2705d2f94",
+      "persistence": "2b4aa8b5f2884d70fbe40b17c2e51a1c874b21956a53cd1ee81f766076b360b1",
+      "forecast": "9e459d9d179354e015516d1192145f4bde601f7977df75edc3d417de9c80a69a"
+    },
+    "20261024": {
+      "bsr": "ca1c609b873d5436978bb889a81986964a443d422a7ab1ab359880e597eac6de",
+      "zero": "4bcfcd1bf883b9a1f18dda09dbf1f024c532df5aa8daca1fbd9fc336f0f44f27",
+      "shuffled": "0233d428713893f928e023398654542e846f1dc504849ff66a22596daaa8b38c",
+      "persistence": "50c8727a3af28d76961ab74b784768a9043a2e7b126bbe37f1ced93e3f66905f",
+      "forecast": "b03638ae8e64458bcb4dbd0d6d7748c80bff86c0e2fc49657ea6d7e77e100f8e"
+    }
+  },
+  "protocol": "6000 updates/arm; 4096 validation mixtures every 100 steps; best validation SI-SDRi; common 4096 test mixtures; frozen original high-resolution GRU across separator seeds",
+  "mean_sd": {
+    "bsr": {
+      "mean": 9.635402029586354,
+      "sd": 0.024902251788942033
+    },
+    "zero": {
+      "mean": 11.511352877780155,
+      "sd": 0.6669693185190513
+    },
+    "shuffled": {
+      "mean": 11.766880524274407,
+      "sd": 0.3578208908934658
+    },
+    "persistence": {
+      "mean": 13.911519814583395,
+      "sd": 0.44381393271084946
+    },
+    "forecast": {
+      "mean": 13.92807954379532,
+      "sd": 0.46471099247343184
+    }
+  },
+  "contrast_mean_sd": {
+    "persistence_minus_zero": {
+      "mean": 2.4001669368032403,
+      "sd": 0.2372109256765496,
+      "all_positive": true,
+      "all_seed_day_positive": true
+    },
+    "persistence_minus_shuffled": {
+      "mean": 2.1446392903089873,
+      "sd": 0.18091740749699078,
+      "all_positive": true,
+      "all_seed_day_positive": true
+    },
+    "forecast_minus_persistence": {
+      "mean": 0.016559729211924907,
+      "sd": 0.03555683548215403,
+      "all_positive": false,
+      "all_seed_day_positive": false
+    }
+  }
+}

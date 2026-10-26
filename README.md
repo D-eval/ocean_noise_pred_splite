@@ -70,7 +70,7 @@ python -m source.web
 
 同规模、同训练量的无条件 BS-RoFormer 基线为 6.02 dB；旧加法频谱条件相对基线的配对差为 −0.28 dB（95% CI：−0.69 至 0.14）。该负结果推动了后续广分布条件注入消融；历史结果保留在 [results/practical_results.json](results/practical_results.json)，不再作为部署模型。
 
-论文提供英文 [main.tex](paper/main.tex) 与中文 [main_zh.tex](paper/main_zh.tex) 两份源文件，以及已渲染的[英文 PDF](output/pdf/forecast_conditioned_ocean_separation_en.pdf)和[中文 PDF](output/pdf/forecast_conditioned_ocean_separation_zh.pdf)。
+论文提供英文 [main.tex](paper/main.tex) 与中文 [main_zh.tex](paper/main_zh.tex) 两份源文件，以及已渲染的[英文 PDF](output/pdf/forecast_conditioned_ocean_separation_en.pdf)和[中文 PDF（三种子最终版）](output/pdf/forecast_conditioned_ocean_separation_zh_3seed.pdf)。
 
 ## 广分布信号与散度实验
 
@@ -247,9 +247,26 @@ python -m source.dclde_causal_highres_experiment summary
 | GRU-Forecast-Residual | 14.351 | +4.720 |
 | Oracle-Residual | 16.767 | +7.136 |
 
-Zero 相对 BSR 提高 `+2.525 dB`，Shuffled 提高 `+2.313 dB`，说明不能把因果模型相对 BSR 的全部收益归因于历史信息。Zero 相对 BSR 的差异同时包含适配器参数和创新通路提供的当前混合对数谱，尚不能只量化“容量”作用。保持接口相同后，Persistence 相比 Zero 高 `+2.138 dB`，按三个录音日配对的 95% 区间为 `[1.775,2.377]`；相比错日 Shuffled 高 `+2.351 dB`，区间 `[1.571,2.661]`。三个留出日均同向，支持正确时刻的历史背景有额外价值。GRU 背景图的测试对数幅度 MAE 为 `0.5308`，Persistence 为 `0.5386`；Forecast 相对 Persistence 仅高 `+0.056 dB`，区间 `[0.036,0.074]`。因此 GRU 的增益真实而很小。下节独立报告真实事件上的迁移结果。
+原始种子中，Zero 相对 BSR 提高 `+2.525 dB`，Shuffled 提高 `+2.313 dB`，说明不能把因果模型相对 BSR 的全部收益归因于历史信息。Zero 相对 BSR 的差异同时包含适配器参数和创新通路提供的当前混合对数谱，尚不能只量化“容量”作用。保持接口相同后，Persistence 相比 Zero 高 `+2.138 dB`，按三个录音日配对的 95% 区间为 `[1.775,2.377]`；相比错日 Shuffled 高 `+2.351 dB`，区间 `[1.571,2.661]`。三个留出日均同向。GRU 背景图的测试对数幅度 MAE 为 `0.5308`，Persistence 为 `0.5386`；原始种子的 Forecast 相对 Persistence 高 `+0.056 dB`，区间 `[0.036,0.074]`，但这只是在该已训练模型上的日期分块区间，不能代表跨训练种子的稳定性。下文单列三种子复核。
 
 完整汇总见 [results/dclde_causal_highres_comparison.json](results/dclde_causal_highres_comparison.json)，逐例配对分数见 [results/dclde_causal_highres_test_samples.csv](results/dclde_causal_highres_test_samples.csv)；冻结预测器及五路残差检查点位于 `models/`，包括 `highres_gru_128.pt`、`zero_residual_128.pt`、`shuffled_residual_128.pt`、`persistence_residual_128.pt`、`forecast_residual_128.pt`、`oracle_residual_128.pt`。
+
+### 主结果的三个分离器随机种子
+
+原始种子 `20261022` 加两个独立种子 `20261023/20261024`，五路模型均训 6000 步，每 100 步在同一规则下验证并选最高分；最终统一测试固定的 4096 个混合。背景 GRU 保持原冻结检查点，因此只检验分离器种子方差。汇总脚本在比较前逐例核对样本编号、输入强度和混合 SI-SDR。数值为 dB，末列为三种子均值 ± 样本标准差。
+
+| 方法或配对差 | 种子 1 | 种子 2 | 种子 3 | 均值 ± SD |
+| --- | ---: | ---: | ---: | ---: |
+| BS-RoFormer | 9.631 | 9.662 | 9.613 | 9.635 ± 0.025 |
+| Zero-Residual | 12.156 | 10.824 | 11.553 | 11.511 ± 0.667 |
+| Shuffled-Residual | 11.944 | 11.355 | 12.002 | 11.767 ± 0.358 |
+| Persistence-Residual | 14.295 | 13.425 | 14.015 | 13.912 ± 0.444 |
+| GRU-Forecast-Residual | 14.351 | 13.431 | 14.002 | 13.928 ± 0.465 |
+| Persistence − Zero | +2.138 | +2.601 | +2.461 | +2.400 ± 0.237 |
+| Persistence − Shuffled | +2.351 | +2.070 | +2.013 | +2.145 ± 0.181 |
+| Forecast − Persistence | +0.056 | +0.005 | −0.012 | +0.017 ± 0.036 |
+
+Persistence 对 Zero/Shuffled 在三个种子和每个种子的三个测试日上均为正，因此正确历史背景带来的收益跨分离器初始化保持同向。GRU 的微小差值跨种子变号，**不能宣称学习式预测稳定优于 Persistence**。Oracle 的 16.767 dB 仅来自原始种子，不属于三种子统计。完整逐种子、逐日差值及检查点哈希见 [结果汇总](results/dclde_multiseed_main.json)。两个新种子的各五路最佳检查点位于 `models/seed20261023_*.pt` 和 `models/seed20261024_*.pt`，其 SHA-256 与汇总文件一致。复现命令：`python -m source.dclde_multiseed_main`，完成训练后运行 `python -m source.dclde_multiseed_main --summary`。
 
 ### 128 频组残差模型的真实鲸声迁移
 

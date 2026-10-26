@@ -40,6 +40,8 @@ events.out.tfevents.*
 *.synctex.gz
 *.toc
 paper/*.pdf
+# Superseded Chinese PDF may remain open locally; final version has _3seed suffix.
+output/pdf/forecast_conditioned_ocean_separation_zh.pdf
 
 # OS noise
 .DS_Store

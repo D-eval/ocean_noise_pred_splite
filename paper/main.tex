@@ -16,13 +16,14 @@ have real annotation-clean ocean backgrounds and synthetic events with exact
 stems. A 30-band FiLM precursor fails to exploit even an oracle background;
 an information ladder instead motivates a time-resolved 128-group map and
 explicit mixture-minus-background innovation injected through a residual
-BS-RoFormer adapter. On 4,096 held-out mixtures, BS-RoFormer obtains 9.631 dB
-target SI-SDRi. Fixed-mean Zero and wrong-day Shuffled conditions obtain
-12.156 and 11.944 dB, while past-60-s Persistence and GRU Forecast obtain
-14.295 and 14.351 dB; the current-background Oracle reaches 16.767 dB.
-Thus correct historical information adds 2.138 and 2.351 dB over the matched
-Zero and Shuffled interfaces, whereas the GRU adds only 0.056 dB over
-Persistence. On a previously untouched Gulf of St. Lawrence cohort of 373
+BS-RoFormer adapter. On the same 4,096 held-out mixtures, three separator
+seeds average 9.635 dB target SI-SDRi for BS-RoFormer, 11.511 for fixed-mean
+Zero, 11.767 for wrong-day Shuffled, 13.912 for past-60-s Persistence, and
+13.928 for GRU Forecast; a single-seed current-background Oracle reaches
+16.767 dB. Persistence exceeds Zero and Shuffled by $2.400\pm.237$ and
+$2.145\pm.181$ dB (mean $\pm$ seed SD), positive on all nine seed-day
+pairs. The GRU adds $0.017\pm.036$ dB over Persistence and changes sign
+across seeds. On a previously untouched Gulf of St. Lawrence cohort of 373
 real annotated calls, frozen Persistence reduces the background-stem event
 detector response relative to wrong-file Shuffled by 0.064 (file-block 95\%
 CI $[-.124,-.013]$), but event-stem response and off-event preservation
@@ -429,10 +430,12 @@ does not separately identify parameter count. With the adapter held fixed,
 Persistence exceeds Zero by $+2.138$ dB ($[1.775,2.377]$) and wrong-day
 Shuffled by $+2.351$ dB ($[1.571,2.661]$), positive on every held-out day.
 This supports a contribution from temporally relevant historical background
-beyond architecture and arbitrary background maps. Forecast exceeds
-Persistence by only $+0.056$ dB ($[0.036,0.074]$), again positive on all
-three days but small in practice. Forecast retains 66.1\% of the Oracle
-gain over BSR, with a $2.416$ dB Oracle gap ($[2.114,2.640]$).
+beyond architecture and arbitrary background maps. In this original seed,
+Forecast exceeds Persistence by only $+0.056$ dB ($[0.036,0.074]$), positive
+on all three days; the later seed replication in Table~\ref{tab:seeds}
+shows that this small GRU advantage is not stable across training seeds.
+This seed's Forecast retains 66.1\% of the Oracle gain over BSR, with a
+$2.416$ dB Oracle gap ($[2.114,2.640]$).
 
 \begin{figure}[t]
 \centering
@@ -766,8 +769,41 @@ are checked before comparison. The background GRU remains the previously
 selected frozen checkpoint across seeds, so this experiment measures
 \emph{separator} seed sensitivity, not predictor-training variation.
 
+\begin{table*}[t]
+\caption{Three separator seeds on the identical 4,096-mixture DCLDE test.
+Entries are target SI-SDRi (dB); contrast rows are paired differences (dB).
+The last column is mean $\pm$ sample standard deviation across seeds.
+Oracle is a single-seed upper bound (16.767 dB) and was not retrained.}
+\label{tab:seeds}\centering\footnotesize
+\begin{tabular}{lrrrr}
+\toprule
+Method or paired contrast & Seed 1 & Seed 2 & Seed 3 & Mean $\pm$ SD\\
+\midrule
+BS-RoFormer & 9.631 & 9.662 & 9.613 & $9.635\pm.025$\\
+Zero-Residual & 12.156 & 10.824 & 11.553 & $11.511\pm.667$\\
+Shuffled-Residual & 11.944 & 11.355 & 12.002 & $11.767\pm.358$\\
+Persistence-Residual & 14.295 & 13.425 & 14.015 & $13.912\pm.444$\\
+GRU-Forecast-Residual & 14.351 & 13.431 & 14.002 & $13.928\pm.465$\\
+\midrule
+Persistence $-$ Zero & +2.138 & +2.601 & +2.461 & $+2.400\pm.237$\\
+Persistence $-$ Shuffled & +2.351 & +2.070 & +2.013 & $+2.145\pm.181$\\
+Forecast $-$ Persistence & +.056 & +.005 & $-.012$ & $+.017\pm.036$\\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Correct history exceeds both matched controls for all three seeds and on
+each of their three held-out recording days. Its advantage over Zero is
+$2.400\pm.237$ dB and over wrong-day Shuffled $2.145\pm.181$ dB. Thus the
+main historical-information result survives separator initialization
+variation. Forecast exceeds Persistence in only two of three seeds; its
+$+.017\pm.036$ dB average contrast does not support a reliable learned-GRU
+separation advantage. The original seed's positive day-block interval
+conditions on that one trained model and should not be interpreted as
+uncertainty across training seeds.
+
 \subsection{One-shot real-event test at a new site}
-We froze the previously selected BSR, four original residual arms, both
+We froze the original-seed BSR, four original residual arms, both
 50/50-target residual arms, the adapter-only weak checkpoint, the background
 GRU, and the evaluation detector before opening a geographically distinct
 test set. The Gulf of St. Lawrence (GSL) continuous recordings and call-center
@@ -831,7 +867,8 @@ The 50/50 and weakly adapted models do not give a clear Pareto improvement.
 Thus correct history transfers to the new site as a background-response
 advantage over wrong-file conditioning, while event retention and background
 preservation worsen. We do not interpret lower $p(\hat N)$ alone as robust
-real-stem separation.
+real-stem separation. This external test uses one frozen separator seed;
+the three-seed analysis above addresses only controlled DCLDE mixtures.
 
 \section{Discussion and Conclusion}
 The preliminary 30-band FiLM model does not gain even from the true current
@@ -842,8 +879,12 @@ With a 128-group residual interface, Oracle gains $7.136$ dB over BSR;
 past-60-s Persistence and Forecast retain $4.664$ and $4.720$ dB. Zero and
 wrong-day Shuffled also gain $2.525$ and $2.313$ dB, so the expanded interface
 contributes. Within that interface, correct history adds $2.138$ dB over Zero
-and $2.351$ dB over Shuffled. The GRU adds only $.056$ dB over persistence on
-the original target distribution, with $2.416$ dB remaining to Oracle.
+and $2.351$ dB over Shuffled in the original seed. Three-seed replication
+preserves these contrasts at $2.400\pm.237$ and $2.145\pm.181$ dB, positive
+for all nine seed-day combinations. The original $.056$-dB GRU gain shrinks
+to $+.017\pm.036$ dB across seeds and reverses sign in one seed. The learned
+forecast has no established separation advantage over short-term persistence;
+the original seed remains $2.416$ dB below Oracle.
 
 On real calls, the original four-condition ranking differs between frozen
 classifier probabilities and off-event preservation. The clean-background

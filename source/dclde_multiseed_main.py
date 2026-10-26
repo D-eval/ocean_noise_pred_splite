@@ -17,12 +17,11 @@ from pathlib import Path
 import numpy as np
 import torch
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
 from .dclde import CLEAN_BACKGROUND_MANIFEST, CLEAN_OCEAN_FEATURE_CACHE
 from .dclde_causal_highres_experiment import (
     ConditionedInjectedDataset, CausalResidualBSR, HighResolutionStore,
-    separation_validation,
 )
 from .dclde_separation_experiment import (
     CausalFeatureStore, ExperimentConfig, InjectedUpcallDataset, _full_reference_test,
@@ -40,27 +39,26 @@ TEST_SEED = SEEDS[0] + 20_000_000
 STEPS = 6000
 
 
-class _MemoizedDataset(Dataset):
-    """Avoid regenerating identical deterministic validation examples 60 times."""
-
-    def __init__(self, base: Dataset):
-        self.base = base
-        self.cache: dict[int, dict] = {}
-
-    def __len__(self) -> int:
-        return len(self.base)
-
-    def __getitem__(self, item: int) -> dict:
-        if item not in self.cache:
-            self.cache[item] = self.base[item]
-        return self.cache[item]
-
-
 def _write_csv(path: Path, rows: list[dict]) -> None:
     with path.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
+
+
+@torch.inference_mode()
+def _cached_validation_score(model: CausalResidualBSR,
+                             batches: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]]) -> float:
+    """Score exactly the original batches after one transfer to the GPU."""
+    model.eval()
+    scores = []
+    for mixture, source, condition in batches:
+        estimate = model(mixture, condition)
+        length = min(estimate.shape[-1], source.shape[-1])
+        improvement = si_sdr(estimate[..., :length], source[..., :length]) - si_sdr(
+            mixture[..., :length], source[..., :length])
+        scores.extend(improvement.cpu().tolist())
+    return float(np.mean(scores))
 
 
 @torch.inference_mode()
@@ -114,10 +112,10 @@ def _train_residual(cache: HighResolutionStore, seed: int, arm: str,
                               Path(config.transfer_checkpoint)).to(device)
     train = ConditionedInjectedDataset(cache, "train", config.train_examples, seed, arm,
                                        cache_waveforms=True)
-    validation = _MemoizedDataset(ConditionedInjectedDataset(
+    validation = ConditionedInjectedDataset(
         cache, "validation", config.validation_examples, seed + 10_000_000,
-        arm, cache_waveforms=True,
-    ))
+        arm,
+    )
     train_loader = DataLoader(train, batch_size=config.batch_size, shuffle=True,
                               generator=torch.Generator().manual_seed(seed), num_workers=0)
     validation_loader = DataLoader(validation, batch_size=24, shuffle=False, num_workers=0)
@@ -137,6 +135,7 @@ def _train_residual(cache: HighResolutionStore, seed: int, arm: str,
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, config.separation_steps)
     output.mkdir(parents=True, exist_ok=True)
     training_rows, best, best_step = [], -math.inf, 0
+    cached_validation_batches = None
     iterator = iter(train_loader)
     for step in range(1, STEPS + 1):
         model.train()
@@ -156,7 +155,18 @@ def _train_residual(cache: HighResolutionStore, seed: int, arm: str,
         if step == 1 or step % config.separation_validate_every == 0:
             row = {"step": step, "train_loss": float(loss.detach())}
             if step % config.separation_validate_every == 0:
-                score = separation_validation(model, validation_loader, device)
+                if cached_validation_batches is None:
+                    cached_validation_batches = [
+                        (batch["mixture"].to(device), batch["source"].to(device),
+                         batch["condition_map"].to(device))
+                        for batch in validation_loader
+                    ]
+                else:
+                    # Iterating a DataLoader consumes one torch base seed even
+                    # with no workers. Preserve that RNG advance so training
+                    # uses the same dropout stream as the original protocol.
+                    iter(validation_loader)
+                score = _cached_validation_score(model, cached_validation_batches)
                 row["validation_si_sdri_db"] = score
                 if score > best + 1e-4:
                     best, best_step = score, step
